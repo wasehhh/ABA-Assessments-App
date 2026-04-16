@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+
+  /* Global Hide */
+  nav,
+  aside,
+  .fixed,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset Layout */
+  body,
+  #root,
+  main {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Specific Assessment Matrix Fixes */
+  .min-h-screen {
+    min-height: auto !important;
+  }
+
+  /* Ensure backgrounds print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Analysis Dashboard Specifics */
+  .grid {
+    display: block !important;
+  }
+
+  /* Cards become simple blocks */
+  .bg-white {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+  }
+
+  /* Typography */
+  h1,
+  h2,
+  h3 {
+    color: #000 !important;
+  }
+}

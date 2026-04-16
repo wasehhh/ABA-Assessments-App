@@ -1,0 +1,2548 @@
+{
+  "pack_id": "large_test_pack_json",
+  "title": "Large Test Pack (20x5) - JSON Import",
+  "description": "A large dataset for testing UI upload and rendering.",
+  "version": "1.0",
+  "domains": [
+    {
+      "domain_id": "D1",
+      "title": "Test Domain 1 - Long Title",
+      "description": "Description for domain 1. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D1-T1",
+          "title": "Target 1 for Domain 1",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D1-T2",
+          "title": "Target 2 for Domain 1",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D1-T3",
+          "title": "Target 3 for Domain 1",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D1-T4",
+          "title": "Target 4 for Domain 1",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D1-T5",
+          "title": "Target 5 for Domain 1",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D2",
+      "title": "Test Domain 2 - Long Title",
+      "description": "Description for domain 2. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D2-T1",
+          "title": "Target 1 for Domain 2",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D2-T2",
+          "title": "Target 2 for Domain 2",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D2-T3",
+          "title": "Target 3 for Domain 2",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D2-T4",
+          "title": "Target 4 for Domain 2",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D2-T5",
+          "title": "Target 5 for Domain 2",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D3",
+      "title": "Test Domain 3 - Long Title",
+      "description": "Description for domain 3. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D3-T1",
+          "title": "Target 1 for Domain 3",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D3-T2",
+          "title": "Target 2 for Domain 3",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D3-T3",
+          "title": "Target 3 for Domain 3",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D3-T4",
+          "title": "Target 4 for Domain 3",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D3-T5",
+          "title": "Target 5 for Domain 3",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D4",
+      "title": "Test Domain 4 - Long Title",
+      "description": "Description for domain 4. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D4-T1",
+          "title": "Target 1 for Domain 4",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D4-T2",
+          "title": "Target 2 for Domain 4",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D4-T3",
+          "title": "Target 3 for Domain 4",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D4-T4",
+          "title": "Target 4 for Domain 4",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D4-T5",
+          "title": "Target 5 for Domain 4",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D5",
+      "title": "Test Domain 5 - Long Title",
+      "description": "Description for domain 5. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D5-T1",
+          "title": "Target 1 for Domain 5",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D5-T2",
+          "title": "Target 2 for Domain 5",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D5-T3",
+          "title": "Target 3 for Domain 5",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D5-T4",
+          "title": "Target 4 for Domain 5",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D5-T5",
+          "title": "Target 5 for Domain 5",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D6",
+      "title": "Test Domain 6 - Long Title",
+      "description": "Description for domain 6. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D6-T1",
+          "title": "Target 1 for Domain 6",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D6-T2",
+          "title": "Target 2 for Domain 6",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D6-T3",
+          "title": "Target 3 for Domain 6",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D6-T4",
+          "title": "Target 4 for Domain 6",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D6-T5",
+          "title": "Target 5 for Domain 6",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D7",
+      "title": "Test Domain 7 - Long Title",
+      "description": "Description for domain 7. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D7-T1",
+          "title": "Target 1 for Domain 7",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D7-T2",
+          "title": "Target 2 for Domain 7",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D7-T3",
+          "title": "Target 3 for Domain 7",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D7-T4",
+          "title": "Target 4 for Domain 7",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D7-T5",
+          "title": "Target 5 for Domain 7",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D8",
+      "title": "Test Domain 8 - Long Title",
+      "description": "Description for domain 8. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D8-T1",
+          "title": "Target 1 for Domain 8",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D8-T2",
+          "title": "Target 2 for Domain 8",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D8-T3",
+          "title": "Target 3 for Domain 8",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D8-T4",
+          "title": "Target 4 for Domain 8",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D8-T5",
+          "title": "Target 5 for Domain 8",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D9",
+      "title": "Test Domain 9 - Long Title",
+      "description": "Description for domain 9. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D9-T1",
+          "title": "Target 1 for Domain 9",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D9-T2",
+          "title": "Target 2 for Domain 9",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D9-T3",
+          "title": "Target 3 for Domain 9",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D9-T4",
+          "title": "Target 4 for Domain 9",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D9-T5",
+          "title": "Target 5 for Domain 9",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D10",
+      "title": "Test Domain 10 - Long Title",
+      "description": "Description for domain 10. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D10-T1",
+          "title": "Target 1 for Domain 10",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D10-T2",
+          "title": "Target 2 for Domain 10",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D10-T3",
+          "title": "Target 3 for Domain 10",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D10-T4",
+          "title": "Target 4 for Domain 10",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D10-T5",
+          "title": "Target 5 for Domain 10",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D11",
+      "title": "Test Domain 11 - Long Title",
+      "description": "Description for domain 11. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D11-T1",
+          "title": "Target 1 for Domain 11",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D11-T2",
+          "title": "Target 2 for Domain 11",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D11-T3",
+          "title": "Target 3 for Domain 11",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D11-T4",
+          "title": "Target 4 for Domain 11",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D11-T5",
+          "title": "Target 5 for Domain 11",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D12",
+      "title": "Test Domain 12 - Long Title",
+      "description": "Description for domain 12. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D12-T1",
+          "title": "Target 1 for Domain 12",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D12-T2",
+          "title": "Target 2 for Domain 12",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D12-T3",
+          "title": "Target 3 for Domain 12",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D12-T4",
+          "title": "Target 4 for Domain 12",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D12-T5",
+          "title": "Target 5 for Domain 12",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D13",
+      "title": "Test Domain 13 - Long Title",
+      "description": "Description for domain 13. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D13-T1",
+          "title": "Target 1 for Domain 13",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D13-T2",
+          "title": "Target 2 for Domain 13",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D13-T3",
+          "title": "Target 3 for Domain 13",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D13-T4",
+          "title": "Target 4 for Domain 13",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D13-T5",
+          "title": "Target 5 for Domain 13",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D14",
+      "title": "Test Domain 14 - Long Title",
+      "description": "Description for domain 14. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D14-T1",
+          "title": "Target 1 for Domain 14",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D14-T2",
+          "title": "Target 2 for Domain 14",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D14-T3",
+          "title": "Target 3 for Domain 14",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D14-T4",
+          "title": "Target 4 for Domain 14",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D14-T5",
+          "title": "Target 5 for Domain 14",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D15",
+      "title": "Test Domain 15 - Long Title",
+      "description": "Description for domain 15. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D15-T1",
+          "title": "Target 1 for Domain 15",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D15-T2",
+          "title": "Target 2 for Domain 15",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D15-T3",
+          "title": "Target 3 for Domain 15",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D15-T4",
+          "title": "Target 4 for Domain 15",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D15-T5",
+          "title": "Target 5 for Domain 15",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D16",
+      "title": "Test Domain 16 - Long Title",
+      "description": "Description for domain 16. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D16-T1",
+          "title": "Target 1 for Domain 16",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D16-T2",
+          "title": "Target 2 for Domain 16",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D16-T3",
+          "title": "Target 3 for Domain 16",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D16-T4",
+          "title": "Target 4 for Domain 16",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D16-T5",
+          "title": "Target 5 for Domain 16",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D17",
+      "title": "Test Domain 17 - Long Title",
+      "description": "Description for domain 17. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D17-T1",
+          "title": "Target 1 for Domain 17",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D17-T2",
+          "title": "Target 2 for Domain 17",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D17-T3",
+          "title": "Target 3 for Domain 17",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D17-T4",
+          "title": "Target 4 for Domain 17",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D17-T5",
+          "title": "Target 5 for Domain 17",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D18",
+      "title": "Test Domain 18 - Long Title",
+      "description": "Description for domain 18. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D18-T1",
+          "title": "Target 1 for Domain 18",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D18-T2",
+          "title": "Target 2 for Domain 18",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D18-T3",
+          "title": "Target 3 for Domain 18",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D18-T4",
+          "title": "Target 4 for Domain 18",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D18-T5",
+          "title": "Target 5 for Domain 18",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D19",
+      "title": "Test Domain 19 - Long Title",
+      "description": "Description for domain 19. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D19-T1",
+          "title": "Target 1 for Domain 19",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D19-T2",
+          "title": "Target 2 for Domain 19",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D19-T3",
+          "title": "Target 3 for Domain 19",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D19-T4",
+          "title": "Target 4 for Domain 19",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D19-T5",
+          "title": "Target 5 for Domain 19",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "domain_id": "D20",
+      "title": "Test Domain 20 - Long Title",
+      "description": "Description for domain 20. Performance testing data.",
+      "targets": [
+        {
+          "target_id": "D20-T1",
+          "title": "Target 1 for Domain 20",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D20-T2",
+          "title": "Target 2 for Domain 20",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D20-T3",
+          "title": "Target 3 for Domain 20",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D20-T4",
+          "title": "Target 4 for Domain 20",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        },
+        {
+          "target_id": "D20-T5",
+          "title": "Target 5 for Domain 20",
+          "success_criteria": "80% accuracy",
+          "description": "Auto-generated target for testing",
+          "scoring": {
+            "type": "numeric",
+            "scale": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            "no_opportunity_allowed": true,
+            "scale_labels": {
+              "0": "No Response",
+              "1": "Physical Prompt",
+              "2": "Partial Prompt",
+              "3": "Verbal Prompt",
+              "4": "Independent"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

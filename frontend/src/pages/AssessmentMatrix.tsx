@@ -1,0 +1,588 @@
+
+import { useEffect, useState, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { assessmentService } from '../services/assessments';
+import { analyticsService } from '../services/analytics';
+import { clientService } from '../services/clients';
+import { exportUtils } from '../utils/exportUtils';
+import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2 } from 'lucide-react';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { auditService } from '../services/audit';
+import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
+import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
+import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
+
+interface Props {
+  assessmentId: string;
+}
+
+export function AssessmentMatrix({ assessmentId }: Props) {
+  const { user, profile } = useAuth();
+
+  // Data State
+  const [assessment, setAssessment] = useState<any>(null);
+  const [cycles, setCycles] = useState<any[]>([]);
+  const [currentCycle, setCurrentCycle] = useState<any>(null);
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null);
+  const [compareCycleId, setCompareCycleId] = useState<string | null>(null);
+  const [client, setClient] = useState<any>(null);
+  const [scores, setScores] = useState<any[]>([]);
+  const [previousScores, setPreviousScores] = useState<any[]>([]);
+
+  // UI State
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // View State (Replaces Legacy Grid Mode)
+  const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
+  const [activeTargetIndex, setActiveTargetIndex] = useState(0); // Kept for modal navigation if needed
+  const [showTargetInfo, setShowTargetInfo] = useState(false);
+  const [showConfirmCycle, setShowConfirmCycle] = useState(false);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [errorAlert, setErrorAlert] = useState<string | null>(null);
+
+  // Workflow State
+  const [unscoredCount, setUnscoredCount] = useState(0);
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Tab State (likely deprecated in new design but kept for header)
+  const [activeTab, setActiveTab] = useState<'scoring' | 'analysis'>('scoring');
+
+  // Computed Stats
+  const domainStats = useMemo(() => {
+    if (!assessment?.pack_snapshot || !scores.length) return [];
+    return analyticsService.calculateDomainStats(assessment.pack_snapshot, scores);
+  }, [assessment?.pack_snapshot, scores]);
+
+  const cycleStats = useMemo(() => {
+    return analyticsService.calculateCycleStats(domainStats);
+  }, [domainStats]);
+
+  const acquisitionList = useMemo(() => {
+    if (!assessment?.pack_snapshot || !scores.length) return [];
+    return analyticsService.calculateAcquisition(assessment.pack_snapshot, scores, previousScores);
+  }, [assessment?.pack_snapshot, scores, previousScores]);
+
+  // --- Effects ---
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowExportMenu(false);
+    document.addEventListener('click', handleClickOutside);
+
+    // Audit Log: View Assessment
+    if (profile?.org_id && user?.id) {
+      auditService.log({
+        org_id: profile.org_id,
+        user_id: user.id,
+        action: 'VIEW',
+        entity_type: 'assessment',
+        entity_id: assessmentId,
+        details: { source: 'matrix_load' }
+      });
+    }
+
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [assessmentId, profile?.org_id, user?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [assessmentId]);
+
+  // Load scores when cycle changes
+  useEffect(() => {
+    if (!selectedCycleId || !assessment) return;
+    loadCycleScores();
+  }, [selectedCycleId, compareCycleId, assessmentId]);
+
+  // --- Data Loading ---
+
+  const loadData = async () => {
+    try {
+      if (!assessmentId) return;
+      setLoading(true);
+      setError(null);
+
+      const [assessmentData, history] = await Promise.all([
+        assessmentService.getById(assessmentId),
+        assessmentService.getCycles(assessmentId)
+      ]);
+
+      if (assessmentData) {
+        setAssessment(assessmentData);
+        setScores(assessmentData.scores || []);
+        setCycles(history);
+
+        const active = history.find((c: any) => c.status === 'in_progress') || history[0];
+        setCurrentCycle(active);
+        setSelectedCycleId(active?.id);
+
+        if (assessmentData.client_id && !assessmentData.client) {
+          const clientData = await clientService.getById(assessmentData.client_id);
+          setClient(clientData);
+        } else if (assessmentData.client) {
+          setClient(assessmentData.client);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error loading assessment:', err);
+      setError(err.message || 'Failed to load assessment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadCycleScores = async () => {
+    try {
+      if (!selectedCycleId) return;
+      const cycleScores = await assessmentService.getScores(assessmentId, selectedCycleId);
+      setScores(cycleScores);
+
+      // Comparison Logic
+      let targetCompareId = compareCycleId;
+      if (!targetCompareId || targetCompareId === selectedCycleId) {
+        // Default to previous cycle
+        const sortedCycles = [...cycles].sort((a, b) => b.cycle_number - a.cycle_number);
+        const currentIndex = sortedCycles.findIndex(c => c.id === selectedCycleId);
+        const prevCycle = sortedCycles[currentIndex + 1];
+        if (prevCycle) targetCompareId = prevCycle.id;
+      }
+
+      if (targetCompareId) {
+        const ghosts = await assessmentService.getScores(assessmentId, targetCompareId);
+        setPreviousScores(ghosts);
+      } else {
+        setPreviousScores([]);
+      }
+    } catch (error) {
+      console.error('Error loading cycle scores:', error);
+    }
+  };
+
+  // --- Handlers ---
+
+  const handleStartNewCycle = () => {
+    if (!profile?.org_id || !user?.id) return;
+    setShowConfirmCycle(true);
+  };
+
+  const executeStartNewCycle = async () => {
+    if (!profile?.org_id || !user?.id) return;
+    try {
+      setLoading(true);
+      await assessmentService.startNewCycle(assessmentId, profile.org_id, user.id);
+      window.location.reload();
+    } catch (err: any) {
+      setErrorAlert('Failed to start new cycle: ' + err.message);
+      setLoading(false);
+      setShowConfirmCycle(false);
+    }
+  };
+
+  const handleSelectDomain = (domainId: string) => {
+    setActiveDomainId(domainId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToOverview = () => {
+    setActiveDomainId(null);
+  };
+
+  const handleViewDetail = (targetId: string) => {
+    if (!assessment || !activeDomainId) return;
+    const domain = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId);
+    const index = domain.targets.findIndex((t: any) => t.target_id === targetId);
+    if (index >= 0) {
+      setActiveTargetIndex(index);
+      setShowTargetInfo(true);
+    }
+  };
+
+  const handleScoreUpdate = async (targetId: string, val: number) => {
+    await updateScore(targetId, val, null);
+  };
+
+  const updateScore = async (targetId: string, val: number | null, note: string | null) => {
+    if (!user?.id || !profile?.org_id) return;
+
+    // Determine if locked
+    const viewingCycle = cycles.find(c => c.id === selectedCycleId);
+    const isLocked = profile?.role === 'viewer' ||
+      (viewingCycle ? viewingCycle.status !== 'in_progress' : false) ||
+      assessment.status === 'approved';
+
+    if (isLocked) return;
+
+    // Optimistic Update
+    const newScores = [...scores];
+    const index = newScores.findIndex(s => s.target_id === targetId);
+    let previousVal: any = null;
+
+    if (index >= 0) {
+      previousVal = newScores[index].score;
+      // Toggle off if clicking same value
+      const newVal = (newScores[index].score === val && val !== null) ? null : val;
+
+      newScores[index] = {
+        ...newScores[index],
+        score: newVal,
+        note: note !== null ? note : newScores[index].note,
+        updated_at: new Date().toISOString(),
+        assessor_user_id: user.id
+      };
+    } else {
+      // If not in scores array yet is rare but safely handle
+      newScores.push({
+        target_id: targetId,
+        score: val,
+        domain_id: activeDomainId, // approximate
+        updated_at: new Date().toISOString(),
+        assessor_user_id: user.id
+      });
+    }
+
+    setScores(newScores);
+    setSaveStatus('saving');
+
+    try {
+      // find the ID again as it might be new? actually for MVP assumes all initialized
+      const scoreRecord = newScores.find(s => s.target_id === targetId);
+      if (scoreRecord && scoreRecord.id) {
+        await assessmentService.updateScore(scoreRecord.id, scoreRecord.score, scoreRecord.note, user.id, profile.org_id);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('error');
+      // Revert could happen here
+    }
+  };
+
+  const handleNavigateDomain = (direction: 'next' | 'prev') => {
+    if (!assessment?.pack_snapshot?.domains || !activeDomainId) return;
+
+    const domains = assessment.pack_snapshot.domains;
+    const currentIndex = domains.findIndex((d: any) => d.domain_id === activeDomainId);
+
+    if (currentIndex === -1) return;
+
+    let nextIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+
+    // Bounds check
+    if (nextIndex >= 0 && nextIndex < domains.length) {
+      setActiveDomainId(domains[nextIndex].domain_id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const getDomainIndex = () => {
+    if (!assessment?.pack_snapshot?.domains || !activeDomainId) return -1;
+    return assessment.pack_snapshot.domains.findIndex((d: any) => d.domain_id === activeDomainId);
+  };
+
+  const domainIndex = getDomainIndex();
+  const isFirstDomain = domainIndex === 0;
+  const isLastDomain = assessment?.pack_snapshot?.domains ? domainIndex === assessment.pack_snapshot.domains.length - 1 : false;
+
+  const handleSubmit = async () => {
+    if (isLocked || isSubmitting) return;
+
+    // Calculate unscored count
+    let total = 0;
+    let scored = 0;
+    if (assessment?.pack_snapshot?.domains) {
+      assessment.pack_snapshot.domains.forEach((d: any) => {
+        d.targets.forEach((t: any) => {
+          total++;
+          const s = scores.find(sc => sc.target_id === t.target_id);
+          if (s && s.score !== null) scored++;
+        });
+      });
+    }
+    setUnscoredCount(total - scored);
+    setShowSubmitConfirm(true);
+  };
+
+  const handleApprove = () => {
+    setShowApproveConfirm(true);
+  };
+
+  const executeApprove = async () => {
+    if (!profile?.org_id || !user?.id) return;
+    try {
+      await assessmentService.finalize(assessmentId, profile.org_id, user.id);
+      setAssessment({ ...assessment, status: 'approved' });
+      setShowApproveConfirm(false);
+      // Reload to update lock state properly
+      window.location.reload();
+    } catch (err: any) {
+      setErrorAlert('Failed to finalize assessment: ' + err.message);
+      setShowApproveConfirm(false);
+    }
+  };
+
+  // --- Render ---
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+    </div>
+  );
+
+  if (error || !assessment) return (
+    <div className="flex items-center justify-center min-h-screen text-red-600">
+      {error || 'Assessment not found'}
+    </div>
+  );
+
+  // Determine lock state:
+  // 1. If currently viewing a cycle, use its status
+  // 2. Fallback to assessment Global status
+  const viewingCycle = cycles.find(c => c.id === selectedCycleId);
+  const isCycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
+  const isLocked = isCycleLocked || assessment.status === 'approved' || assessment.status === 'submitted';
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-16 flex items-center justify-between gap-4">
+            {/* Left: Title & Nav */}
+            <div className="flex items-center gap-4 min-w-0">
+              <button
+                onClick={() => window.location.hash = '#/assessments'}
+                className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold text-gray-900 truncate flex items-center gap-2">
+                  {client?.first_name} {client?.last_name}
+                  <span className="hidden sm:inline-block text-gray-300">|</span>
+                  <span className="hidden sm:inline-block font-normal text-gray-600">{assessment.pack_snapshot.title}</span>
+                </h1>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
+                    <Calendar className="w-3 h-3" />
+                    Cycle {currentCycle?.cycle_number}
+                  </span>
+                  {saveStatus === 'saving' && <span className="text-blue-600 font-medium animate-pulse">Saving...</span>}
+                  {saveStatus === 'saved' && <span className="text-green-600 font-medium flex items-center gap-0.5"><CheckCircle className="w-3 h-3" /> Saved</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2">
+              {/* Compare Mode */}
+              <div className="hidden md:flex items-center gap-2 mr-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase">Compare:</span>
+                <select
+                  value={compareCycleId || ''}
+                  onChange={(e) => setCompareCycleId(e.target.value === '' ? null : e.target.value)}
+                  className="text-xs border-gray-300 rounded focus:ring-emerald-500 py-1"
+                >
+                  <option value="">None</option>
+                  {cycles.filter(c => c.id !== currentCycle?.id).map(cycle => (
+                    <option key={cycle.id} value={cycle.id}>Cycle {cycle.cycle_number}</option>
+                  ))}
+                </select>
+              </div>
+
+              {(!isLocked && (assessment.status === 'in_progress' || assessment.status === 'draft')) && (
+                <button
+                  onClick={handleSubmit}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  Submit
+                </button>
+              )}
+
+              {assessment.status === 'submitted' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                <button
+                  onClick={handleApprove}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Approve
+                </button>
+              )}
+
+              {['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                <button
+                  onClick={handleStartNewCycle}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-sm font-medium transition-colors border border-emerald-200"
+                >
+                  <Activity className="w-4 h-4" />
+                  New Cycle
+                </button>
+              )}
+
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowExportMenu(!showExportMenu); }}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <button
+                      onClick={() => {
+                        window.open(`#/assessment/${assessmentId}/report`, '_blank');
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50 hover:text-emerald-600 border-b border-gray-100"
+                    >
+                      View Printable Report
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportUtils.generateCSV(assessment, scores, { format: 'matrix' });
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600"
+                    >
+                      Export Summary (CSV)
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportUtils.generateCSV(assessment, scores, { format: 'long' });
+                        setShowExportMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600"
+                    >
+                      Export Detailed (CSV)
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {errorAlert && (
+          <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 flex items-center justify-between">
+            <span>{errorAlert}</span>
+            <button onClick={() => setErrorAlert(null)} className="text-red-500 hover:text-red-700">Dismiss</button>
+          </div>
+        )}
+
+        {!activeDomainId ? (
+          /* LAYER 1: OVERVIEW */
+          <AssessmentOverview
+            domainStats={domainStats}
+            cycleStats={cycleStats}
+            acquisitionCount={acquisitionList.length}
+            onSelectDomain={handleSelectDomain}
+          />
+        ) : (
+          /* LAYER 2: SCOREBOARD */
+          <DomainScoreboard
+            domainId={activeDomainId}
+            domainTitle={domainStats.find(d => d.domainId === activeDomainId)?.title || ''}
+            targets={assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId)?.targets || []}
+            scores={scores}
+            previousScores={previousScores}
+            onScoreUpdate={handleScoreUpdate}
+            onViewDetail={handleViewDetail}
+            onBack={handleBackToOverview}
+
+            // New Navigation Props
+            onNavigateDomain={handleNavigateDomain}
+            isFirstDomain={isFirstDomain}
+            isLastDomain={isLastDomain}
+            onSubmit={handleSubmit}
+          />
+        )}
+      </main>
+
+      {/* LAYER 3: DETAIL MODAL */}
+      {showTargetInfo && activeDomainId && (
+        <TargetDetailModal
+          target={assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex]}
+          scores={scores.filter(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id)}
+          currentScore={scores.find(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id) || null}
+          onClose={() => setShowTargetInfo(false)}
+          onSaveNote={(note) => {
+            const targetId = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id;
+            const current = scores.find(s => s.target_id === targetId);
+            updateScore(targetId, current?.score || null, note);
+          }}
+        />
+      )}
+
+      {/* Legacy/New Modals */}
+      <ConfirmDialog
+        isOpen={showConfirmCycle}
+        title="Start New Assessment Cycle"
+        message="This will archive the current scores and start a fresh cycle. Previous data will be preserved for specific comparison. Are you sure?"
+        confirmText="Start Cycle"
+        onConfirm={executeStartNewCycle}
+        onCancel={() => setShowConfirmCycle(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showSubmitConfirm}
+        title="Submit Assessment"
+        message={unscoredCount > 0
+          ? `Warning: You have ${unscoredCount} unscored targets. Submitting will lock this cycle. Are you sure you want to proceed?`
+          : "Are you sure you want to submit this assessment? This will lock the cycle for review."}
+        confirmText="Submit Anyway"
+        onConfirm={async () => {
+          if (!profile?.org_id || !user?.id) return;
+          try {
+            setIsSubmitting(true);
+            await assessmentService.submit(assessmentId, profile.org_id, user.id);
+            setAssessment({ ...assessment, status: 'submitted' });
+            setShowSubmitConfirm(false);
+            setShowSuccessModal(true);
+          } catch (err: any) {
+            setErrorAlert('Submission failed: ' + err.message);
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+        onCancel={() => setShowSubmitConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showApproveConfirm}
+        title="Approve Assessment"
+        message="Are you sure you want to approve this assessment? This will finalize the results and allow a new cycle to begin."
+        confirmText="Approve & Finalize"
+        confirmationKeyword="APPROVE"
+        onConfirm={executeApprove}
+        onCancel={() => setShowApproveConfirm(false)}
+      />
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Assessment Submitted!</h3>
+            <p className="text-gray-600 mb-6">Great work! The assessment has been successfully submitted and is ready for review.</p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

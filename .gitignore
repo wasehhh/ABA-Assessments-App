@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+*.db
+*.sqlite3
+
+# Node / Next.js / Vite
+node_modules/
+.next/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+*.env
+.env.local
+.env.development
+.env.production
+
+# macOS system files
+.DS_Store
+
+# Supabase / Local artifacts
+supabase/.temp/
+supabase/volumes/
+
+# Output / generated files
+output/
+*.xlsx
+
+# Bolt or Antigravity cache
+.editor/
+**/.cache/
+.agent/
+.gemini/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Documentation - Workflow Internal
+# (Exclude agent missions and reports if not intended for public repo)
+# docs/missions/
+# docs/reports/
+# docs/qa/
+
+# Testing
+coverage/
+
+# OS Files
+.DS_Store
+Thumbs.db

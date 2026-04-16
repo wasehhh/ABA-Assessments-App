@@ -1,0 +1,32 @@
+{
+  "title": "Delete Me Pack",
+  "description": "For testing purposes",
+  "version": "1.0",
+  "domains": [
+    {
+      "domain_id": "d1",
+      "name": "Dummy Domain",
+      "targets": [
+        {
+          "target_id": "t1",
+          "name": "Dummy Target",
+          "description": "Test",
+          "materials": "None",
+          "success_criteria": "Correct"
+        }
+      ]
+    }
+  ],
+  "scoring_criteria": {
+    "global_scale": [
+      {
+        "value": 0,
+        "description": "Incorrect"
+      },
+      {
+        "value": 1,
+        "description": "Correct"
+      }
+    ]
+  }
+}
