@@ -1,5 +1,5 @@
 
-import { X, Clock, User, FileText, Check } from 'lucide-react';
+import { X, Clock, FileText, Check } from 'lucide-react';
 import { Target, AssessmentScore } from '../../types';
 
 interface Props {
@@ -8,11 +8,16 @@ interface Props {
     currentScore: AssessmentScore | null;
     onClose: () => void;
     onSaveNote: (note: string) => void;
+    /** When true, notes cannot be edited (view-only / locked workflow). */
+    notesReadOnly?: boolean;
 }
 
-export function TargetDetailModal({ target, scores, currentScore, onClose, onSaveNote }: Props) {
-    // Mock history if only current scores are passed - in real app, we'd fetch cycle history
-    // For MVP, we likely just show Current Score contextualized
+export function TargetDetailModal({ target, scores, currentScore, onClose, onSaveNote, notesReadOnly = false }: Props) {
+    const instructionsText =
+        typeof target.instructions === 'string' ? target.instructions.trim() : '';
+    const examplesText = typeof target.examples === 'string' ? target.examples.trim() : '';
+    const showInstructions = instructionsText.length > 0;
+    const showExamples = examplesText.length > 0;
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -45,6 +50,20 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                         </div>
                     </div>
 
+                    {showInstructions && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Instructions</h4>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{instructionsText}</p>
+                        </div>
+                    )}
+
+                    {showExamples && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Examples</h4>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{examplesText}</p>
+                        </div>
+                    )}
+
                     {/* Current Status */}
                     <div className="border border-emerald-100 bg-emerald-50 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-2">
@@ -65,14 +84,6 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                         </div>
                     </div>
 
-                    {/* Instructions */}
-                    {target.instructions && (
-                        <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Instructions</h4>
-                            <p className="text-sm text-gray-600 leading-relaxed max-w-none">{target.instructions}</p>
-                        </div>
-                    )}
-
                     {/* Notes Section */}
                     <div>
                         <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
@@ -80,14 +91,17 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                             Clinical Notes
                         </h4>
                         <textarea
-                            className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-500"
+                            readOnly={notesReadOnly}
+                            className={`w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-500 ${notesReadOnly ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                             rows={4}
                             placeholder="Enter observation notes, prompts used, or maladaptive behaviors..."
                             defaultValue={currentScore?.note || ''}
-                            onBlur={(e) => onSaveNote(e.target.value)}
+                            onBlur={(e) => {
+                                if (!notesReadOnly) onSaveNote(e.target.value);
+                            }}
                         />
                         <p className="text-xs text-gray-400 mt-2 text-right">
-                            Notes saved automatically when you click outside.
+                            {notesReadOnly ? 'Notes are read-only for this assessment state.' : 'Notes saved automatically when you click outside.'}
                         </p>
                     </div>
 

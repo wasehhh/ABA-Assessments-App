@@ -18,6 +18,7 @@ export function Clients() {
   const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -27,8 +28,8 @@ export function Clients() {
         user_id: user.id,
         action: 'VIEW',
         entity_type: 'client',
-        entity_id: 'list',
-        details: { filter: statusFilter }
+        entity_id: null,
+        details: { scope: 'client_list', filter: statusFilter },
       });
     }
   }, [profile?.org_id, statusFilter]);
@@ -48,6 +49,7 @@ export function Clients() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile?.org_id || !user?.id) return;
+    setSaveError(null);
     try {
       if (editingId) {
         await clientService.update(editingId, {
@@ -61,9 +63,16 @@ export function Clients() {
       }
       setForm({ firstName: '', lastName: '', dateOfBirth: '' });
       setShowForm(false);
+      setSaveError(null);
       loadClients();
     } catch (err) {
       console.error('Error saving client:', err);
+      const detail = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setSaveError(
+        editingId
+          ? `The client was not updated. ${detail} Please try again.`
+          : `The client was not created. ${detail} Please check the information and try again.`
+      );
     }
   };
 
@@ -73,6 +82,7 @@ export function Clients() {
       lastName: client.last_name,
       dateOfBirth: client.date_of_birth ? new Date(client.date_of_birth).toISOString().split('T')[0] : ''
     });
+    setSaveError(null);
     setEditingId(client.id);
     setShowForm(true);
   };
@@ -134,6 +144,7 @@ export function Clients() {
               onClick={() => {
                 setEditingId(null);
                 setForm({ firstName: '', lastName: '', dateOfBirth: '' });
+                setSaveError(null);
                 setShowForm(!showForm);
               }}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
@@ -145,11 +156,33 @@ export function Clients() {
         </div>
       </div>
 
+      {saveError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start justify-between gap-4">
+          <span>{saveError}</span>
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            className="shrink-0 font-medium text-red-700 hover:text-red-900 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4 border-2 border-emerald-100">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-semibold text-lg">{editingId ? 'Edit Client' : 'New Client'}</h3>
-            <button type="button" onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setSaveError(null);
+              }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -186,7 +219,10 @@ export function Clients() {
           <div className="flex gap-2 justify-end">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                setSaveError(null);
+              }}
               className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg"
             >
               Cancel

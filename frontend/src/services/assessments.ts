@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Assessment, AssessmentScore, ContentPackData } from '../types';
 import { auditService } from './audit';
+import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
 
 export const assessmentService = {
   async create(
@@ -289,15 +290,15 @@ export const assessmentService = {
 
     if (scoresError) throw scoresError;
 
-    // Audit Log
-    await supabase.from('audit_logs').insert([{
+    await auditService.log({
       org_id: orgId,
       user_id: userId,
       action: 'CYCLE_START',
       entity_type: 'assessment_cycle',
       entity_id: newCycle.id,
+      details: { cycle: nextNum },
       new_data: { cycle: nextNum },
-    }]);
+    });
 
     return newCycle;
   },
@@ -310,6 +311,32 @@ export const assessmentService = {
     orgId: string,
     metadata?: any
   ) {
+    const { data: scoreRow, error: scoreRowError } = await supabase
+      .from('assessment_scores')
+      .select('assessment_id, assessment_cycle_id')
+      .eq('id', scoreId)
+      .single();
+
+    if (scoreRowError) throw scoreRowError;
+    if (!scoreRow?.assessment_cycle_id) {
+      throw new Error('Score is not linked to an active cycle; updates are not allowed.');
+    }
+
+    const [aRes, cRes, pRes] = await Promise.all([
+      supabase.from('assessments').select('status').eq('id', scoreRow.assessment_id).single(),
+      supabase.from('assessment_cycles').select('status').eq('id', scoreRow.assessment_cycle_id).single(),
+      supabase.from('user_profiles').select('role').eq('id', assessorId).single(),
+    ]);
+
+    if (aRes.error) throw aRes.error;
+    if (cRes.error) throw cRes.error;
+    if (pRes.error) throw pRes.error;
+
+    const role = pRes.data?.role as string | undefined;
+    if (!canEditAssessmentScores(role, aRes.data?.status, cRes.data?.status)) {
+      throw new Error('Score updates are not allowed for this assessment state or your role.');
+    }
+
     // Defensive: Clamp score to standard range if numeric
     // This is a safety net. The UI should match target specifics.
     let finalScore = score;
@@ -337,9 +364,9 @@ export const assessmentService = {
         org_id: orgId,
         user_id: assessorId,
         action: 'UPDATE',
-        entity_type: 'assessment', // 'score' is not a valid top-level entity type in audit schema
-        entity_id: scoreId, // This is technically the score ID, but we track it under assessment entity bucket
-        details: { score, note, type: 'score_update' }
+        entity_type: 'assessment_score',
+        entity_id: scoreId,
+        details: { score, note, type: 'score_update' },
       });
     }
 
@@ -369,14 +396,15 @@ export const assessmentService = {
       .single();
     if (error) throw error;
 
-    await supabase.from('audit_logs').insert([{
+    await auditService.log({
       org_id: orgId,
       user_id: userId,
       action: 'UPDATE',
       entity_type: 'assessment',
       entity_id: assessmentId,
+      details: { status: 'submitted' },
       new_data: { status: 'submitted' },
-    }]);
+    });
 
     // TODO: Lock current cycle?
     return data as Assessment;
@@ -395,14 +423,15 @@ export const assessmentService = {
       .single();
     if (error) throw error;
 
-    await supabase.from('audit_logs').insert([{
+    await auditService.log({
       org_id: orgId,
       user_id: userId,
       action: 'APPROVE',
       entity_type: 'assessment',
       entity_id: assessmentId,
+      details: { status: 'approved' },
       new_data: { status: 'approved' },
-    }]);
+    });
 
     // Lock cycle
     await supabase.from('assessment_cycles')
@@ -422,14 +451,15 @@ export const assessmentService = {
 
     if (error) throw error;
 
-    await supabase.from('audit_logs').insert([{
+    await auditService.log({
       org_id: orgId,
       user_id: userId,
       action: 'DELETE',
       entity_type: 'assessment',
       entity_id: assessmentId,
-      old_data: { status: 'deleted' }
-    }]);
+      details: { status: 'deleted' },
+      old_data: { status: 'deleted' },
+    });
   },
 
   async exportToCSV(assessmentId: string, format: 'long' | 'matrix' = 'matrix') {

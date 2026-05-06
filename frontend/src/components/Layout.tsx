@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function Layout({ children }: Props) {
-  const { profile, signOut, debugSetRole } = useAuth();
+  const { profile, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
@@ -75,23 +75,6 @@ export function Layout({ children }: Props) {
                     {profile?.role?.replace('_', ' ')}
                   </span>
                 </button>
-                {/* Debug select logic removed for clean link wrap, moved debug select below if needed or just remove it for this view.
-                    It was: if profile email is waseh... show select. 
-                    Let's keep the debug select separately so it doesn't break the layout. 
-                 */}
-                {profile?.email === 'waseh.niazi@gmail.com' && (
-                  <select
-                    value={profile?.role}
-                    onChange={(e) => debugSetRole(e.target.value)}
-                    className="text-xs text-gray-500 capitalize bg-transparent border-none p-0 cursor-pointer focus:ring-0 text-right block ml-auto mt-0.5"
-                    title="Debug: Switch Role"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="senior_therapist">Senior Therapist</option>
-                    <option value="therapist">Therapist</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
-                )}
               </div>
               <button
                 onClick={() => window.location.hash = '#/settings'}
@@ -159,13 +142,17 @@ export function Layout({ children }: Props) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
           <p className="mb-2">&copy; {new Date().getFullYear()} Evalis. All rights reserved.</p>
           <div className="flex justify-center gap-4">
-            <button className="hover:text-emerald-600">Privacy Policy</button>
+            <a href="#/privacy" className="hover:text-emerald-600">
+              Privacy Policy
+            </a>
             <span className="text-gray-300">|</span>
-            <button className="hover:text-emerald-600">Terms of Service</button>
+            <a href="#/terms" className="hover:text-emerald-600">
+              Terms of Service
+            </a>
             <span className="text-gray-300">|</span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-              PHIPA Compliant
+              Designed with PHIPA considerations
             </span>
           </div>
         </div>

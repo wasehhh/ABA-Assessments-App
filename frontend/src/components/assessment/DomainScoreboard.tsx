@@ -18,6 +18,10 @@ interface Props {
     isFirstDomain: boolean;
     isLastDomain: boolean;
     onSubmit: () => void;
+    /** When false, score controls are disabled (role + assessment/cycle state). */
+    scoresEditable?: boolean;
+    /** Footer “Submit Assessment” only when user may still submit (pre–submitted active assessment). */
+    showFooterSubmit?: boolean;
 }
 
 export function DomainScoreboard({
@@ -31,7 +35,9 @@ export function DomainScoreboard({
     onNavigateDomain,
     isFirstDomain,
     isLastDomain,
-    onSubmit
+    onSubmit,
+    scoresEditable = true,
+    showFooterSubmit = true,
 }: Props) {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'unscored' | 'mastered'>('all');
@@ -136,6 +142,8 @@ export function DomainScoreboard({
                                                 // Yes/No Controls (0 or 1)
                                                 <>
                                                     <button
+                                                        type="button"
+                                                        disabled={!scoresEditable}
                                                         onClick={() => onScoreUpdate(target.target_id, 0)}
                                                         className={`
                                                             px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
@@ -143,11 +151,14 @@ export function DomainScoreboard({
                                                                 ? 'bg-gray-600 text-white border-gray-600 shadow-sm'
                                                                 : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                                                             }
+                                                            ${!scoresEditable ? 'opacity-50 cursor-not-allowed' : ''}
                                                         `}
                                                     >
                                                         No
                                                     </button>
                                                     <button
+                                                        type="button"
+                                                        disabled={!scoresEditable}
                                                         onClick={() => onScoreUpdate(target.target_id, 1)}
                                                         className={`
                                                             px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
@@ -155,6 +166,7 @@ export function DomainScoreboard({
                                                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                                                                 : 'bg-white border-gray-200 text-gray-600 hover:bg-emerald-50 hover:border-emerald-200'
                                                             }
+                                                            ${!scoresEditable ? 'opacity-50 cursor-not-allowed' : ''}
                                                         `}
                                                     >
                                                         Yes
@@ -169,7 +181,9 @@ export function DomainScoreboard({
 
                                                     return scale.map(val => (
                                                         <button
+                                                            type="button"
                                                             key={val}
+                                                            disabled={!scoresEditable}
                                                             onClick={() => onScoreUpdate(target.target_id, val)}
                                                             className={`
                                                                 w-8 h-8 rounded-lg text-sm font-medium transition-all
@@ -177,6 +191,7 @@ export function DomainScoreboard({
                                                                     ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-200'
                                                                     : 'bg-white border border-gray-200 text-gray-600 hover:border-emerald-400'
                                                                 }
+                                                                ${!scoresEditable ? 'opacity-50 cursor-not-allowed hover:border-gray-200' : ''}
                                                             `}
                                                         >
                                                             {val}
@@ -223,8 +238,14 @@ export function DomainScoreboard({
 
                     {isLastDomain ? (
                         <button
+                            type="button"
                             onClick={onSubmit}
-                            className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-sm transition-all"
+                            disabled={!showFooterSubmit}
+                            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold shadow-sm transition-all ${
+                                showFooterSubmit
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            }`}
                         >
                             Submit <span className="hidden sm:inline">Assessment</span>
                             <CheckCircle className="w-4 h-4" />

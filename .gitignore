@@ -47,9 +47,10 @@ output/
 
 # Project Documentation - Workflow Internal
 # (Exclude agent missions and reports if not intended for public repo)
-# docs/missions/
-# docs/reports/
-# docs/qa/
+docs/missions/
+docs/reports/
+docs/qa/
+ABA_Project_Audit_MVP.md
 
 # Testing
 coverage/

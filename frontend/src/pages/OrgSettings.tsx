@@ -46,9 +46,9 @@ export function OrgSettings() {
                 org_id: profile!.org_id,
                 user_id: user!.id,
                 action: 'UPDATE',
-                entity_type: 'user', // Technically org, but we can reuse types or assume org context
+                entity_type: 'organization',
                 entity_id: profile!.org_id,
-                details: { change: 'Updated Organization Name', new_name: name }
+                details: { change: 'Updated Organization Name', new_name: name },
             });
 
             setMessage({ type: 'success', text: 'Organization settings saved successfully.' });

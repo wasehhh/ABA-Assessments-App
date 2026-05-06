@@ -13,15 +13,21 @@
     display: none !important;
   }
 
-  /* Reset Layout */
+  /* Reset Layout — avoid clipped/blank print when root chain keeps viewport sizing */
+  html {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   body,
   #root,
   main {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: auto;
-    overflow: visible;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* Specific Assessment Matrix Fixes */
@@ -29,8 +35,12 @@
     min-height: auto !important;
   }
 
-  /* Ensure backgrounds print */
-  * {
+  /*
+   * Avoid universal * selector here: it forces print-color-adjust on every node (slow + fragile in Chrome).
+   * Apply to the canvas instead.
+   */
+  body {
+    background: #fff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -40,12 +50,31 @@
     display: block !important;
   }
 
+  /* Keep CSS grid for long assessment report so rows/columns don’t collapse oddly in print */
+  .assessment-report-print .grid {
+    display: grid !important;
+  }
+
   /* Cards become simple blocks */
   .bg-white {
     box-shadow: none !important;
     border: 1px solid #eee !important;
     margin-bottom: 20px;
     page-break-inside: avoid;
+  }
+
+  /* Long printable report: paginate; nested .bg-white cards must not forbid breaks across many pages */
+  .assessment-report-print,
+  .assessment-report-print .bg-white {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .assessment-report-print {
+    color: #000 !important;
+    background: #fff !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   /* Typography */

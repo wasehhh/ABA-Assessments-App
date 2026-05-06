@@ -4,6 +4,7 @@ import { assessmentService } from '../services/assessments';
 import { clientService } from '../services/clients';
 import { ArrowLeft, Calendar, FileText, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
 import { Assessment, Client } from '../types';
 
 interface Props {
@@ -91,7 +92,7 @@ export function ClientDetail({ clientId }: Props) {
             )}
           </div>
           <button
-            onClick={() => window.location.hash = `#/create-assessment?client=${clientId}`}
+            onClick={() => window.location.hash = `#/assessments?client=${clientId}`}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
           >
             <Plus className="w-5 h-5" />
@@ -133,7 +134,7 @@ export function ClientDetail({ clientId }: Props) {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
-                          {assessment.status.replace('_', ' ')}
+                          {formatAssessmentStatusLabel(assessment.status)}
                         </span>
                         <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
                       </div>

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { auditService } from './audit';
 import { ContentPack, ContentPackData } from '../types';
 
 export const packService = {
@@ -23,14 +24,15 @@ export const packService = {
       .single();
     if (error) throw error;
 
-    await supabase.from('audit_logs').insert([{
+    await auditService.log({
       org_id: orgId,
       user_id: uploaderId,
       action: 'CREATE',
       entity_type: 'content_pack',
       entity_id: data.id,
+      details: { title, version: packData.version },
       new_data: { title, version: packData.version },
-    }]);
+    });
 
     return data as ContentPack;
   },

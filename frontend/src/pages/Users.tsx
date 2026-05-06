@@ -49,14 +49,16 @@ export function Users() {
 
         try {
             await userService.inviteUser(inviteEmail, inviteRole, profile.org_id, user.id);
-            setSuccessMsg(`Invitation sent to ${inviteEmail}`);
+            setSuccessMsg(
+                `Invite created for ${inviteEmail}. Copy the invite link or use Email to send it manually.`
+            );
             setInviteEmail('');
             setInviteRole('therapist');
             setShowInviteForm(false);
             loadUsers(); // Reload to show new invite
         } catch (err: any) {
             console.error('Invite error:', err);
-            setError(err.message || 'Failed to send invitation');
+            setError(err.message || 'Could not create invite');
         } finally {
             setSending(false);
         }
@@ -159,7 +161,7 @@ export function Users() {
                                     disabled={sending}
                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
                                 >
-                                    {sending ? 'Sending...' : 'Send Invitation'}
+                                    {sending ? 'Creating...' : 'Create Invite'}
                                 </button>
                             </div>
                         </form>
@@ -257,7 +259,7 @@ export function Users() {
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sent At</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="px-6 py-3 relative"><span className="sr-only">Actions</span></th>
                                 </tr>

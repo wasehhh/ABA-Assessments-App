@@ -13,6 +13,8 @@ import { AssessmentReport } from './pages/AssessmentReport';
 import { Settings } from './pages/Settings';
 import { AuditLog } from './pages/AuditLog';
 import { OrgSettings } from './pages/OrgSettings';
+import { Privacy } from './pages/Privacy';
+import { Terms } from './pages/Terms';
 
 function AppRouter() {
   const { user, loading, error } = useAuth();
@@ -111,6 +113,10 @@ function AppRouter() {
         return <Users />;
       case '#/settings':
         return <Settings />;
+      case '#/privacy':
+        return <Privacy />;
+      case '#/terms':
+        return <Terms />;
       case '#/org-settings':
         return <OrgSettings />;
       case '#/audit-log':

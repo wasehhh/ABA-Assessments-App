@@ -218,7 +218,7 @@ export function Login() {
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
               <strong>Confidential System:</strong> This application contains Personal Health Information (PHI).
-              Access is monitored and restricted to authorized personnel in compliance with PHIPA/PIPEDA.
+              Authorized access only. Designed with privacy and PHIPA/PIPEDA considerations in mind.
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { orgService } from '../../services/orgs';
 import { User, Building, Shield, Mail } from 'lucide-react';
 
 export function ProfileForm() {
@@ -8,12 +9,34 @@ export function ProfileForm() {
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [orgName, setOrgName] = useState<string | null>(null);
 
     useEffect(() => {
         if (profile?.full_name) {
             setFullName(profile.full_name);
         }
     }, [profile]);
+
+    useEffect(() => {
+        if (!profile?.org_id) {
+            setOrgName('');
+            return;
+        }
+        let cancelled = false;
+        setOrgName(null);
+        orgService
+            .getById(profile.org_id)
+            .then((org) => {
+                if (!cancelled) setOrgName(org.name || '—');
+            })
+            .catch((err) => {
+                console.error('Failed to load organization:', err);
+                if (!cancelled) setOrgName('—');
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [profile?.org_id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -103,18 +126,15 @@ export function ProfileForm() {
                         <div>
                             <label className="block text-sm font-medium text-gray-700">Organization</label>
                             <div className="mt-1 flex items-center">
-                                <Building className="h-4 w-4 text-gray-400 mr-2" />
+                                <Building className="h-4 w-4 text-gray-400 mr-2 shrink-0" aria-hidden />
                                 <span className="text-sm text-gray-900 bg-gray-100 px-2 py-1 rounded">
-                                    {/* Fetching Org Name would require a join or separate fetch. 
-                       For MVP, if we don't have org name in profile, we might show ID or Loading... 
-                       Actually, the profile usually has org_id. We'd need to fetch the Org Name.
-                       Let's leave it as just a labeled field or skip if too complex for this component.
-                       The previous Layout showed 'profile' but not org name. 
-                       Let's assume we won't show Org Name here unless easily available. 
-                       Wait, the user sees their org in the Dashboard usually. 
-                       Let's show "Role" reliably.
-                   */}
-                                    Organization Member
+                                    {orgName === null ? (
+                                        <span className="text-gray-500">Loading…</span>
+                                    ) : orgName ? (
+                                        orgName
+                                    ) : (
+                                        <span className="text-gray-500">—</span>
+                                    )}
                                 </span>
                             </div>
                         </div>

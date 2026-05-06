@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { clientService } from '../services/clients';
@@ -7,6 +7,20 @@ import { userService } from '../services/users';
 import { UserProfile, Assessment } from '../types';
 import { Plus, FileText, Calendar, User, Trash2, Download } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
+
+function isLikelyUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function createEmptyAssessmentForm() {
+    return {
+        clientId: '',
+        packId: '',
+        assignedTo: '',
+        assessmentDate: new Date().toISOString().split('T')[0],
+    };
+}
 
 export function Assessments() {
     const { user, profile } = useAuth();
@@ -22,23 +36,75 @@ export function Assessments() {
     const [clients, setClients] = useState<any[]>([]);
     const [packs, setPacks] = useState<any[]>([]);
     const [users, setUsers] = useState<UserProfile[]>([]);
-    const [form, setForm] = useState({
-        clientId: '',
-        packId: '',
-        assignedTo: '',
-        assessmentDate: new Date().toISOString().split('T')[0]
-    });
+    const [form, setForm] = useState(() => createEmptyAssessmentForm());
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
     const [duplicateId, setDuplicateId] = useState<string | null>(null);
     const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
+    /** Set by hash `#/assessments?client=…`; consumed when form clients load */
+    const pendingClientFromHashRef = useRef<string | null>(null);
+
+    const clearCreateDraft = () => {
+        setForm(createEmptyAssessmentForm());
+        setError(null);
+        setDuplicateId(null);
+        setSubmitting(false);
+    };
+
+    const openCreateFormFromAssessmentsPage = () => {
+        pendingClientFromHashRef.current = null;
+        clearCreateDraft();
+        setShowForm(true);
+    };
+
     useEffect(() => {
         // Click outside to close menus
         const handleClickOutside = () => setActiveExportId(null);
         document.addEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const syncClientFromHash = () => {
+            const fullHash = window.location.hash;
+            const base = fullHash.split('?')[0];
+            if (base !== '#/assessments') return;
+
+            const queryString = fullHash.includes('?')
+                ? fullHash.split('?').slice(1).join('?')
+                : '';
+            const params = new URLSearchParams(queryString);
+
+            const tab = params.get('tab');
+            if (tab === 'submitted' || tab === 'approved' || tab === 'active') {
+                setStatusFilter(tab);
+            }
+
+            const rawClient = params.get('client');
+            const trimmed = typeof rawClient === 'string' ? rawClient.trim() : '';
+
+            if (!trimmed) {
+                if (params.has('client')) {
+                    window.location.hash = '#/assessments';
+                }
+                return;
+            }
+
+            if (!isLikelyUuid(trimmed)) {
+                window.location.hash = '#/assessments';
+                return;
+            }
+
+            clearCreateDraft();
+            pendingClientFromHashRef.current = trimmed;
+            setShowForm(true);
+        };
+
+        syncClientFromHash();
+        window.addEventListener('hashchange', syncClientFromHash);
+        return () => window.removeEventListener('hashchange', syncClientFromHash);
     }, []);
 
     useEffect(() => {
@@ -61,16 +127,47 @@ export function Assessments() {
     };
 
     const loadFormData = () => {
-        if (profile?.org_id) {
-            Promise.all([
-                clientService.getByOrg(profile.org_id, 'active'),
-                packService.getByOrg(profile.org_id, 'active'),
-                userService.getByOrg(profile.org_id),
-            ]).then(([c, p, u]) => {
-                setClients(c);
-                setPacks(p);
-                setUsers(u);
-            });
+        if (!profile?.org_id) return;
+
+        const deepLinkUuidAtStart = pendingClientFromHashRef.current;
+
+        Promise.all([
+            clientService.getByOrg(profile.org_id, 'active'),
+            packService.getByOrg(profile.org_id, 'active'),
+            userService.getByOrg(profile.org_id),
+        ]).then(([c, p, u]) => {
+            setClients(c);
+            setPacks(p);
+            setUsers(u);
+
+            if (!deepLinkUuidAtStart) return;
+            const stillWaiting =
+                pendingClientFromHashRef.current === deepLinkUuidAtStart;
+            if (!stillWaiting) return;
+
+            pendingClientFromHashRef.current = null;
+
+            if (c.some((cl: { id: string }) => cl.id === deepLinkUuidAtStart)) {
+                setForm((prev) => ({
+                    ...prev,
+                    clientId: deepLinkUuidAtStart,
+                }));
+                window.location.hash = '#/assessments';
+            } else {
+                clearCreateDraft();
+                pendingClientFromHashRef.current = null;
+                setShowForm(false);
+                window.location.hash = '#/assessments';
+            }
+        });
+    };
+
+    const closeCreateForm = () => {
+        pendingClientFromHashRef.current = null;
+        clearCreateDraft();
+        setShowForm(false);
+        if (window.location.hash.startsWith('#/assessments?')) {
+            window.location.hash = '#/assessments';
         }
     };
 
@@ -94,7 +191,7 @@ export function Assessments() {
             // Check for existing assessment
             const existing = await assessmentService.getByClientAndPack(profile.org_id, form.clientId, form.packId);
             if (existing) {
-                setError(`An assessment for this client and pack already exists (${existing.status}).`);
+                setError(`An assessment for this client and pack already exists (${formatAssessmentStatusLabel(existing.status)}).`);
                 setDuplicateId(existing.id);
                 setSubmitting(false);
                 return;
@@ -136,10 +233,15 @@ export function Assessments() {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Assessments</h1>
                     <p className="text-gray-600 mt-1">Manage and track client assessments</p>
+                    {!showForm && ['admin', 'senior_therapist', 'therapist', 'viewer'].includes(profile?.role || '') && (
+                        <p className="text-sm text-gray-500 mt-2 max-w-3xl leading-snug">
+                            Active: draft and in-progress work · Submitted: awaiting review · Approved: finalized
+                        </p>
+                    )}
                 </div>
                 {!showForm && (
                     <div className="flex gap-3">
-                        {['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                        {['admin', 'senior_therapist', 'therapist', 'viewer'].includes(profile?.role || '') && (
                             <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
                                 <button
                                     onClick={() => setStatusFilter('active')}
@@ -163,7 +265,7 @@ export function Assessments() {
                         )}
                         {['admin', 'senior_therapist'].includes(profile?.role || '') && (
                             <button
-                                onClick={() => setShowForm(true)}
+                                onClick={openCreateFormFromAssessmentsPage}
                                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
                             >
                                 <Plus className="w-5 h-5" />
@@ -179,7 +281,7 @@ export function Assessments() {
                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                         <h2 className="text-xl font-bold text-gray-900">Create New Assessment</h2>
                         <button
-                            onClick={() => setShowForm(false)}
+                            onClick={closeCreateForm}
                             className="text-gray-500 hover:text-gray-700"
                         >
                             ✕
@@ -263,7 +365,7 @@ export function Assessments() {
                             <div className="flex gap-3 justify-end pt-4">
                                 <button
                                     type="button"
-                                    onClick={() => setShowForm(false)}
+                                    onClick={closeCreateForm}
                                     className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
                                 >
                                     Cancel
@@ -288,7 +390,7 @@ export function Assessments() {
                             <p className="text-gray-500 mt-1">Get started by creating a new assessment.</p>
                             {['admin', 'senior_therapist', 'therapist'].includes(profile?.role || '') && (
                                 <button
-                                    onClick={() => setShowForm(true)}
+                                    onClick={openCreateFormFromAssessmentsPage}
                                     className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
                                 >
                                     Create New Assessment
@@ -322,11 +424,12 @@ export function Assessments() {
                                             <span>Assigned</span>
                                         </div>
                                     )}
-                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${assessment.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${assessment.status === 'approved' ? 'bg-green-100 text-green-700' :
                                         assessment.status === 'submitted' ? 'bg-orange-100 text-orange-700' :
+                                            assessment.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
                                             'bg-gray-100 text-gray-600'
                                         }`}>
-                                        {assessment.status.replace('_', ' ')}
+                                        {formatAssessmentStatusLabel(assessment.status)}
                                     </span>
                                 </div>
                             </div>
@@ -346,18 +449,26 @@ export function Assessments() {
                                     </button>
 
                                     {activeExportId === assessment.id && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-20">
+                                        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
                                             <button
                                                 onClick={(e) => handleExport(e, assessment.id, 'matrix')}
-                                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                className="block w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60 border-b border-gray-100 last:border-b-0"
                                             >
-                                                Export Matrix (Excel)
+                                                <span className="block text-sm font-semibold text-gray-900">Export Matrix CSV</span>
+                                                <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
+                                                <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
+                                                    Full assessment history — not only the cycle on screen.
+                                                </span>
                                             </button>
                                             <button
                                                 onClick={(e) => handleExport(e, assessment.id, 'long')}
-                                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                className="block w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60"
                                             >
-                                                Export Analytics (CSV)
+                                                <span className="block text-sm font-semibold text-gray-900">Export Analytics CSV</span>
+                                                <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
+                                                <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
+                                                    Full assessment history — not only the cycle on screen.
+                                                </span>
                                             </button>
                                         </div>
                                     )}

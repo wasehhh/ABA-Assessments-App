@@ -5,6 +5,40 @@ import { auditService } from '../services/audit';
 import { userService } from '../services/users';
 import { RefreshCw } from 'lucide-react';
 
+function actionBadgeClass(action: string): string {
+    const a = (action || '').toString().toUpperCase();
+    switch (a) {
+        case 'VIEW':
+            return 'bg-slate-100 text-slate-800';
+        case 'CREATE':
+            return 'bg-green-100 text-green-800';
+        case 'UPDATE':
+            return 'bg-blue-100 text-blue-800';
+        case 'DELETE':
+            return 'bg-red-100 text-red-800';
+        case 'APPROVE':
+            return 'bg-purple-100 text-purple-800';
+        case 'CYCLE_START':
+            return 'bg-amber-100 text-amber-900';
+        default:
+            return 'bg-gray-100 text-gray-800';
+    }
+}
+
+function mergeLogPayload(log: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    if (log.details && typeof log.details === 'object') {
+        Object.assign(out, log.details as object);
+    }
+    if (log.new_data && typeof log.new_data === 'object') {
+        out.new_data = log.new_data;
+    }
+    if (log.old_data && typeof log.old_data === 'object') {
+        out.old_data = log.old_data;
+    }
+    return out;
+}
+
 export function AuditLog() {
     const { profile } = useAuth();
     const isAdmin = profile?.role === 'admin';
@@ -24,7 +58,6 @@ export function AuditLog() {
             const logData = await auditService.getLogs(profile?.org_id || '', 100);
             setLogs(logData || []);
 
-            // Fetch users to map IDs to names
             const userData = await userService.getByOrg(profile?.org_id || '');
             const userMap: Record<string, string> = {};
             userData.forEach(u => {
@@ -79,31 +112,38 @@ export function AuditLog() {
                                 <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No events found.</td>
                             </tr>
                         ) : (
-                            logs.map((log) => (
-                                <tr key={log.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                        {new Date(log.created_at).toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                                        {users[log.user_id] || log.user_id}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            ${log.action === 'DELETE' ? 'bg-red-100 text-red-800' :
-                                                log.action === 'UPDATE' ? 'bg-blue-100 text-blue-800' :
-                                                    log.action === 'CREATE' ? 'bg-green-100 text-green-800' :
-                                                        'bg-gray-100 text-gray-800'}`}>
-                                            {log.action}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-600 uppercase text-xs font-bold">
-                                        {log.entity_type}
-                                    </td>
-                                    <td className="px-6 py-4 text-gray-500 truncate max-w-xs" title={JSON.stringify(log.details, null, 2)}>
-                                        {JSON.stringify(log.details)}
-                                    </td>
-                                </tr>
-                            ))
+                            logs.map((log) => {
+                                const payload = mergeLogPayload(log);
+                                const payloadStr = JSON.stringify(payload, null, 2);
+                                return (
+                                    <tr key={log.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                            {new Date(log.created_at).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                                            {users[log.user_id] || log.user_id}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span
+                                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${actionBadgeClass(log.action)}`}
+                                            >
+                                                {(log.action || '').toString().toUpperCase()}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-gray-600 uppercase text-xs font-bold">
+                                            {log.entity_type}
+                                            {log.entity_id ? (
+                                                <span className="block font-mono font-normal text-[10px] text-gray-400 normal-case mt-0.5 truncate max-w-[140px]" title={log.entity_id}>
+                                                    {log.entity_id}
+                                                </span>
+                                            ) : null}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-500 truncate max-w-xs font-mono text-xs" title={payloadStr}>
+                                            {payloadStr}
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

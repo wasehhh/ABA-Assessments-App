@@ -12,8 +12,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, orgName: string) => Promise<{ success: boolean; message?: string }>;
   signOut: () => Promise<void>;
-  signOut: () => Promise<void>;
-  debugSetRole: (role: string) => void;
   refreshProfile: () => Promise<void>;
 }
 
@@ -114,12 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
-  const debugSetRole = (role: string) => {
-    if (profile) {
-      setProfile({ ...profile, role: role as any });
-    }
-  };
-
   const refreshProfile = async () => {
     if (user) {
       const userProfile = await authService.getUserProfile(user.id);
@@ -128,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, error, signIn, signUp, signOut, debugSetRole, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, error, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

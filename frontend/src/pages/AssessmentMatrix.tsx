@@ -4,13 +4,18 @@ import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { analyticsService } from '../services/analytics';
 import { clientService } from '../services/clients';
-import { exportUtils } from '../utils/exportUtils';
 import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
 import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
 import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
+import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
+
+function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
+  const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
+  return cycleLocked || assessment.status === 'submitted' || assessment.status === 'approved';
+}
 
 interface Props {
   assessmentId: string;
@@ -192,6 +197,16 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     setActiveDomainId(null);
   };
 
+  const handleMatrixExport = async (format: 'long' | 'matrix') => {
+    setShowExportMenu(false);
+    try {
+      await assessmentService.exportToCSV(assessmentId, format);
+    } catch (err) {
+      console.error('Export failed:', err);
+      setErrorAlert('Failed to export CSV');
+    }
+  };
+
   const handleViewDetail = (targetId: string) => {
     if (!assessment || !activeDomainId) return;
     const domain = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId);
@@ -207,15 +222,10 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   };
 
   const updateScore = async (targetId: string, val: number | null, note: string | null) => {
-    if (!user?.id || !profile?.org_id) return;
+    if (!user?.id || !profile?.org_id || !assessment) return;
 
-    // Determine if locked
-    const viewingCycle = cycles.find(c => c.id === selectedCycleId);
-    const isLocked = profile?.role === 'viewer' ||
-      (viewingCycle ? viewingCycle.status !== 'in_progress' : false) ||
-      assessment.status === 'approved';
-
-    if (isLocked) return;
+    const viewingCycle = cycles.find((c) => c.id === selectedCycleId);
+    if (!canEditAssessmentScores(profile.role, assessment.status, viewingCycle?.status)) return;
 
     // Optimistic Update
     const newScores = [...scores];
@@ -290,7 +300,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const isLastDomain = assessment?.pack_snapshot?.domains ? domainIndex === assessment.pack_snapshot.domains.length - 1 : false;
 
   const handleSubmit = async () => {
-    if (isLocked || isSubmitting) return;
+    if (!assessment) return;
+    const viewingCycleForSubmit = cycles.find((c) => c.id === selectedCycleId);
+    if (cannotSubmitAssessmentState(assessment, viewingCycleForSubmit) || profile?.role === 'viewer' || isSubmitting) {
+      return;
+    }
 
     // Calculate unscored count
     let total = 0;
@@ -340,21 +354,48 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     </div>
   );
 
-  // Determine lock state:
-  // 1. If currently viewing a cycle, use its status
-  // 2. Fallback to assessment Global status
-  const viewingCycle = cycles.find(c => c.id === selectedCycleId);
+  const viewingCycle = cycles.find((c) => c.id === selectedCycleId);
   const isCycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
-  const isLocked = isCycleLocked || assessment.status === 'approved' || assessment.status === 'submitted';
+  const scoresEditable = canEditAssessmentScores(profile?.role, assessment.status, viewingCycle?.status);
+  const cannotSubmitAssessment = cannotSubmitAssessmentState(assessment, viewingCycle);
+  const showSubmitAssessmentButton =
+    !cannotSubmitAssessment &&
+    (assessment.status === 'in_progress' || assessment.status === 'draft') &&
+    profile?.role !== 'viewer';
+
+  const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
+  let matrixWorkflowLabel: string;
+  let matrixWorkflowBadgeClass: string;
+  if (assessment.status === 'approved') {
+    matrixWorkflowLabel = 'Locked (approved)';
+    matrixWorkflowBadgeClass = 'bg-gray-100 text-gray-800 ring-1 ring-gray-200';
+  } else if (isCycleLocked) {
+    matrixWorkflowLabel = 'Locked (this cycle)';
+    matrixWorkflowBadgeClass = 'bg-gray-100 text-gray-800 ring-1 ring-gray-200';
+  } else if (assessment.status === 'submitted') {
+    if (scoresEditable) {
+      matrixWorkflowLabel = 'In review (editable)';
+      matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
+    } else {
+      matrixWorkflowLabel = 'Awaiting review';
+      matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
+    }
+  } else if (scoresEditable) {
+    matrixWorkflowLabel = 'Editable';
+    matrixWorkflowBadgeClass = 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200';
+  } else {
+    matrixWorkflowLabel = 'View only';
+    matrixWorkflowBadgeClass = 'bg-gray-100 text-gray-800 ring-1 ring-gray-200';
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="h-16 flex items-center justify-between gap-4">
+          <div className="min-h-16 flex items-start justify-between gap-4 py-2 md:items-center">
             {/* Left: Title & Nav */}
-            <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-start gap-4 min-w-0 md:items-center">
               <button
                 onClick={() => window.location.hash = '#/assessments'}
                 className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
@@ -362,15 +403,19 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-gray-900 truncate flex items-center gap-2">
-                  {client?.first_name} {client?.last_name}
-                  <span className="hidden sm:inline-block text-gray-300">|</span>
-                  <span className="hidden sm:inline-block font-normal text-gray-600">{assessment.pack_snapshot.title}</span>
+                <h1 className="text-lg font-bold text-gray-900 truncate flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span className="truncate">{client?.first_name} {client?.last_name}</span>
+                  <span className="hidden sm:inline text-gray-300">|</span>
+                  <span className="hidden sm:inline font-normal text-gray-600 truncate max-w-[min(24rem,45vw)]">{assessment.pack_snapshot.title}</span>
                 </h1>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
-                    <Calendar className="w-3 h-3" />
-                    Cycle {currentCycle?.cycle_number}
+                <p className="text-[11px] text-gray-500 sm:hidden truncate mt-0.5">{assessment.pack_snapshot.title}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mt-1">
+                  <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 font-semibold text-gray-800 bg-gray-100 ring-1 ring-gray-200">
+                    <Calendar className="w-3 h-3 shrink-0" />
+                    Cycle {cycleNumberForHeader ?? '—'}
+                  </span>
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 font-semibold ${matrixWorkflowBadgeClass}`}>
+                    {matrixWorkflowLabel}
                   </span>
                   {saveStatus === 'saving' && <span className="text-blue-600 font-medium animate-pulse">Saving...</span>}
                   {saveStatus === 'saved' && <span className="text-green-600 font-medium flex items-center gap-0.5"><CheckCircle className="w-3 h-3" /> Saved</span>}
@@ -395,7 +440,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 </select>
               </div>
 
-              {(!isLocked && (assessment.status === 'in_progress' || assessment.status === 'draft')) && (
+              {showSubmitAssessmentButton && (
                 <button
                   onClick={handleSubmit}
                   className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-medium transition-colors shadow-sm"
@@ -433,7 +478,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                   <Download className="w-5 h-5" />
                 </button>
                 {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     <button
                       onClick={() => {
                         window.open(`#/assessment/${assessmentId}/report`, '_blank');
@@ -444,22 +489,30 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                       View Printable Report
                     </button>
                     <button
-                      onClick={() => {
-                        exportUtils.generateCSV(assessment, scores, { format: 'matrix' });
-                        setShowExportMenu(false);
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleMatrixExport('matrix');
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600"
+                      className="w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60 border-b border-gray-100"
                     >
-                      Export Summary (CSV)
+                      <span className="block text-sm font-semibold text-gray-900">Export Matrix CSV</span>
+                      <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
+                      <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
+                        Full assessment history — not only the cycle on screen.
+                      </span>
                     </button>
                     <button
-                      onClick={() => {
-                        exportUtils.generateCSV(assessment, scores, { format: 'long' });
-                        setShowExportMenu(false);
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleMatrixExport('long');
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-emerald-600"
+                      className="w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60"
                     >
-                      Export Detailed (CSV)
+                      <span className="block text-sm font-semibold text-gray-900">Export Analytics CSV</span>
+                      <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
+                      <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
+                        Full assessment history — not only the cycle on screen.
+                      </span>
                     </button>
                   </div>
                 )}
@@ -503,6 +556,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             isFirstDomain={isFirstDomain}
             isLastDomain={isLastDomain}
             onSubmit={handleSubmit}
+            scoresEditable={scoresEditable}
+            showFooterSubmit={showSubmitAssessmentButton}
           />
         )}
       </main>
@@ -514,6 +569,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
           scores={scores.filter(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id)}
           currentScore={scores.find(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id) || null}
           onClose={() => setShowTargetInfo(false)}
+          notesReadOnly={!scoresEditable}
           onSaveNote={(note) => {
             const targetId = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id;
             const current = scores.find(s => s.target_id === targetId);
@@ -572,9 +628,23 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Assessment Submitted!</h3>
-            <p className="text-gray-600 mb-6">Great work! The assessment has been successfully submitted and is ready for review.</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Assessment submitted</h3>
+            <p className="text-gray-600 mb-4 text-left text-sm leading-relaxed">
+              Your work is saved. This assessment is now <strong>awaiting review</strong> and appears under the{' '}
+              <strong>Submitted</strong> tab on the Assessments page.
+            </p>
             <button
+              type="button"
+              onClick={() => {
+                setShowSuccessModal(false);
+                window.location.hash = '#/assessments?tab=submitted';
+              }}
+              className="w-full mb-3 py-2 text-sm font-semibold text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors"
+            >
+              Go to Submitted assessments
+            </button>
+            <button
+              type="button"
               onClick={() => setShowSuccessModal(false)}
               className="w-full bg-emerald-600 text-white font-bold py-2 rounded-lg hover:bg-emerald-700"
             >
