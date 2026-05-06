@@ -1,76 +1,86 @@
-# Developer Setup Guide
+# Developer setup guide (Evalis)
 
-This guide details how to set up the development environment for the ABA Skills Assessment Platform.
+This guide covers the **Evalis** SPA: **React + TypeScript + Vite**, talking to **Supabase** from the browser using **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`**.
 
 ## 1. Prerequisites
 
-Ensure you have the following installed:
 - **Git**
-- **Node.js** (v20 or higher) & **npm**
+- **Node.js** (v20 or higher) and **npm**
+- **Supabase CLI** (optional — only if you run local Supabase or link projects)
+- **VS Code** or similar (recommended)
 
-- **Supabase CLI** (for local DB management)
-- **VS Code** (recommended)
-
-## 2. Repository Setup
-
-Clone the repository and navigate to the root directory:
+## 2. Repository setup
 
 ```bash
 git clone <your-repo-url>
-cd DomainA_Tool
+cd ABA-Assessments-App   # or your local clone folder name
 ```
 
-## 3. Backend Setup (Supabase)
+## 3. Supabase project
 
-The project uses Supabase for the database, auth, and storage.
+1. Create a Supabase project (hosted) **or** run Supabase locally (`supabase start`) if you use the CLI.
+2. Apply database DDL/RLS following **`docs/architecture/supabase_setup.md`**:
+   - **`database/migrations/`** — canonical dated SQL bundle (snapshots and patches)
+   - **`frontend/supabase/migrations/`** — CLI migration chain (may differ; do not mix blindly with the full snapshot on one DB)
 
-1.  **Login to Supabase CLI:**
-    ```bash
-    supabase login
-    ```
-2.  **Start Local Supabase:**
-    ```bash
-    supabase start
-    ```
-    This will spin up a local Postgres instance, Studio, and API gateway. Note the `API URL` and `anon key` output.
+Optional CLI workflow from repo root or `frontend` (match where your `supabase/config.toml` lives — this repo keeps CLI migrations under `frontend/supabase/`):
 
-3.  **Link to Remote Project (Optional):**
-    If deploying or syncing with production:
-    ```bash
-    supabase link --project-ref <your-project-id>
-    ```
+```bash
+cd frontend
+supabase login          # if using remote
+supabase link --project-ref <your-project-id>   # optional
+```
 
-## 4. Frontend Setup (Next.js)
+## 4. Frontend setup (Vite + React)
 
-1.  **Navigate to frontend:**
-    ```bash
-    cd frontend
-    ```
-2.  **Install Dependencies:**
-    ```bash
-    npm install
-    ```
-3.  **Environment Variables:**
-    Create a `.env.local` file in the `frontend` directory:
-    ```env
-    NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-    ```
-4.  **Run Development Server:**
-    ```bash
-    npm run dev
-    ```
-    The app should be running at `http://localhost:3000`.
+```bash
+cd frontend
+npm install
+```
 
+### Environment variables
 
+Create **`frontend/.env`** (already gitignored):
+
+```env
+VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-anon-public-key>
+```
+
+These are read in `frontend/src/lib/supabase.ts`. **Do not use `NEXT_PUBLIC_*`** — this app is not Next.js.
+
+### Run the dev server
+
+```bash
+npm run dev
+```
+
+Open **http://localhost:5173** (Vite default). Routes use the hash, e.g. `http://localhost:5173/#/login`.
+
+### Production build
+
+```bash
+npm run build
+npm run preview    # optional local preview of dist/
+```
+
+## 5. Tests (optional)
+
+Vitest is configured for unit tests (e.g. `src/utils/exportUtils.test.ts`):
+
+```bash
+cd frontend
+npm run test
+```
 
 ## 6. Verification
 
-- Open `http://localhost:3000`.
-- Try logging in (if local Supabase is running, check the Studio at `http://localhost:54323` for user management).
-- Verify database connection by checking if data loads on the dashboard.
+- Open the app at **port 5173** (or the URL Vite prints).
+- Sign in against your Supabase Auth users.
+- Confirm clients/assessments load without Supabase config errors in the browser console.
 
 ## Troubleshooting
 
-- **Supabase Start Fails:** Ensure Docker is running.
-- **npm install errors:** Check Node version `node -v`.
+- **Blank app / Supabase errors:** Check `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `frontend/.env` and restart `npm run dev`.
+- **`supabase start` fails:** Ensure Docker is running if using local Supabase.
+- **`npm install` errors:** Check Node version with `node -v` (use 20+).

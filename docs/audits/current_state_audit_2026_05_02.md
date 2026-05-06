@@ -1,7 +1,7 @@
 # Full Project State Audit (Updated)
 
 **Audit date:** 2026-05-02  
-**Method:** Inspection of repository source (`frontend/src`, `frontend/supabase/migrations`, root SQL snapshots, tooling scripts). No runtime deployment verification was performed.
+**Method:** Inspection of repository source (`frontend/src`, `frontend/supabase/migrations`, `database/migrations`, tooling scripts). No runtime deployment verification was performed.
 
 ---
 
@@ -228,9 +228,9 @@ All flows below are reconstructed strictly from SPA navigation + services.
 
 1. Admin inserts into `user_invites` (`userService.inviteUser`) ```53:58:frontend/src/services/users.ts```.  
 2. Admin distributes link assembled as `${origin}/#/login?email=` ```284:285:frontend/src/pages/Users.tsx```.  
-3. Signup/login triggers `claim_invite` deleting row server-side ```226:242:20260104_complete_database_definition.sql``` (referenced snapshot in repo—not guaranteed applied).  
+3. Signup/login triggers `claim_invite` deleting row server-side ```226:242:database/migrations/20260104_complete_database_definition.sql``` (referenced snapshot in repo—not guaranteed applied).  
 
-**Broken / unclear:** Frontend Team UI is admin-only, while authoritative SQL snapshot’s `Manage invites` policy also names `senior_therapist` roles ```177:179:20260104_complete_database_definition.sql```—UI does not expose the capability to seniors.
+**Broken / unclear:** Frontend Team UI is admin-only, while authoritative SQL snapshot’s `Manage invites` policy also names `senior_therapist` roles ```177:179:database/migrations/20260104_complete_database_definition.sql```—UI does not expose the capability to seniors.
 
 ### Client creation → assessment creation
 
@@ -264,12 +264,12 @@ Legend: **Code loc** refers to strongest reference.
 | Feature | What it does | Where | Missing / Incomplete / Risks |
 |--------|----------------|-------|------------------------------|
 | Email/password authentication | Wrapper over Supabase auth session | ```4:129:frontend/src/services/auth.ts``` `AuthContext.tsx` | No MFA/forgot-password UI in codebase. |
-| Invite discovery | Reads invite metadata by email RPC | Login + RPC usage ```125:129:frontend/src/services/auth.ts``` | Depends on functions existing in deployed DB (`check_user_invite` variant returning `org_name` per `20260106_update_rpc.sql`). |
+| Invite discovery | Reads invite metadata by email RPC | Login + RPC usage ```125:129:frontend/src/services/auth.ts``` | Depends on functions existing in deployed DB (`check_user_invite` variant returning `org_name` per `database/migrations/20260106_update_rpc.sql`). |
 | Profile bootstrap | Upsert profile/org membership | Auth service | Profiles optional error swallowing yields null profiles but still “logged-in” shell possible (partial error handling paths). |
 | Clients CRUD + archive/delete | Org-scoped listings + forms | `clients.ts`, `Clients.tsx` | Therapist cannot add clients (OK by UI); Viewer sees delete UI on drafts in client detail unintentionally likely. |
 | Content packs ingest | JSON upload, CSV shim, audit log | `packs.ts`, `ContentPacks.tsx`, `AssessmentBuilder.tsx` | CSV grammar naive; checkbox scoring types authored in builder not mirrored in scorer; no licence proof attachment UI (`licence_proof_url` unused clientside). |
 | Assessment lifecycle | Draft creation, duplication guard (client+pack), assignee/date fields | ```96:117:frontend/src/pages/Assessments.tsx``` | Status vocabulary includes `draft` + `in_progress` at RESTful filter though creation always inserts `draft` ```18:29:frontend/src/services/assessments.ts``` (`in_progress` enters later via cycle reset pathway). |
-| Cycles | Table & foreign keys seeded per migration snapshots | DDL in `frontend/supabase/migrations/20251212000000_add_cycles.sql` + fuller snapshot `20260104_complete_database_definition.sql`. | Migrating orphan historical scores lacks automated backfill in repo migrations (“DO NOT RUN BACKFILL HERE” comment). |
+| Cycles | Table & foreign keys seeded per migration snapshots | DDL in `frontend/supabase/migrations/20251212000000_add_cycles.sql` + fuller snapshot `database/migrations/20260104_complete_database_definition.sql`. | Migrating orphan historical scores lacks automated backfill in repo migrations (“DO NOT RUN BACKFILL HERE” comment). |
 | Scoring | Numeric + yes/no toggle grid; notes | Scoreboard + modal | Checkbox/task-analysis JSON stored at DB column `metadata` is **never written** via current UI (only typed parameter exists in service). Evidence files JSON column unused UI-wise. |
 | Analytics panels | Percentages, narratives, acquisitions | `analyticsService` invoked from overview/report/matrix | Heavy `console.log` noise in calculations ```54:71:frontend/src/services/analytics.ts```; `targetsMastered` always `0` in cycle stats aggregation ```101:103:frontend/src/services/analytics.ts```. Several extended analytics helpers (cycle comparison regressions narratives) unused in rendered pages (dead capability). |
 | Dashboard activity | Intended feed | `Dashboard.tsx` | Hard-coded empty placeholder. |
@@ -291,8 +291,8 @@ Legend: **Code loc** refers to strongest reference.
 
 Two parallel truths exist:
 
-1. **Incremental migrations** under `frontend/supabase/migrations/*.sql` (create base tables; add statuses; cycles; audit policies; metadata column etc.). User invite tables / RPC **`check_user_invite`/`claim_invite` are absent** here (searched filenames & contents).  
-2. **Declarative snapshots** / operational SQL at repo root such as ```22:246:20260104_complete_database_definition.sql``` (excerpt representative of full snapshot) plus patches like `20260106_update_rpc.sql`, `20260107_add_user_status.sql`.
+1. **Supabase CLI migrations** under `frontend/supabase/migrations/*.sql` (create base tables; add statuses; cycles; audit policies; metadata column etc.). User invite tables / RPC **`check_user_invite`/`claim_invite` are absent** here (searched filenames & contents).  
+2. **Canonical snapshot & patches** under `database/migrations/` such as ```22:246:database/migrations/20260104_complete_database_definition.sql``` (excerpt representative of full snapshot) plus dated patches like `database/migrations/20260106_update_rpc.sql`, `database/migrations/20260107_add_user_status.sql`.
 
 Operational reality equals **whatever was applied last** on the Supabase project—codebase alone cannot unify them authoritatively.
 
@@ -432,10 +432,10 @@ Printable PDF is outside repo implementation—browser print converts DOM.
 | Metadata / evidence columns | Persisted columns exist (`metadata`, `evidence_files`) yet UI never sets `metadata` nor uploads storage objects (no `.storage` API usage grep). |
 | Analytics logging noise / perf | Repeated `console.log` per scoring target computations in production pathways ```54:71:frontend/src/services/analytics.ts```. |
 | Dead / partial analytics functions | Narrative/regression helpers beyond those consumed remain unused code surface area ```241:289:frontend/src/services/analytics.ts```. |
-| Documentation drift | Repo root README claims Next.js stack + App Router conventions; implemented app is **Vite React** SPA hash router ```36:40:README.md``` vs ```5:10:frontend/package.json``` ```17:131:frontend/src/App.tsx```. |
-| Global footer legal links | Non-functional clickable affordances lacking navigation targets ```161:164:frontend/src/components/Layout.tsx```. |
+| Documentation drift | ~~Repo root README historically claimed Next.js;~~ README now documents **Vite + React (TypeScript)** SPA hash router; verify any external copies of the audit still reflect current docs. |
+| Global footer legal links | ~~Previously non-functional;~~ `Layout.tsx` footer now links to `#/privacy` and `#/terms` (verify in-tree). |
 | Mobile admin navigation incompleteness | Org & Audit routes unreachable from condensed menu ```122:145:frontend/src/components/Layout.tsx```. |
-| Title branding mismatch | Browser title still generic template string ```7:9:frontend/index.html``` vs “Evalis” nav branding. |
+| Title branding mismatch | Resolved in-tree: `frontend/index.html` documents **Evalis — ABA Assessment Platform** (`<title>`). |
 
 ---
 

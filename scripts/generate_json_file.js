@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 const domains = [];
 for (let d = 1; d <= 20; d++) {
@@ -41,5 +42,8 @@ const packData = {
     domains: domains
 };
 
-fs.writeFileSync('large_test_pack.json', JSON.stringify(packData, null, 2));
-console.log('Generated large_test_pack.json');
+const outDir = path.join(__dirname, '..', 'tests', 'data');
+const outFile = path.join(outDir, 'large_test_pack.json');
+fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(outFile, JSON.stringify(packData, null, 2));
+console.log('Generated', outFile);

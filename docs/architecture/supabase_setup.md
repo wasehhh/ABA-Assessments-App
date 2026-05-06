@@ -92,27 +92,36 @@ These functions are **required** for signup/invite flows used by `frontend/src/s
 | 12 | `20251214000001_add_delete_policies.sql` | DELETE-capable policies where needed. |
 | 13 | `20251215000000_add_score_metadata.sql` | Additional columns/metadata on score rows. |
 
-**Gap (documented):** None of the above migration files define **`check_user_invite`** or **`claim_invite`** (verified by repository search). Invite RPCs live in root-level SQL (see below).
+**Gap (documented):** None of the above migration files define **`check_user_invite`** or **`claim_invite`** (verified by repository search). Invite RPCs live in the **`database/migrations/`** snapshot and patches (see §5.2).
 
-### 5.2 Root-level SQL files (repo root)
+### 5.0 Two SQL locations in this repository
+
+| Path | Role |
+|------|------|
+| **`database/migrations/`** | **Canonical SQL bundle** for snapshots, dated policy/RPC patches, and operational scripts. Use these paths in documentation and for **manual** “apply in order” setup in Supabase SQL Editor or psql. |
+| **`frontend/supabase/migrations/`** | **Supabase CLI migration chain** (timestamp-prefixed files) for `supabase link` / `supabase db push` style workflows. This chain may not include every object defined in `database/migrations/` (e.g. invite RPCs)—see §6. |
+
+Do not assume the two trees are identical; reconcile drift before treating either as the only source of truth.
+
+### 5.2 `database/migrations` (canonical snapshot & patches)
 
 | File | One-line purpose |
 |------|------------------|
-| `20260104_complete_database_definition.sql` | **Destructive** “clean slate” script: drops/recreates core tables, RLS policies, helper functions, and **`check_user_invite` / `claim_invite`** definitions. |
-| `20260105_seed_test_pack.sql` | Optional seed data for a test content pack (development/demo). |
-| `20260106_update_rpc.sql` | Replaces `check_user_invite` to return **`org_name`** (table-shaped result set). |
-| `20260107_add_user_status.sql` | Adds `user_profiles.status`; adds admin-driven profile update policy. |
-| `20260107_allow_profile_update.sql` | Policy for users updating their own profile fields. |
-| `20260108_audit_view_policy.sql` | Admin SELECT policy on `audit_logs`. |
-| `20260108_org_update_policy.sql` | Admin UPDATE policy on `organizations`. |
+| `database/migrations/20260104_complete_database_definition.sql` | **Destructive** “clean slate” script: drops/recreates core tables, RLS policies, helper functions, and **`check_user_invite` / `claim_invite`** definitions. |
+| `database/migrations/20260105_seed_test_pack.sql` | Optional seed data for a test content pack (development/demo). |
+| `database/migrations/20260106_update_rpc.sql` | Replaces `check_user_invite` to return **`org_name`** (table-shaped result set). |
+| `database/migrations/20260107_add_user_status.sql` | Adds `user_profiles.status`; adds admin-driven profile update policy. |
+| `database/migrations/20260107_allow_profile_update.sql` | Policy for users updating their own profile fields. |
+| `database/migrations/20260108_audit_view_policy.sql` | Admin SELECT policy on `audit_logs`. |
+| `database/migrations/20260108_org_update_policy.sql` | Admin UPDATE policy on `organizations`. |
 
 **Not canonical schema setup** (operational / one-off data fixes—do not use as standard Alpha provisioning):
 
-- `20260106_fix_niazi_data.sql`
-- `20260106_force_confirm_user.sql`
-- `20260106_force_confirm_pending.sql`
-- `20260106_restore_missing_profile.sql`
-- `20260106_restore_both_profiles.sql`
+- `database/migrations/20260106_fix_niazi_data.sql`
+- `database/migrations/20260106_force_confirm_user.sql`
+- `database/migrations/20260106_force_confirm_pending.sql`
+- `database/migrations/20260106_restore_missing_profile.sql`
+- `database/migrations/20260106_restore_both_profiles.sql`
 
 ---
 
@@ -120,35 +129,35 @@ These functions are **required** for signup/invite flows used by `frontend/src/s
 
 Read this section before choosing an apply path.
 
-1. **`frontend/supabase/migrations` and root SQL snapshots are not one unified story.** The audit notes *operational schema divergence*: migrate-only environments can lack invite RPCs unless supplemental SQL is applied.
-2. **Invite/RPC functionality depends on SQL outside the migrations folder** (`check_user_invite`, `claim_invite` appear under root snapshots/patches, not under `frontend/supabase/migrations/*.sql`).
+1. **`frontend/supabase/migrations` and `database/migrations/` are not one unified story.** The audit notes *operational schema divergence*: migrate-only environments can lack invite RPCs unless supplemental SQL from **`database/migrations/`** is applied.
+2. **Invite/RPC functionality depends on scripts under `database/migrations/`** (`check_user_invite`, `claim_invite` appear in the snapshot/patches there, not in every `frontend/supabase/migrations/*.sql` file).
 3. **AIM Alpha must follow one documented sequence** per environment (snapshot-first **or** migrations-first **plus** explicit supplemental RPC/RLS patches). Ad hoc SQL Editor changes without updating this document defeat reproducibility.
-4. The January 2026 snapshot (`20260104_complete_database_definition.sql`) **drops existing application tables** in its preamble—treat it as **destructive** and only on empty or deliberately reset databases.
+4. The January 2026 snapshot (`database/migrations/20260104_complete_database_definition.sql`) **drops existing application tables** in its preamble—treat it as **destructive** and only on empty or deliberately reset databases.
 
 ---
 
 ## 7. Canonical AIM Alpha apply order (recommended)
 
-**Chosen approach:** **Snapshot-first, then dated deltas.** This yields a single coherent baseline that includes invite RPCs, full table set, and RLS, then layers known January 2026 policy/RPC patches tracked in root SQL.
+**Chosen approach:** **Snapshot-first, then dated deltas.** This yields a single coherent baseline that includes invite RPCs, full table set, and RLS, then layers known January 2026 policy/RPC patches tracked under **`database/migrations/`**.
 
 On an **empty** Supabase database (or one you intend to wipe—see script warnings):
 
-1. Run **`20260104_complete_database_definition.sql`** end-to-end.  
+1. Run **`database/migrations/20260104_complete_database_definition.sql`** end-to-end.  
    - Establishes tables, RLS, helper functions, and initial **`check_user_invite` / `claim_invite`**.
-2. Run **`20260106_update_rpc.sql`**.  
+2. Run **`database/migrations/20260106_update_rpc.sql`**.  
    - Aligns `check_user_invite` with frontend expectations (includes **`org_name`**; table return shape).
-3. Run **`20260107_add_user_status.sql`**.
-4. Run **`20260107_allow_profile_update.sql`**.
-5. Run **`20260108_audit_view_policy.sql`**.
-6. Run **`20260108_org_update_policy.sql`**.
+3. Run **`database/migrations/20260107_add_user_status.sql`**.
+4. Run **`database/migrations/20260107_allow_profile_update.sql`**.
+5. Run **`database/migrations/20260108_audit_view_policy.sql`**.
+6. Run **`database/migrations/20260108_org_update_policy.sql`**.
 
 Optional after baseline:
 
-- **`20260105_seed_test_pack.sql`** — only if you need seeded pack content in non-production.
+- **`database/migrations/20260105_seed_test_pack.sql`** — only if you need seeded pack content in non-production.
 
-**Do not** run the migration folder **and** the full snapshot on the same database without a deliberate merge plan—they overlap in intent and will conflict.
+**Do not** run the **`frontend/supabase/migrations/`** CLI chain **and** the full **`database/migrations/`** snapshot on the same database without a deliberate merge plan—they overlap in intent and will conflict.
 
-**Alternative (CLI migrations path):** If you provision exclusively via `frontend/supabase/migrations` in order, you **must** still apply invite/RPC definitions equivalent to the snapshot function section **plus** `20260106_update_rpc.sql`, then reconcile whether remaining root patches (`20260107*`, `20260108*`) are already represented in your merged state. This path is **higher risk** of drift unless diffed carefully against the snapshot.
+**Alternative (CLI migrations path):** If you provision exclusively via `frontend/supabase/migrations` in order, you **must** still apply invite/RPC definitions equivalent to the snapshot function section **plus** `database/migrations/20260106_update_rpc.sql`, then reconcile whether remaining patches (`20260107*`, `20260108*`) from **`database/migrations/`** are already represented in your merged state. This path is **higher risk** of drift unless diffed carefully against the snapshot.
 
 ---
 
