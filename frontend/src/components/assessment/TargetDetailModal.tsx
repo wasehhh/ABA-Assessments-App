@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import { X, Clock, FileText, Check } from 'lucide-react';
 import { Target, AssessmentScore } from '../../types';
 
@@ -13,11 +14,22 @@ interface Props {
 }
 
 export function TargetDetailModal({ target, scores, currentScore, onClose, onSaveNote, notesReadOnly = false }: Props) {
+    const descriptionText =
+        typeof target.description === 'string' ? target.description.trim() : '';
     const instructionsText =
         typeof target.instructions === 'string' ? target.instructions.trim() : '';
     const examplesText = typeof target.examples === 'string' ? target.examples.trim() : '';
+    const targetNotesText =
+        typeof target.notes === 'string' ? target.notes.trim() : '';
+    const [clinicalNoteText, setClinicalNoteText] = useState<string>(currentScore?.note ?? '');
+    const showDescription = descriptionText.length > 0;
     const showInstructions = instructionsText.length > 0;
     const showExamples = examplesText.length > 0;
+    const showTargetNotes = targetNotesText.length > 0;
+
+    useEffect(() => {
+        setClinicalNoteText(currentScore?.note ?? '');
+    }, [target.target_id, currentScore?.id, currentScore?.note]);
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -37,6 +49,13 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                 </div>
 
                 <div className="p-6 space-y-6">
+
+                    {showDescription && (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Description</h4>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{descriptionText}</p>
+                        </div>
+                    )}
 
                     {/* Context/Metadata */}
                     <div className="grid grid-cols-2 gap-4">
@@ -61,6 +80,13 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                         <div className="bg-gray-50 p-4 rounded-lg">
                             <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Examples</h4>
                             <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{examplesText}</p>
+                        </div>
+                    )}
+
+                    {showTargetNotes && (
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Target Notes</h4>
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{targetNotesText}</p>
                         </div>
                     )}
 
@@ -95,7 +121,8 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                             className={`w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-emerald-500 ${notesReadOnly ? 'bg-gray-50 text-gray-600 cursor-not-allowed' : ''}`}
                             rows={4}
                             placeholder="Enter observation notes, prompts used, or maladaptive behaviors..."
-                            defaultValue={currentScore?.note || ''}
+                            value={clinicalNoteText}
+                            onChange={(e) => setClinicalNoteText(e.target.value)}
                             onBlur={(e) => {
                                 if (!notesReadOnly) onSaveNote(e.target.value);
                             }}

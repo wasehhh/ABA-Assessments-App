@@ -32,6 +32,8 @@ export type ScoringType = 'numeric' | 'checkbox' | 'yesno' | 'text';
 export interface Target {
   target_id: string;
   title: string;
+  /** What skill/competency this target is assessing (not the mastery criteria). */
+  description?: string;
   success_criteria: string;
   materials: string;
   examples?: string;
@@ -49,6 +51,8 @@ export interface Target {
 export interface Domain {
   domain_id: string;
   title: string;
+  /** Optional prose about the skill domain (e.g. from CSV `domain_description`). */
+  description?: string;
   targets: Target[];
 }
 

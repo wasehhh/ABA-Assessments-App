@@ -6,6 +6,7 @@ type ScoringType = 'numeric' | 'checkbox' | 'yesno' | 'text';
 interface Target {
   target_id: string;
   title: string;
+  description?: string;
   success_criteria: string;
   materials: string;
   examples?: string;
@@ -72,6 +73,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
     updated[domainIndex].targets.push({
       target_id: newTargetId,
       title: '',
+      description: '',
       success_criteria: '',
       materials: '',
       examples: '',
@@ -166,19 +168,10 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
   const downloadTemplate = () => {
     const csv = [
-      'domain_id,domain_title,domain_description,target_id,target_title,success_criteria,notes',
-      'A,Sample Domain A,Description of domain A,A1,Sample Target 1,Describe success criteria here,Optional notes',
-      'A,Sample Domain A,Description of domain A,A2,Sample Target 2,Describe success criteria here,',
-      'B,Sample Domain B,Description of domain B,B1,Sample Target 1,Describe success criteria here,',
-      'B,Sample Domain B,Description of domain B,B2,Sample Target 2,Describe success criteria here,',
-      '',
-      '# Instructions:',
-      '# - domain_id: Use letters (A, B, C) or numbers (1, 2, 3) to identify domains',
-      '# - All targets with the same domain_id will be grouped together',
-      '# - domain_title and domain_description only need to be on the first target of each domain',
-      '# - target_id: Unique identifier for each target (e.g., A1, A2, B1, etc.)',
-      '# - success_criteria: Clear criteria for when the skill is mastered',
-      '# - notes: Optional field for additional information'
+      'domain_id,domain_title,domain_description,target_id,title,description,success_criteria,materials,instructions,examples,notes',
+      'A,"Cooperation, Reinforcer",Domain context optional,A1,Gross motor imitation,Looks at trainer; imitates posture,Independent for 8/10 trials,"Mirror, mat","Observe from beside learner; reinforce each trial",Eg: clap after model,Starter row',
+      'A,,,A2,Attends reinforcer,Orients toward preferred stimuli,Orient within 3s for 80% probes,"Toys, reinforcers",Paired stimulus presentation,,',
+      '# Quoted fields may contain commas. Empty domain_title on later rows reuses the title from the first row of that domain_id.',
     ].join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -389,6 +382,16 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                               required
                             />
                           </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Description</label>
+                          <input
+                            type="text"
+                            value={target.description || ''}
+                            onChange={(e) => updateTarget(dIndex, tIndex, 'description', e.target.value)}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                            placeholder="What skill or competency this target is assessing."
+                          />
                         </div>
                         <div>
                           <label className="block text-xs text-gray-600 mb-1">Success Criteria</label>
