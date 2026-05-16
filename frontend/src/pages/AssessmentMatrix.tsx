@@ -217,6 +217,23 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     }
   };
 
+  const activeDomainTargets = useMemo(() => {
+    if (!assessment?.pack_snapshot?.domains || !activeDomainId) return [];
+    const domain = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId);
+    return domain?.targets ?? [];
+  }, [assessment?.pack_snapshot?.domains, activeDomainId]);
+
+  const handleNavigateTarget = (direction: 'prev' | 'next') => {
+    const maxIndex = activeDomainTargets.length - 1;
+    if (maxIndex < 0) return;
+    if (direction === 'prev' && activeTargetIndex > 0) {
+      setActiveTargetIndex(activeTargetIndex - 1);
+    }
+    if (direction === 'next' && activeTargetIndex < maxIndex) {
+      setActiveTargetIndex(activeTargetIndex + 1);
+    }
+  };
+
   const handleScoreUpdate = async (targetId: string, val: number) => {
     await updateScore(targetId, val, null);
   };
@@ -563,17 +580,24 @@ export function AssessmentMatrix({ assessmentId }: Props) {
       </main>
 
       {/* LAYER 3: DETAIL MODAL */}
-      {showTargetInfo && activeDomainId && (
+      {showTargetInfo && activeDomainId && activeDomainTargets[activeTargetIndex] && (
         <TargetDetailModal
-          target={assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex]}
-          scores={scores.filter(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id)}
-          currentScore={scores.find(s => s.target_id === assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id) || null}
+          target={activeDomainTargets[activeTargetIndex]}
+          currentScore={
+            scores.find((s) => s.target_id === activeDomainTargets[activeTargetIndex].target_id) || null
+          }
+          targetPositionLabel={`Target ${activeTargetIndex + 1} of ${activeDomainTargets.length}`}
+          canNavigatePrev={activeTargetIndex > 0}
+          canNavigateNext={activeTargetIndex < activeDomainTargets.length - 1}
+          scoresEditable={scoresEditable}
           onClose={() => setShowTargetInfo(false)}
           notesReadOnly={!scoresEditable}
+          onScoreUpdate={(val) => handleScoreUpdate(activeDomainTargets[activeTargetIndex].target_id, val)}
+          onNavigateTarget={handleNavigateTarget}
           onSaveNote={(note) => {
-            const targetId = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId).targets[activeTargetIndex].target_id;
-            const current = scores.find(s => s.target_id === targetId);
-            updateScore(targetId, current?.score || null, note);
+            const targetId = activeDomainTargets[activeTargetIndex].target_id;
+            const current = scores.find((s) => s.target_id === targetId);
+            updateScore(targetId, current?.score ?? null, note);
           }}
         />
       )}

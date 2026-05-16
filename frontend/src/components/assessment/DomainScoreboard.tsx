@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Target, AssessmentScore } from '../../types';
 import { analyticsService } from '../../services/analytics';
 import { Search, ArrowUp, ArrowDown, ArrowRight, CheckCircle } from 'lucide-react';
+import { TargetScoreControls } from './TargetScoreControls';
 
 function getHighestScaleScore(target: Target): number {
     const scoringType = target.scoring.type as string;
@@ -145,70 +146,12 @@ export function DomainScoreboard({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex gap-1 flex-wrap sm:flex-nowrap">
-                                            {/* Cast to string to handle potential legacy 'yes_no' vs strict 'yesno' */}
-                                            {((target.scoring.type as string) === 'yes_no' || target.scoring.type === 'yesno') ? (
-                                                // Yes/No Controls (0 or 1)
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        disabled={!scoresEditable}
-                                                        onClick={() => onScoreUpdate(target.target_id, 0)}
-                                                        className={`
-                                                            px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
-                                                            ${current === 0
-                                                                ? 'bg-gray-600 text-white border-gray-600 shadow-sm'
-                                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                                                            }
-                                                            ${!scoresEditable ? 'opacity-50 cursor-not-allowed' : ''}
-                                                        `}
-                                                    >
-                                                        No
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        disabled={!scoresEditable}
-                                                        onClick={() => onScoreUpdate(target.target_id, 1)}
-                                                        className={`
-                                                            px-3 py-1.5 rounded-lg text-sm font-medium transition-all border
-                                                            ${current === 1
-                                                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-emerald-50 hover:border-emerald-200'
-                                                            }
-                                                            ${!scoresEditable ? 'opacity-50 cursor-not-allowed' : ''}
-                                                        `}
-                                                    >
-                                                        Yes
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                // Standard Numeric Controls (Dynamic Scale)
-                                                (() => {
-                                                    const scale = (target.scoring.scale && target.scoring.scale.length > 0)
-                                                        ? target.scoring.scale
-                                                        : [0, 1, 2, 3, 4]; // Default fallback
-
-                                                    return scale.map(val => (
-                                                        <button
-                                                            type="button"
-                                                            key={val}
-                                                            disabled={!scoresEditable}
-                                                            onClick={() => onScoreUpdate(target.target_id, val)}
-                                                            className={`
-                                                                w-8 h-8 rounded-lg text-sm font-medium transition-all
-                                                                ${current === val
-                                                                    ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-200'
-                                                                    : 'bg-white border border-gray-200 text-gray-600 hover:border-emerald-400'
-                                                                }
-                                                                ${!scoresEditable ? 'opacity-50 cursor-not-allowed hover:border-gray-200' : ''}
-                                                            `}
-                                                        >
-                                                            {val}
-                                                        </button>
-                                                    ));
-                                                })()
-                                            )}
-                                        </div>
+                                        <TargetScoreControls
+                                            target={target}
+                                            current={current}
+                                            scoresEditable={scoresEditable}
+                                            onScoreUpdate={(val) => onScoreUpdate(target.target_id, val)}
+                                        />
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button
