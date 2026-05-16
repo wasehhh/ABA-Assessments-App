@@ -11,16 +11,20 @@ interface Props {
 }
 
 export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, onSelectDomain }: Props) {
-    const narrative = useMemo(() =>
-        analyticsService.generateNarrative(domainStats),
-        [domainStats]);
-
     const dataQuality = useMemo(() => {
         // Determine data quality/completeness
         const totalTargets = domainStats.reduce((sum, d) => sum + d.targetCount, 0);
         const totalScored = domainStats.reduce((sum, d) => sum + d.scoredCount, 0);
         if (totalTargets === 0) return 0;
         return Math.round((totalScored / totalTargets) * 100);
+    }, [domainStats]);
+
+    const summary = useMemo(() => {
+        const valid = domainStats.filter((d) => d.targetCount > 0);
+        if (valid.length === 0) return null;
+        const highest = valid.reduce((best, cur) => (cur.percentage > best.percentage ? cur : best), valid[0]);
+        const lowest = valid.reduce((worst, cur) => (cur.percentage < worst.percentage ? cur : worst), valid[0]);
+        return { highest, lowest };
     }, [domainStats]);
 
     return (
@@ -49,14 +53,13 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
                 {/* Acquisition Card */}
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-500">Skills Acquired</h3>
+                        <h3 className="text-sm font-medium text-gray-500">Targets with Score Gains</h3>
                         <TrendingUp className="w-5 h-5 text-blue-500" />
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-3xl font-bold text-gray-900">{acquisitionCount}</span>
-                        <span className="text-sm text-gray-400 mb-1">new this cycle</span>
+                        <span className="text-sm text-gray-400 mb-1">higher than comparison cycle</span>
                     </div>
-                    <p className="text-xs text-blue-600 mt-3 font-medium">Keep it up!</p>
                 </div>
 
                 {/* Data Quality Card */}
@@ -67,7 +70,7 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
                     </div>
                     <div className="flex items-end gap-2">
                         <span className="text-3xl font-bold text-gray-900">{dataQuality}%</span>
-                        <span className="text-sm text-gray-400 mb-1">targets scored</span>
+                        <span className="text-sm text-gray-400 mb-1">of targets scored</span>
                     </div>
                     <p className="text-xs text-gray-400 mt-3">
                         {dataQuality < 100 ? 'Continue scoring to complete' : 'All targets scored'}
@@ -76,26 +79,31 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
 
                 {/* Narrative Card */}
                 <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-5 rounded-xl border border-emerald-100 md:col-span-1">
-                    <h3 className="text-sm font-bold text-emerald-800 mb-2">Clinical Insights</h3>
+                    <h3 className="text-sm font-bold text-emerald-800 mb-2">Assessment Summary</h3>
                     <div className="space-y-2">
-                        {narrative.strengths.length > 0 && (
-                            <div className="flex gap-2">
-                                <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
-                                <p className="text-xs text-emerald-700 leading-snug">
-                                    <span className="font-semibold">Strengths:</span> {narrative.strengths.join(', ')}
-                                </p>
-                            </div>
-                        )}
-                        {narrative.areasForAttention.length > 0 && (
-                            <div className="flex gap-2">
-                                <div className="w-1 h-1 rounded-full bg-amber-500 mt-1.5" />
-                                <p className="text-xs text-emerald-700 leading-snug">
-                                    <span className="font-semibold">Review:</span> {narrative.areasForAttention.join(', ')}
-                                </p>
-                            </div>
-                        )}
-                        {narrative.strengths.length === 0 && narrative.areasForAttention.length === 0 && (
-                            <p className="text-xs text-emerald-600 italic">Score more items to generate insights.</p>
+                        {summary ? (
+                            <>
+                                <div className="flex gap-2">
+                                    <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
+                                    <p className="text-xs text-emerald-700 leading-snug">
+                                        <span className="font-semibold">Highest completion:</span> {summary.highest.title} ({summary.highest.percentage}%)
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
+                                    <p className="text-xs text-emerald-700 leading-snug">
+                                        <span className="font-semibold">Lowest completion:</span> {summary.lowest.title} ({summary.lowest.percentage}%)
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
+                                    <p className="text-xs text-emerald-700 leading-snug">
+                                        <span className="font-semibold">{dataQuality}%</span> of targets scored
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <p className="text-xs text-emerald-600 italic">No targets available.</p>
                         )}
                     </div>
                 </div>
@@ -138,10 +146,10 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
                                     <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded border border-gray-200">
                                         {stat.scoredCount}/{stat.targetCount} Scored
                                     </span>
-                                    {stat.percentage < 30 && stat.scoredCount > 0 && (
+                                    {stat.scoredCount < stat.targetCount && (
                                         <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded border border-amber-200 flex items-center gap-1">
                                             <AlertCircle className="w-3 h-3" />
-                                            Needs Focus
+                                            {stat.targetCount - stat.scoredCount} {stat.targetCount - stat.scoredCount === 1 ? 'Target' : 'Targets'} Remaining
                                         </span>
                                     )}
                                 </div>

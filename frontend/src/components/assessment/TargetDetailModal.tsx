@@ -3,6 +3,15 @@ import { useEffect, useState } from 'react';
 import { X, Clock, FileText, Check } from 'lucide-react';
 import { Target, AssessmentScore } from '../../types';
 
+function getHighestScaleScore(target: Target): number {
+    const scoringType = target.scoring.type as string;
+    if (scoringType === 'yes_no' || scoringType === 'yesno') return 1;
+    if (target.scoring.scale && target.scoring.scale.length > 0) {
+        return Math.max(...target.scoring.scale);
+    }
+    return 4;
+}
+
 interface Props {
     target: Target;
     scores: AssessmentScore[]; // History of scores for this target (joined with cycle data ideally)
@@ -26,6 +35,14 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
     const showInstructions = instructionsText.length > 0;
     const showExamples = examplesText.length > 0;
     const showTargetNotes = targetNotesText.length > 0;
+    const highestScaleScore = getHighestScaleScore(target);
+    const currentScoreValue = currentScore?.score ?? null;
+    const statusLabel =
+        currentScoreValue === null
+            ? 'Not Scored'
+            : currentScoreValue === highestScaleScore
+                ? 'At Maximum Score'
+                : 'Scored';
 
     useEffect(() => {
         setClinicalNoteText(currentScore?.note ?? '');
@@ -101,7 +118,7 @@ export function TargetDetailModal({ target, scores, currentScore, onClose, onSav
                                 {currentScore?.score ?? '-'}
                             </div>
                             <div className="text-sm text-emerald-800">
-                                {currentScore?.score === 4 ? 'Mastered' : 'In Progress'}
+                                {statusLabel}
                                 <div className="text-xs text-emerald-600 opacity-75 flex items-center gap-1 mt-1">
                                     <Clock className="w-3 h-3" />
                                     Last updated: {currentScore?.updated_at ? new Date(currentScore.updated_at).toLocaleDateString() : 'Never'}

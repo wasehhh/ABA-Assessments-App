@@ -3,6 +3,15 @@ import { Target, AssessmentScore } from '../../types';
 import { analyticsService } from '../../services/analytics';
 import { Search, ArrowUp, ArrowDown, ArrowRight, CheckCircle } from 'lucide-react';
 
+function getHighestScaleScore(target: Target): number {
+    const scoringType = target.scoring.type as string;
+    if (scoringType === 'yes_no' || scoringType === 'yesno') return 1;
+    if (target.scoring.scale && target.scoring.scale.length > 0) {
+        return Math.max(...target.scoring.scale);
+    }
+    return 4;
+}
+
 interface Props {
     domainId: string;
     domainTitle: string;
@@ -40,7 +49,7 @@ export function DomainScoreboard({
     showFooterSubmit = true,
 }: Props) {
     const [search, setSearch] = useState('');
-    const [filter, setFilter] = useState<'all' | 'unscored' | 'mastered'>('all');
+    const [filter, setFilter] = useState<'all' | 'unscored' | 'at_max'>('all');
 
     const getScore = (targetId: string, scoreList: AssessmentScore[]) => {
         return scoreList.find(s => s.target_id === targetId)?.score ?? null;
@@ -55,7 +64,7 @@ export function DomainScoreboard({
             const matchesFilter =
                 filter === 'all' ? true :
                     filter === 'unscored' ? score === null :
-                        filter === 'mastered' ? (score || 0) >= 4 : true;
+                        filter === 'at_max' ? score !== null && score === getHighestScaleScore(t) : true;
 
             return matchesSearch && matchesFilter;
         });
@@ -93,7 +102,7 @@ export function DomainScoreboard({
                     >
                         <option value="all">All Targets</option>
                         <option value="unscored">Unscored</option>
-                        <option value="mastered">Mastered</option>
+                        <option value="at_max">At Maximum Score</option>
                     </select>
                 </div>
             </div>
@@ -114,13 +123,13 @@ export function DomainScoreboard({
                             const current = getScore(target.target_id, scores);
                             const prev = getScore(target.target_id, previousScores);
                             const trend = analyticsService.calculateTrend(current, prev);
-                            const isMastered = (current || 0) >= 4;
+                            const isAtMaxScore = current !== null && current === getHighestScaleScore(target);
 
                             return (
                                 <tr key={target.target_id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-start gap-3">
-                                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${isMastered ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${isAtMaxScore ? 'bg-emerald-500' : 'bg-gray-300'}`} />
                                             <div>
                                                 <span className="font-mono text-xs text-gray-500 mr-2 block sm:inline">{target.target_id}</span>
                                                 <span className="font-medium text-gray-900">{target.title}</span>

@@ -427,7 +427,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             <div className="flex items-center gap-2">
               {/* Compare Mode */}
               <div className="hidden md:flex items-center gap-2 mr-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase">Compare:</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase">Compare With Another Cycle</span>
                 <select
                   value={compareCycleId || ''}
                   onChange={(e) => setCompareCycleId(e.target.value === '' ? null : e.target.value)}
@@ -594,7 +594,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         message={unscoredCount > 0
           ? `Warning: You have ${unscoredCount} unscored targets. Submitting will lock this cycle. Are you sure you want to proceed?`
           : "Are you sure you want to submit this assessment? This will lock the cycle for review."}
-        confirmText="Submit Anyway"
+        confirmText={unscoredCount > 0 ? 'Submit with Unscored Targets' : 'Submit'}
         onConfirm={async () => {
           if (!profile?.org_id || !user?.id) return;
           try {
