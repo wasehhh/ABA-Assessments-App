@@ -373,6 +373,102 @@ export const assessmentService = {
     return data as AssessmentScore;
   },
 
+  /**
+   * Creates a missing assessment_scores row for the active cycle/target.
+   * If a row already exists server-side, updates it instead (idempotent save).
+   */
+  async createScore(params: {
+    assessmentId: string;
+    cycleId: string;
+    clientId: string;
+    targetId: string;
+    domainId: string;
+    score: number | null;
+    note: string | null;
+    assessorId: string;
+    orgId: string;
+    metadata?: any;
+  }): Promise<AssessmentScore> {
+    const {
+      assessmentId,
+      cycleId,
+      clientId,
+      targetId,
+      domainId,
+      score,
+      note,
+      assessorId,
+      orgId,
+      metadata,
+    } = params;
+
+    const [aRes, cRes, pRes] = await Promise.all([
+      supabase.from('assessments').select('status').eq('id', assessmentId).single(),
+      supabase.from('assessment_cycles').select('status').eq('id', cycleId).single(),
+      supabase.from('user_profiles').select('role').eq('id', assessorId).single(),
+    ]);
+
+    if (aRes.error) throw aRes.error;
+    if (cRes.error) throw cRes.error;
+    if (pRes.error) throw pRes.error;
+
+    const role = pRes.data?.role as string | undefined;
+    if (!canEditAssessmentScores(role, aRes.data?.status, cRes.data?.status)) {
+      throw new Error('Score updates are not allowed for this assessment state or your role.');
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from('assessment_scores')
+      .select('id')
+      .eq('assessment_id', assessmentId)
+      .eq('assessment_cycle_id', cycleId)
+      .eq('target_id', targetId)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+    if (existing?.id) {
+      return this.updateScore(existing.id, score, note, assessorId, orgId, metadata);
+    }
+
+    let finalScore = score;
+    if (typeof score === 'number') {
+      if (score > 4) finalScore = 4;
+      if (score < 0) finalScore = 0;
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_scores')
+      .insert({
+        assessment_id: assessmentId,
+        assessment_cycle_id: cycleId,
+        client_id: clientId,
+        pack_snapshot_id: assessmentId,
+        target_id: targetId,
+        domain_id: domainId,
+        score: finalScore,
+        note,
+        metadata,
+        assessor_user_id: assessorId,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (orgId) {
+      await auditService.log({
+        org_id: orgId,
+        user_id: assessorId,
+        action: 'CREATE',
+        entity_type: 'assessment_score',
+        entity_id: data.id,
+        details: { target_id: targetId, cycle_id: cycleId, score: finalScore, note },
+      });
+    }
+
+    return data as AssessmentScore;
+  },
+
   async submit(assessmentId: string, orgId: string, userId: string) {
     // Pre-flight check: Ensure assessment is active
     const { data: current } = await supabase

@@ -51,7 +51,7 @@ export function AssessmentReport({ assessmentId }: Props) {
     };
 
     const domainStats = useMemo(() => {
-        if (!assessment?.pack_snapshot || !scores.length) return [];
+        if (!assessment?.pack_snapshot) return [];
         return analyticsService.calculateDomainStats(assessment.pack_snapshot, scores);
     }, [assessment, scores]);
 

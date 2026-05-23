@@ -60,7 +60,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   // Computed Stats
   const domainStats = useMemo(() => {
-    if (!assessment?.pack_snapshot || !scores.length) return [];
+    if (!assessment?.pack_snapshot) return [];
     return analyticsService.calculateDomainStats(assessment.pack_snapshot, scores);
   }, [assessment?.pack_snapshot, scores]);
 
@@ -69,7 +69,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   }, [domainStats]);
 
   const acquisitionList = useMemo(() => {
-    if (!assessment?.pack_snapshot || !scores.length) return [];
+    if (!assessment?.pack_snapshot) return [];
     return analyticsService.calculateAcquisition(assessment.pack_snapshot, scores, previousScores);
   }, [assessment?.pack_snapshot, scores, previousScores]);
 
@@ -238,37 +238,42 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     await updateScore(targetId, val, null);
   };
 
+  const resolveDomainIdForTarget = (targetId: string): string => {
+    if (!assessment?.pack_snapshot?.domains) return activeDomainId || '';
+    for (const domain of assessment.pack_snapshot.domains) {
+      if (domain.targets.some((t: { target_id: string }) => t.target_id === targetId)) {
+        return domain.domain_id;
+      }
+    }
+    return activeDomainId || '';
+  };
+
   const updateScore = async (targetId: string, val: number | null, note: string | null) => {
     if (!user?.id || !profile?.org_id || !assessment) return;
 
     const viewingCycle = cycles.find((c) => c.id === selectedCycleId);
     if (!canEditAssessmentScores(profile.role, assessment.status, viewingCycle?.status)) return;
 
-    // Optimistic Update
+    const priorScores = scores;
     const newScores = [...scores];
     const index = newScores.findIndex(s => s.target_id === targetId);
-    let previousVal: any = null;
 
     if (index >= 0) {
-      previousVal = newScores[index].score;
-      // Toggle off if clicking same value
       const newVal = (newScores[index].score === val && val !== null) ? null : val;
-
       newScores[index] = {
         ...newScores[index],
         score: newVal,
         note: note !== null ? note : newScores[index].note,
         updated_at: new Date().toISOString(),
-        assessor_user_id: user.id
+        assessor_user_id: user.id,
       };
     } else {
-      // If not in scores array yet is rare but safely handle
       newScores.push({
         target_id: targetId,
         score: val,
-        domain_id: activeDomainId, // approximate
+        domain_id: resolveDomainIdForTarget(targetId),
         updated_at: new Date().toISOString(),
-        assessor_user_id: user.id
+        assessor_user_id: user.id,
       });
     }
 
@@ -276,17 +281,60 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     setSaveStatus('saving');
 
     try {
-      // find the ID again as it might be new? actually for MVP assumes all initialized
       const scoreRecord = newScores.find(s => s.target_id === targetId);
-      if (scoreRecord && scoreRecord.id) {
-        await assessmentService.updateScore(scoreRecord.id, scoreRecord.score, scoreRecord.note, user.id, profile.org_id);
-        setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
+      if (!scoreRecord) {
+        setScores(priorScores);
+        setSaveStatus('error');
+        setErrorAlert('Could not save score: target record missing from local state.');
+        return;
       }
-    } catch (err) {
+
+      let persisted: any;
+      if (scoreRecord.id) {
+        persisted = await assessmentService.updateScore(
+          scoreRecord.id,
+          scoreRecord.score,
+          scoreRecord.note,
+          user.id,
+          profile.org_id
+        );
+      } else {
+        if (!selectedCycleId) {
+          setScores(priorScores);
+          setSaveStatus('error');
+          setErrorAlert('Could not save score: no active assessment cycle is selected.');
+          return;
+        }
+        persisted = await assessmentService.createScore({
+          assessmentId,
+          cycleId: selectedCycleId,
+          clientId: assessment.client_id,
+          targetId,
+          domainId: resolveDomainIdForTarget(targetId),
+          score: scoreRecord.score,
+          note: scoreRecord.note,
+          assessorId: user.id,
+          orgId: profile.org_id,
+        });
+      }
+
+      setScores((prev) => {
+        const idx = prev.findIndex((s) => s.target_id === targetId);
+        const next = [...prev];
+        if (idx >= 0) {
+          next[idx] = persisted;
+        } else {
+          next.push(persisted);
+        }
+        return next;
+      });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (err: any) {
       console.error(err);
+      setScores(priorScores);
       setSaveStatus('error');
-      // Revert could happen here
+      setErrorAlert(`Failed to save score: ${err?.message || 'Unknown error'}`);
     }
   };
 
