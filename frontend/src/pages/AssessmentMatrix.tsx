@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { analyticsService } from '../services/analytics';
@@ -58,6 +58,9 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   // Tab State (likely deprecated in new design but kept for header)
   const [activeTab, setActiveTab] = useState<'scoring' | 'analysis'>('scoring');
 
+  const loadDataRequestRef = useRef(0);
+  const loadCycleScoresRequestRef = useRef(0);
+
   // Computed Stats
   const domainStats = useMemo(() => {
     if (!assessment?.pack_snapshot) return [];
@@ -107,6 +110,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   // --- Data Loading ---
 
   const loadData = async () => {
+    const requestId = ++loadDataRequestRef.current;
     try {
       if (!assessmentId) return;
       setLoading(true);
@@ -117,9 +121,10 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         assessmentService.getCycles(assessmentId)
       ]);
 
+      if (requestId !== loadDataRequestRef.current) return;
+
       if (assessmentData) {
         setAssessment(assessmentData);
-        setScores(assessmentData.scores || []);
         setCycles(history);
 
         const active = history.find((c: any) => c.status === 'in_progress') || history[0];
@@ -128,42 +133,53 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
         if (assessmentData.client_id && !assessmentData.client) {
           const clientData = await clientService.getById(assessmentData.client_id);
+          if (requestId !== loadDataRequestRef.current) return;
           setClient(clientData);
         } else if (assessmentData.client) {
           setClient(assessmentData.client);
         }
       }
     } catch (err: any) {
+      if (requestId !== loadDataRequestRef.current) return;
       console.error('Error loading assessment:', err);
       setError(err.message || 'Failed to load assessment');
     } finally {
-      setLoading(false);
+      if (requestId === loadDataRequestRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   const loadCycleScores = async () => {
+    const requestId = ++loadCycleScoresRequestRef.current;
+    const cycleId = selectedCycleId;
+    const compareId = compareCycleId;
+    const cycleList = cycles;
+
     try {
-      if (!selectedCycleId) return;
-      const cycleScores = await assessmentService.getScores(assessmentId, selectedCycleId);
+      if (!cycleId) return;
+      const cycleScores = await assessmentService.getScores(assessmentId, cycleId);
+      if (requestId !== loadCycleScoresRequestRef.current) return;
       setScores(cycleScores);
 
-      // Comparison Logic
-      let targetCompareId = compareCycleId;
-      if (!targetCompareId || targetCompareId === selectedCycleId) {
-        // Default to previous cycle
-        const sortedCycles = [...cycles].sort((a, b) => b.cycle_number - a.cycle_number);
-        const currentIndex = sortedCycles.findIndex(c => c.id === selectedCycleId);
+      let targetCompareId = compareId;
+      if (!targetCompareId || targetCompareId === cycleId) {
+        const sortedCycles = [...cycleList].sort((a, b) => b.cycle_number - a.cycle_number);
+        const currentIndex = sortedCycles.findIndex(c => c.id === cycleId);
         const prevCycle = sortedCycles[currentIndex + 1];
         if (prevCycle) targetCompareId = prevCycle.id;
       }
 
       if (targetCompareId) {
         const ghosts = await assessmentService.getScores(assessmentId, targetCompareId);
+        if (requestId !== loadCycleScoresRequestRef.current) return;
         setPreviousScores(ghosts);
       } else {
+        if (requestId !== loadCycleScoresRequestRef.current) return;
         setPreviousScores([]);
       }
     } catch (error) {
+      if (requestId !== loadCycleScoresRequestRef.current) return;
       console.error('Error loading cycle scores:', error);
     }
   };
