@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { assessmentService } from '../services/assessments';
 import { analyticsService } from '../services/analytics';
+import { interpretTargetScore } from '../utils/scoreInterpretation';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
 
@@ -181,10 +182,21 @@ export function AssessmentReport({ assessmentId }: Props) {
 
                             <div className="space-y-4">
                                 {domainDef.targets.map((target: any) => {
-                                    const score = scores.find((s) => s.target_id === target.target_id);
-                                    const val = score?.score ?? 0;
-                                    const max = 4;
-                                    const width = (val / max) * 100;
+                                    const scoreRow = scores.find((s) => s.target_id === target.target_id);
+                                    const interpretation = interpretTargetScore(target, scoreRow);
+                                    const barWidth = (interpretation.normalizedRatio ?? 0) * 100;
+                                    const barColorClass =
+                                        interpretation.competencyState === 'at_maximum'
+                                            ? 'bg-emerald-600'
+                                            : interpretation.competencyState === 'in_progress'
+                                                ? 'bg-amber-400'
+                                                : 'bg-transparent';
+                                    const scoreTextClass =
+                                        interpretation.competencyState === 'at_maximum'
+                                            ? 'text-emerald-700'
+                                            : interpretation.competencyState === 'in_progress'
+                                                ? 'text-amber-700'
+                                                : 'text-gray-400';
 
                                     return (
                                         <div
@@ -195,25 +207,25 @@ export function AssessmentReport({ assessmentId }: Props) {
                                             <div className="flex shrink-0 items-center gap-3 sm:w-52">
                                                 <div className="min-w-0 flex-1 rounded-full bg-gray-100 h-2.5 overflow-hidden print:bg-gray-200">
                                                     <div
-                                                        className={`h-full rounded-full ${val === 4 ? 'bg-emerald-600' : val > 0 ? 'bg-amber-400' : 'bg-transparent'}`}
-                                                        style={{ width: `${Math.min(width, 100)}%` }}
+                                                        className={`h-full rounded-full ${barColorClass}`}
+                                                        style={{ width: `${Math.min(barWidth, 100)}%` }}
                                                     />
                                                 </div>
                                                 <span
-                                                    className={`w-10 shrink-0 text-right text-sm font-mono font-bold tabular-nums ${
-                                                        val === 4 ? 'text-emerald-700' : val > 0 ? 'text-amber-700' : 'text-gray-400'
-                                                    }`}
+                                                    className={`w-10 shrink-0 text-right text-sm font-mono font-bold tabular-nums ${scoreTextClass}`}
                                                 >
-                                                    {val}/{max}
+                                                    {interpretation.displayScoreWithMax}
                                                 </span>
                                                 <div className="w-6 flex justify-center shrink-0">
                                                     {(() => {
-                                                        if (!previousScores.length) return null;
-                                                        const prevScore = previousScores.find((ps) => ps.target_id === target.target_id);
-                                                        const prevVal = prevScore?.score ?? 0;
-                                                        if (val > prevVal) return <TrendingUp className="h-4 w-4 text-emerald-600 print:text-gray-800" aria-hidden />;
-                                                        if (val < prevVal) return <TrendingDown className="h-4 w-4 text-red-600 print:text-gray-800" aria-hidden />;
-                                                        if (val === prevVal && prevScore) return <Minus className="h-4 w-4 text-gray-400 print:text-gray-600" aria-hidden />;
+                                                        if (!previousScores.length || interpretation.isUnscored) return null;
+                                                        const prevScoreRow = previousScores.find((ps) => ps.target_id === target.target_id);
+                                                        const prevInterpretation = interpretTargetScore(target, prevScoreRow);
+                                                        const currentVal = interpretation.rawScore!;
+                                                        const prevVal = prevInterpretation.rawScore ?? 0;
+                                                        if (currentVal > prevVal) return <TrendingUp className="h-4 w-4 text-emerald-600 print:text-gray-800" aria-hidden />;
+                                                        if (currentVal < prevVal) return <TrendingDown className="h-4 w-4 text-red-600 print:text-gray-800" aria-hidden />;
+                                                        if (currentVal === prevVal && prevScoreRow) return <Minus className="h-4 w-4 text-gray-400 print:text-gray-600" aria-hidden />;
                                                         return null;
                                                     })()}
                                                 </div>

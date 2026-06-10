@@ -1,4 +1,5 @@
 import { AssessmentScore, ContentPackData } from '../types';
+import { clampRawScore, getTargetMaxScore } from '../utils/scoreInterpretation';
 
 export interface DomainStat {
     domainId: string;
@@ -36,39 +37,18 @@ export const analyticsService = {
             let scoredCount = 0;
 
             domain.targets.forEach(target => {
-                // Determine max score for this target
-                let targetMax = 0;
-                if (target.scoring.type === 'yes_no' || target.scoring.type === 'yesno') {
-                    targetMax = 1;
-                } else if (target.scoring.type === 'checkbox') {
-                    // Start with task_steps, fallback to check_count if legacy, else 1
-                    targetMax = target.scoring.task_steps?.length || (target.scoring as any).checkbox_count || 4;
-                } else if (target.scoring.scale && target.scoring.scale.length > 0) {
-                    targetMax = Math.max(...target.scoring.scale);
-                } else {
-                    // Fallback for numeric with no scale defined (standard 0-4)
-                    targetMax = 4;
-                }
-
-                // Log for debugging
-                console.log(`[Analytics] Target: ${target.title} (${target.target_id}) Type: ${target.scoring.type}`);
-                console.log(`[Analytics] Max: ${targetMax}, Score: ${scoreMap.get(target.target_id)}`);
-
+                const targetMax = getTargetMaxScore(target);
                 maxScore += targetMax;
 
                 const val = scoreMap.get(target.target_id);
                 if (val !== undefined && val !== null) {
-                   if (val > targetMax) {
-                       console.warn(`[Analytics] ANOMALY: Score ${val} > Max ${targetMax} for ${target.target_id}. Clamping.`);
-                   }
-                   // Clamp score to max to prevent > 100% on bad data
-                   const clampedVal = Math.min(val, targetMax);
-                   totalScore += clampedVal;
-                   scoredCount++;
+                    const clampedVal = clampRawScore(val, targetMax);
+                    if (clampedVal !== null) {
+                        totalScore += clampedVal;
+                        scoredCount++;
+                    }
                 }
             });
-            
-            console.log(`[Analytics] Domain ${domain.title}: Total ${totalScore} / Max ${maxScore}`);
 
             return {
                 domainId: domain.domain_id,
