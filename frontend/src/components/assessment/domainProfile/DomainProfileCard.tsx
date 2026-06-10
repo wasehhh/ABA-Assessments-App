@@ -1,6 +1,7 @@
 import { DomainProfile } from '../../../services/domainProfile';
 import { DomainProfileMetrics } from './DomainProfileMetrics';
 import { DomainStateDistribution } from './DomainStateDistribution';
+import { DomainSequenceStrip } from './DomainSequenceStrip';
 
 interface Props {
     profile: DomainProfile;
@@ -21,6 +22,7 @@ export function DomainProfileCard({ profile }: Props) {
                     cycleDelta={profile.cycleDelta}
                 />
                 <DomainStateDistribution distribution={profile.stateDistribution} />
+                <DomainSequenceStrip sequence={profile.sequence} />
             </div>
         </article>
     );
