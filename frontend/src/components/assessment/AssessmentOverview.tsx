@@ -1,18 +1,26 @@
 
 import { useMemo } from 'react';
-import { DomainStat, CycleStat, analyticsService } from '../../services/analytics';
-import { Award, CheckCircle, TrendingUp, AlertCircle, ArrowRight } from 'lucide-react';
+import { DomainStat, CycleStat } from '../../services/analytics';
+import { DomainProfile } from '../../services/domainProfile';
+import { DomainProfileCard } from './domainProfile';
+import { Award, CheckCircle, TrendingUp, ArrowRight } from 'lucide-react';
 
 interface Props {
     domainStats: DomainStat[];
+    domainProfiles: DomainProfile[];
     cycleStats: CycleStat;
     acquisitionCount: number;
     onSelectDomain: (domainId: string) => void;
 }
 
-export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, onSelectDomain }: Props) {
+export function AssessmentOverview({
+    domainStats,
+    domainProfiles,
+    cycleStats,
+    acquisitionCount,
+    onSelectDomain,
+}: Props) {
     const dataQuality = useMemo(() => {
-        // Determine data quality/completeness
         const totalTargets = domainStats.reduce((sum, d) => sum + d.targetCount, 0);
         const totalScored = domainStats.reduce((sum, d) => sum + d.scoredCount, 0);
         if (totalTargets === 0) return 0;
@@ -32,10 +40,10 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
 
             {/* Executive Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Progress Card */}
+                {/* Points Captured Card */}
                 <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-gray-500">Overall Proficiency</h3>
+                        <h3 className="text-sm font-medium text-gray-500">Points Captured</h3>
                         <Award className="w-5 h-5 text-emerald-500" />
                     </div>
                     <div className="flex items-end gap-2">
@@ -109,51 +117,19 @@ export function AssessmentOverview({ domainStats, cycleStats, acquisitionCount, 
                 </div>
             </div>
 
-            {/* Domain Cards Grid (Replacing the Matrix) */}
+            {/* Domain Profile Cards */}
             <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Domains ({domainStats.length})</h2>
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Domains ({domainProfiles.length})</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {domainStats.map((stat) => (
+                    {domainProfiles.map((profile) => (
                         <button
-                            key={stat.domainId}
-                            onClick={() => onSelectDomain(stat.domainId)}
-                            className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all text-left group"
+                            key={profile.domainId}
+                            type="button"
+                            onClick={() => onSelectDomain(profile.domainId)}
+                            className="group relative w-full text-left rounded-xl transition-all hover:ring-2 hover:ring-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         >
-                            <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                                    {stat.title}
-                                </h3>
-                                <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-500" />
-                            </div>
-
-                            <div className="space-y-3">
-                                {/* Progress Bar */}
-                                <div>
-                                    <div className="flex justify-between text-xs mb-1">
-                                        <span className="text-gray-500">Progress</span>
-                                        <span className="font-medium text-gray-900">{stat.percentage}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-100 rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full ${stat.percentage >= 80 ? 'bg-emerald-500' : stat.percentage >= 50 ? 'bg-blue-500' : 'bg-gray-400'}`}
-                                            style={{ width: `${stat.percentage}%` }}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Stat Badges */}
-                                <div className="flex gap-2">
-                                    <span className="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded border border-gray-200">
-                                        {stat.scoredCount}/{stat.targetCount} Scored
-                                    </span>
-                                    {stat.scoredCount < stat.targetCount && (
-                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs rounded border border-amber-200 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3" />
-                                            {stat.targetCount - stat.scoredCount} {stat.targetCount - stat.scoredCount === 1 ? 'Target' : 'Targets'} Remaining
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
+                            <DomainProfileCard profile={profile} />
+                            <ArrowRight className="absolute top-5 right-5 w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors pointer-events-none" />
                         </button>
                     ))}
                 </div>

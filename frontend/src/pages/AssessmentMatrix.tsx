@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { analyticsService } from '../services/analytics';
+import { buildDomainProfiles } from '../services/domainProfile';
 import { clientService } from '../services/clients';
 import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -74,6 +75,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const acquisitionList = useMemo(() => {
     if (!assessment?.pack_snapshot) return [];
     return analyticsService.calculateAcquisition(assessment.pack_snapshot, scores, previousScores);
+  }, [assessment?.pack_snapshot, scores, previousScores]);
+
+  const domainProfiles = useMemo(() => {
+    if (!assessment?.pack_snapshot) return [];
+    return buildDomainProfiles(assessment.pack_snapshot, scores, previousScores);
   }, [assessment?.pack_snapshot, scores, previousScores]);
 
   // --- Effects ---
@@ -616,6 +622,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
           /* LAYER 1: OVERVIEW */
           <AssessmentOverview
             domainStats={domainStats}
+            domainProfiles={domainProfiles}
             cycleStats={cycleStats}
             acquisitionCount={acquisitionList.length}
             onSelectDomain={handleSelectDomain}
