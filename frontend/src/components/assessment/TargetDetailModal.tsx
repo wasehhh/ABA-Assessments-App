@@ -2,16 +2,8 @@
 import { useEffect, useState } from 'react';
 import { X, Clock, FileText, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Target, AssessmentScore } from '../../types';
+import { interpretTargetScore } from '../../utils/scoreInterpretation';
 import { TargetScoreControls } from './TargetScoreControls';
-
-function getHighestScaleScore(target: Target): number {
-    const scoringType = target.scoring.type as string;
-    if (scoringType === 'yes_no' || scoringType === 'yesno') return 1;
-    if (target.scoring.scale && target.scoring.scale.length > 0) {
-        return Math.max(...target.scoring.scale);
-    }
-    return 4;
-}
 
 interface Props {
     target: Target;
@@ -52,12 +44,12 @@ export function TargetDetailModal({
     const showInstructions = instructionsText.length > 0;
     const showExamples = examplesText.length > 0;
     const showTargetNotes = targetNotesText.length > 0;
-    const highestScaleScore = getHighestScaleScore(target);
-    const currentScoreValue = currentScore?.score ?? null;
+    const scoreInterpretation = interpretTargetScore(target, currentScore);
+    const currentScoreValue = scoreInterpretation.rawScore;
     const statusLabel =
-        currentScoreValue === null
+        scoreInterpretation.competencyState === 'unscored'
             ? 'Not Scored'
-            : currentScoreValue === highestScaleScore
+            : scoreInterpretation.competencyState === 'at_maximum'
                 ? 'At Maximum Score'
                 : 'Scored';
 

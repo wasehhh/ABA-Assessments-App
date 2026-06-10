@@ -1,17 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Target, AssessmentScore } from '../../types';
 import { analyticsService } from '../../services/analytics';
+import { interpretTargetScore } from '../../utils/scoreInterpretation';
 import { Search, ArrowUp, ArrowDown, ArrowRight, CheckCircle } from 'lucide-react';
 import { TargetScoreControls } from './TargetScoreControls';
-
-function getHighestScaleScore(target: Target): number {
-    const scoringType = target.scoring.type as string;
-    if (scoringType === 'yes_no' || scoringType === 'yesno') return 1;
-    if (target.scoring.scale && target.scoring.scale.length > 0) {
-        return Math.max(...target.scoring.scale);
-    }
-    return 4;
-}
 
 interface Props {
     domainId: string;
@@ -52,20 +44,21 @@ export function DomainScoreboard({
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'unscored' | 'at_max'>('all');
 
-    const getScore = (targetId: string, scoreList: AssessmentScore[]) => {
-        return scoreList.find(s => s.target_id === targetId)?.score ?? null;
+    const getScoreRow = (targetId: string, scoreList: AssessmentScore[]) => {
+        return scoreList.find(s => s.target_id === targetId) ?? null;
     };
 
     const filteredTargets = useMemo(() => {
         return targets.filter(t => {
-            const score = getScore(t.target_id, scores);
+            const scoreRow = getScoreRow(t.target_id, scores);
+            const interpretation = interpretTargetScore(t, scoreRow);
             const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
                 t.target_id.toLowerCase().includes(search.toLowerCase());
 
             const matchesFilter =
                 filter === 'all' ? true :
-                    filter === 'unscored' ? score === null :
-                        filter === 'at_max' ? score !== null && score === getHighestScaleScore(t) : true;
+                    filter === 'unscored' ? interpretation.isUnscored :
+                        filter === 'at_max' ? interpretation.competencyState === 'at_maximum' : true;
 
             return matchesSearch && matchesFilter;
         });
@@ -121,10 +114,12 @@ export function DomainScoreboard({
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredTargets.map(target => {
-                            const current = getScore(target.target_id, scores);
-                            const prev = getScore(target.target_id, previousScores);
+                            const currentRow = getScoreRow(target.target_id, scores);
+                            const current = currentRow?.score ?? null;
+                            const prev = getScoreRow(target.target_id, previousScores)?.score ?? null;
                             const trend = analyticsService.calculateTrend(current, prev);
-                            const isAtMaxScore = current !== null && current === getHighestScaleScore(target);
+                            const interpretation = interpretTargetScore(target, currentRow);
+                            const isAtMaxScore = interpretation.competencyState === 'at_maximum';
 
                             return (
                                 <tr key={target.target_id} className="hover:bg-gray-50 transition-colors">
