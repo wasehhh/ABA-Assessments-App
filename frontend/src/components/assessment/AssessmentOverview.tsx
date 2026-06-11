@@ -94,13 +94,13 @@ export function AssessmentOverview({
                                 <div className="flex gap-2">
                                     <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
                                     <p className="text-xs text-emerald-700 leading-snug">
-                                        <span className="font-semibold">Highest completion:</span> {summary.highest.title} ({summary.highest.percentage}%)
+                                        <span className="font-semibold">Highest points captured:</span> {summary.highest.title} ({summary.highest.percentage}%)
                                     </p>
                                 </div>
                                 <div className="flex gap-2">
                                     <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5" />
                                     <p className="text-xs text-emerald-700 leading-snug">
-                                        <span className="font-semibold">Lowest completion:</span> {summary.lowest.title} ({summary.lowest.percentage}%)
+                                        <span className="font-semibold">Lowest points captured:</span> {summary.lowest.title} ({summary.lowest.percentage}%)
                                     </p>
                                 </div>
                                 <div className="flex gap-2">
@@ -129,7 +129,7 @@ export function AssessmentOverview({
                             className="group relative w-full text-left rounded-xl transition-all hover:ring-2 hover:ring-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         >
                             <DomainProfileCard profile={profile} />
-                            <ArrowRight className="absolute top-5 right-5 w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors pointer-events-none" />
+                            <ArrowRight className="absolute top-4 right-4 w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors pointer-events-none" />
                         </button>
                     ))}
                 </div>

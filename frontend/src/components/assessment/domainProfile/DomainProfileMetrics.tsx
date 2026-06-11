@@ -22,7 +22,7 @@ export function DomainProfileMetrics({ coverage, pointsCaptured, cycleDelta }: P
     const showNewlyScoredDelta = cycleDelta != null && cycleDelta.newlyScoredDelta > 0;
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <div>
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Coverage</h4>
                 <p className="mt-1 text-sm text-gray-900">
