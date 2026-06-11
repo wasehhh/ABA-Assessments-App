@@ -111,7 +111,11 @@ export const auditService = {
             const { error } = await supabase.from('audit_logs').insert([row]);
 
             if (error) {
-                console.error('Audit log failed:', error, row);
+                console.error('Audit log failed:', error, {
+                    action: row.action,
+                    entity_type: row.entity_type,
+                    entity_id: row.entity_id,
+                });
             }
         } catch (err) {
             console.error('Audit service error:', err);
