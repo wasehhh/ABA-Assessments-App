@@ -58,6 +58,12 @@ export function AssessmentReport({ assessmentId }: Props) {
 
     const cycleStats = useMemo(() => analyticsService.calculateCycleStats(domainStats), [domainStats]);
 
+    const coverageTotals = useMemo(() => {
+        const scored = domainStats.reduce((sum, d) => sum + d.scoredCount, 0);
+        const total = domainStats.reduce((sum, d) => sum + d.targetCount, 0);
+        return { scored, total };
+    }, [domainStats]);
+
     if (loading) return <div className="min-h-screen flex items-center justify-center p-12 text-gray-500 text-base">Generating report…</div>;
     if (!assessment) return <div className="min-h-screen flex items-center justify-center p-12 text-red-600">Assessment not found</div>;
 
@@ -73,10 +79,10 @@ export function AssessmentReport({ assessmentId }: Props) {
             {/* Document header — grouped for scan + print */}
             <header className="border-b-2 border-gray-900 pb-8 mb-10 print:border-gray-900 print:pb-6 print:mb-8">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 mb-3 print:text-gray-600">
-                    Clinical assessment report
+                    Assessment data report
                 </p>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight print:text-2xl">
-                    Clinical Skill Assessment
+                    Assessment Data Report
                 </h1>
 
                 <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 text-sm print:grid-cols-2 print:gap-y-5">
@@ -139,13 +145,17 @@ export function AssessmentReport({ assessmentId }: Props) {
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6">
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-3xl">{cycleStats.percentage}%</div>
-                            <div className="mt-2 text-sm font-medium text-gray-600">Total proficiency</div>
+                            <div className="mt-2 text-sm font-medium text-gray-600">Points Captured</div>
+                            <p className="mt-1 text-xs text-gray-500">of available points</p>
                         </div>
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-700 print:text-emerald-800">
-                                {domainStats.reduce((sum, d) => sum + d.scoredCount, 0)}
+                                {coverageTotals.scored}
                             </div>
-                            <div className="mt-2 text-sm font-medium text-gray-600">Skills assessed</div>
+                            <div className="mt-2 text-sm font-medium text-gray-600">Coverage</div>
+                            <p className="mt-1 text-xs text-gray-500 tabular-nums">
+                                {coverageTotals.scored} of {coverageTotals.total} targets scored
+                            </p>
                         </div>
                         <div className="text-center sm:text-left">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-blue-900">
@@ -172,11 +182,11 @@ export function AssessmentReport({ assessmentId }: Props) {
                                             domain.percentage >= 80 ? 'bg-emerald-100 text-emerald-900 print:bg-gray-100' : 'bg-gray-100 text-gray-700 print:bg-gray-100'
                                         }`}
                                     >
-                                        {domain.percentage}%
+                                        Points Captured · {domain.percentage}%
                                     </span>
                                 </div>
                                 <p className="text-sm text-gray-600 tabular-nums">
-                                    {domain.scoredCount} / {domain.targetCount} skills scored
+                                    {domain.scoredCount} / {domain.targetCount} targets scored
                                 </p>
                             </div>
 
