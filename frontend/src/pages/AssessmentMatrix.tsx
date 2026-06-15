@@ -9,6 +9,11 @@ import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, B
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
+import {
+  AssessmentLandscape,
+  AssessmentViewMode,
+  AssessmentViewToggle,
+} from '../components/assessment/landscape';
 import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
 import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
@@ -42,6 +47,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   // View State (Replaces Legacy Grid Mode)
   const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
+  const [overviewMode, setOverviewMode] = useState<AssessmentViewMode>('domains');
+  const [overviewEntryPoint, setOverviewEntryPoint] = useState<AssessmentViewMode>('domains');
   const [activeTargetIndex, setActiveTargetIndex] = useState(0); // Kept for modal navigation if needed
   const [showTargetInfo, setShowTargetInfo] = useState(false);
   const [showConfirmCycle, setShowConfirmCycle] = useState(false);
@@ -105,6 +112,9 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   useEffect(() => {
     loadData();
+    setOverviewMode('domains');
+    setOverviewEntryPoint('domains');
+    setActiveDomainId(null);
   }, [assessmentId]);
 
   // Load scores when cycle changes
@@ -210,13 +220,20 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     }
   };
 
-  const handleSelectDomain = (domainId: string) => {
+  const handleSelectDomain = (
+    domainId: string,
+    entryPoint?: AssessmentViewMode
+  ) => {
+    const resolvedEntryPoint = entryPoint ?? overviewMode;
+    setOverviewEntryPoint(resolvedEntryPoint);
     setActiveDomainId(domainId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackToOverview = () => {
     setActiveDomainId(null);
+    setOverviewMode(overviewEntryPoint);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleMatrixExport = async (format: 'long' | 'matrix') => {
@@ -619,14 +636,25 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         )}
 
         {!activeDomainId ? (
-          /* LAYER 1: OVERVIEW */
-          <AssessmentOverview
-            domainStats={domainStats}
-            domainProfiles={domainProfiles}
-            cycleStats={cycleStats}
-            acquisitionCount={acquisitionList.length}
-            onSelectDomain={handleSelectDomain}
-          />
+          <div className="space-y-6">
+            <AssessmentViewToggle value={overviewMode} onChange={setOverviewMode} />
+            {overviewMode === 'domains' ? (
+              <AssessmentOverview
+                domainProfiles={domainProfiles}
+                onSelectDomain={(domainId) => handleSelectDomain(domainId, 'domains')}
+              />
+            ) : (
+              <AssessmentLandscape
+                profiles={domainProfiles}
+                domainStats={domainStats}
+                cycleStats={cycleStats}
+                acquisitionCount={acquisitionList.length}
+                hasComparisonBaseline={previousScores.length > 0}
+                sortKey="pack_order"
+                onSelectDomain={(domainId) => handleSelectDomain(domainId, 'landscape')}
+              />
+            )}
+          </div>
         ) : (
           /* LAYER 2: SCOREBOARD */
           <DomainScoreboard
