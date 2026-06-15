@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { analyticsService } from '../services/analytics';
 import { buildDomainProfiles } from '../services/domainProfile';
+import { formatComparisonContext } from '../services/assessmentLandscape';
 import { clientService } from '../services/clients';
 import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -88,6 +89,35 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     if (!assessment?.pack_snapshot) return [];
     return buildDomainProfiles(assessment.pack_snapshot, scores, previousScores);
   }, [assessment?.pack_snapshot, scores, previousScores]);
+
+  const hasExplicitComparison = Boolean(compareCycleId);
+
+  const landscapeComparisonContext = useMemo(() => {
+    const viewingCycle = cycles.find((cycle) => cycle.id === selectedCycleId);
+    const currentCycleNumber = viewingCycle?.cycle_number ?? null;
+
+    if (currentCycleNumber == null) {
+      return formatComparisonContext({ currentCycleNumber: null });
+    }
+
+    if (!hasExplicitComparison) {
+      const currentCycleLabel = `Cycle ${currentCycleNumber}`;
+      return {
+        currentCycleLabel,
+        baselineCycleLabel: null,
+        hasBaseline: false,
+        isExplicitComparison: false,
+        displayText: currentCycleLabel,
+      };
+    }
+
+    const compareCycle = cycles.find((cycle) => cycle.id === compareCycleId);
+    return formatComparisonContext({
+      currentCycleNumber,
+      baselineCycleNumber: compareCycle?.cycle_number ?? null,
+      isExplicitComparison: false,
+    });
+  }, [cycles, selectedCycleId, compareCycleId, hasExplicitComparison]);
 
   // --- Effects ---
 
@@ -649,8 +679,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 domainStats={domainStats}
                 cycleStats={cycleStats}
                 acquisitionCount={acquisitionList.length}
-                hasComparisonBaseline={previousScores.length > 0}
-                sortKey="pack_order"
+                hasComparisonBaseline={hasExplicitComparison}
+                comparisonContext={landscapeComparisonContext}
                 onSelectDomain={(domainId) => handleSelectDomain(domainId, 'landscape')}
               />
             )}
