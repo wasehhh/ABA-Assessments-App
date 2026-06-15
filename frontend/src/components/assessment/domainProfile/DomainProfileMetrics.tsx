@@ -46,7 +46,7 @@ export function DomainProfileMetrics({ coverage, pointsCaptured, cycleDelta }: P
                     <div className="mt-2 flex flex-wrap gap-2">
                         {showAtMaximumDelta && (
                             <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
-                                +{cycleDelta.atMaximumDelta} At Maximum
+                                +{cycleDelta.atMaximumDelta} Mastered
                             </span>
                         )}
                         {showNewlyScoredDelta && (

@@ -119,8 +119,8 @@ export function AssessmentOverview({
 
             {/* Domain Profile Cards */}
             <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Domains ({domainProfiles.length})</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Domain Overview ({domainProfiles.length})</h2>
+                <div className="flex flex-col gap-4">
                     {domainProfiles.map((profile) => (
                         <button
                             key={profile.domainId}
