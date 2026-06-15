@@ -3,6 +3,7 @@ import { STATE_BUCKET_DISPLAY } from './stateDisplay';
 
 interface Props {
     distribution: StateDistribution;
+    variant?: 'default' | 'compact';
 }
 
 function formatBucketPercentage(count: number, total: number): number {
@@ -10,7 +11,8 @@ function formatBucketPercentage(count: number, total: number): number {
     return Math.round((count / total) * 100);
 }
 
-export function DomainStateDistribution({ distribution }: Props) {
+export function DomainStateDistribution({ distribution, variant = 'default' }: Props) {
+    const isCompact = variant === 'compact';
     const visibleBuckets = STATE_BUCKET_DISPLAY.filter(
         (bucket) =>
             bucket.key !== 'in_progress' || distribution.showsInProgressBucket
@@ -22,9 +24,11 @@ export function DomainStateDistribution({ distribution }: Props) {
     );
 
     return (
-        <div className="space-y-2">
+        <div className={isCompact ? 'space-y-1.5' : 'space-y-2'}>
             <div
-                className="flex h-3 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100"
+                className={`flex w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100 ${
+                    isCompact ? 'h-2' : 'h-3'
+                }`}
                 role="img"
                 aria-label="Score band distribution"
             >
@@ -45,7 +49,7 @@ export function DomainStateDistribution({ distribution }: Props) {
                 })}
             </div>
 
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+            <div className={`flex flex-wrap ${isCompact ? 'gap-x-3 gap-y-1' : 'gap-x-4 gap-y-1.5'}`}>
                 {visibleBuckets.map((bucket) => {
                     const count = distribution[bucket.key];
                     const percentage = formatBucketPercentage(count, total);
@@ -53,7 +57,9 @@ export function DomainStateDistribution({ distribution }: Props) {
                     return (
                         <div
                             key={bucket.key}
-                            className="flex items-center gap-1.5 text-xs text-gray-700 tabular-nums"
+                            className={`flex items-center gap-1.5 text-gray-700 tabular-nums ${
+                                isCompact ? 'text-[11px]' : 'text-xs'
+                            }`}
                             title={`${bucket.label}: ${count} targets (${percentage}%)`}
                         >
                             <span
