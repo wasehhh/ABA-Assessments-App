@@ -1,8 +1,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { assessmentService } from '../services/assessments';
-import { analyticsService } from '../services/analytics';
-import { interpretTargetScore } from '../utils/scoreInterpretation';
+import { buildReportProfile } from '../services/reportProfile';
+import { ReportAssessmentScoreDistribution } from '../components/report/ReportAssessmentScoreDistribution';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
 
@@ -51,24 +51,35 @@ export function AssessmentReport({ assessmentId }: Props) {
         }
     };
 
-    const domainStats = useMemo(() => {
-        if (!assessment?.pack_snapshot) return [];
-        return analyticsService.calculateDomainStats(assessment.pack_snapshot, scores);
-    }, [assessment, scores]);
+    const report = useMemo(() => {
+        if (!assessment?.pack_snapshot) return null;
 
-    const cycleStats = useMemo(() => analyticsService.calculateCycleStats(domainStats), [domainStats]);
-
-    const coverageTotals = useMemo(() => {
-        const scored = domainStats.reduce((sum, d) => sum + d.scoredCount, 0);
-        const total = domainStats.reduce((sum, d) => sum + d.targetCount, 0);
-        return { scored, total };
-    }, [domainStats]);
+        return buildReportProfile({
+            assessment: {
+                id: assessment.id,
+                client_id: assessment.client_id,
+                pack_snapshot: assessment.pack_snapshot,
+                assessment_date: assessment.assessment_date,
+                status: assessment.status,
+                client: assessment.client,
+            },
+            cycle: currentCycle
+                ? {
+                    id: currentCycle.id,
+                    cycle_number: currentCycle.cycle_number,
+                    status: currentCycle.status,
+                }
+                : null,
+            scores,
+            previousScores,
+        });
+    }, [assessment, currentCycle, scores, previousScores]);
 
     if (loading) return <div className="min-h-screen flex items-center justify-center p-12 text-gray-500 text-base">Generating report…</div>;
-    if (!assessment) return <div className="min-h-screen flex items-center justify-center p-12 text-red-600">Assessment not found</div>;
+    if (!assessment || !report) return <div className="min-h-screen flex items-center justify-center p-12 text-red-600">Assessment not found</div>;
 
-    const clientName = `${assessment.client?.first_name ?? ''} ${assessment.client?.last_name ?? ''}`.trim() || '—';
-    const packLabel = `${assessment.pack_snapshot.title} (v${assessment.pack_snapshot.version})`;
+    const clientName = report.metadata.clientName ?? '—';
+    const packLabel = `${report.metadata.packTitle} (v${report.metadata.packVersion})`;
     const reportDateStr = new Date().toLocaleDateString(undefined, { dateStyle: 'long' });
     const recordCreatedStr = assessment.created_at
         ? new Date(assessment.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })
@@ -97,10 +108,13 @@ export function AssessmentReport({ assessmentId }: Props) {
                     <div className="border-l-2 border-gray-300 pl-4 print:border-gray-400">
                         <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 print:text-gray-600">Cycle</dt>
                         <dd className="mt-1 text-base font-medium text-gray-900">
-                            {currentCycle ? (
+                            {report.metadata.cycleNumber != null ? (
                                 <>
-                                    Cycle {currentCycle.cycle_number}
-                                    <span className="text-gray-600 font-normal"> · {formatCycleStatusLabel(currentCycle.status)}</span>
+                                    Cycle {report.metadata.cycleNumber}
+                                    <span className="text-gray-600 font-normal">
+                                        {' '}
+                                        · {formatCycleStatusLabel(report.metadata.cycleStatus ?? 'in_progress')}
+                                    </span>
                                 </>
                             ) : (
                                 '—'
@@ -144,76 +158,89 @@ export function AssessmentReport({ assessmentId }: Props) {
                 <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-8 sm:px-8 print:border-gray-300 print:bg-white print:px-6 print:py-6">
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6">
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
-                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-3xl">{cycleStats.percentage}%</div>
+                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-3xl">
+                                {report.rollup.pointsCapturedPercentage}%
+                            </div>
                             <div className="mt-2 text-sm font-medium text-gray-600">Points Captured</div>
                             <p className="mt-1 text-xs text-gray-500">of available points</p>
                         </div>
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-700 print:text-emerald-800">
-                                {coverageTotals.scored}
+                                {report.rollup.scoredTargets}
                             </div>
                             <div className="mt-2 text-sm font-medium text-gray-600">Coverage</div>
                             <p className="mt-1 text-xs text-gray-500 tabular-nums">
-                                {coverageTotals.scored} of {coverageTotals.total} targets scored
+                                {report.rollup.scoredTargets} of {report.rollup.totalTargets} targets scored
                             </p>
                         </div>
                         <div className="text-center sm:text-left">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-blue-900">
-                                {assessment.pack_snapshot.domains.length}
+                                {report.rollup.totalDomains}
                             </div>
                             <div className="mt-2 text-sm font-medium text-gray-600">Domains covered</div>
                         </div>
+                    </div>
+
+                    <div className="mt-8 border-t border-gray-200 pt-8 print:mt-6 print:border-gray-300 print:pt-6">
+                        <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-4 print:mb-3">
+                            Assessment Score Distribution
+                        </h3>
+                        <ReportAssessmentScoreDistribution
+                            distribution={report.assessmentBandDistribution}
+                        />
                     </div>
                 </div>
             </section>
 
             {/* Domains */}
             <section className="space-y-14 print:space-y-10">
-                {domainStats.map((domain) => {
-                    const domainDef = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === domain.domainId);
+                {report.domains.map((section) => {
+                    const { profile } = section;
+                    const pointsPercentage = profile.pointsCaptured.percentage;
 
                     return (
-                        <div key={domain.domainId} className="break-inside-avoid print:break-inside-auto">
+                        <div key={profile.domainId} className="break-inside-avoid print:break-inside-auto">
                             <div className="mb-6 flex flex-col gap-2 border-b border-gray-300 pb-4 sm:flex-row sm:items-end sm:justify-between print:mb-4 print:pb-3">
                                 <div className="flex flex-wrap items-baseline gap-3">
-                                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl print:text-xl">{domain.title}</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl print:text-xl">{profile.title}</h2>
                                     <span
                                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                            domain.percentage >= 80 ? 'bg-emerald-100 text-emerald-900 print:bg-gray-100' : 'bg-gray-100 text-gray-700 print:bg-gray-100'
+                                            pointsPercentage >= 80 ? 'bg-emerald-100 text-emerald-900 print:bg-gray-100' : 'bg-gray-100 text-gray-700 print:bg-gray-100'
                                         }`}
                                     >
-                                        Points Captured · {domain.percentage}%
+                                        Points Captured · {pointsPercentage}%
                                     </span>
                                 </div>
                                 <p className="text-sm text-gray-600 tabular-nums">
-                                    {domain.scoredCount} / {domain.targetCount} targets scored
+                                    {profile.coverage.scored} / {profile.coverage.total} targets scored
                                 </p>
                             </div>
 
                             <div className="space-y-4">
-                                {domainDef.targets.map((target: any) => {
-                                    const scoreRow = scores.find((s) => s.target_id === target.target_id);
-                                    const interpretation = interpretTargetScore(target, scoreRow);
-                                    const barWidth = (interpretation.normalizedRatio ?? 0) * 100;
+                                {section.targets.map((targetRow) => {
+                                    const sequenceItem = profile.sequence.find(
+                                        (item) => item.target.target_id === targetRow.targetId
+                                    );
+                                    const barWidth = (targetRow.normalizedRatio ?? 0) * 100;
                                     const barColorClass =
-                                        interpretation.competencyState === 'at_maximum'
+                                        targetRow.competencyState === 'at_maximum'
                                             ? 'bg-emerald-600'
-                                            : interpretation.competencyState === 'in_progress'
+                                            : targetRow.competencyState === 'in_progress'
                                                 ? 'bg-amber-400'
                                                 : 'bg-transparent';
                                     const scoreTextClass =
-                                        interpretation.competencyState === 'at_maximum'
+                                        targetRow.competencyState === 'at_maximum'
                                             ? 'text-emerald-700'
-                                            : interpretation.competencyState === 'in_progress'
+                                            : targetRow.competencyState === 'in_progress'
                                                 ? 'text-amber-700'
                                                 : 'text-gray-400';
 
                                     return (
                                         <div
-                                            key={target.target_id}
+                                            key={targetRow.targetId}
                                             className="flex flex-col gap-2 border-b border-gray-100 pb-4 text-sm last:border-b-0 sm:flex-row sm:items-center sm:gap-4 sm:pb-3 print:border-gray-200 print:pb-3"
                                         >
-                                            <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug">{target.title}</span>
+                                            <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug">{targetRow.title}</span>
                                             <div className="flex shrink-0 items-center gap-3 sm:w-52">
                                                 <div className="min-w-0 flex-1 rounded-full bg-gray-100 h-2.5 overflow-hidden print:bg-gray-200">
                                                     <div
@@ -224,18 +251,27 @@ export function AssessmentReport({ assessmentId }: Props) {
                                                 <span
                                                     className={`w-10 shrink-0 text-right text-sm font-mono font-bold tabular-nums ${scoreTextClass}`}
                                                 >
-                                                    {interpretation.displayScoreWithMax}
+                                                    {targetRow.displayScoreWithMax}
                                                 </span>
                                                 <div className="w-6 flex justify-center shrink-0">
                                                     {(() => {
-                                                        if (!previousScores.length || interpretation.isUnscored) return null;
-                                                        const prevScoreRow = previousScores.find((ps) => ps.target_id === target.target_id);
-                                                        const prevInterpretation = interpretTargetScore(target, prevScoreRow);
-                                                        const currentVal = interpretation.rawScore!;
-                                                        const prevVal = prevInterpretation.rawScore ?? 0;
-                                                        if (currentVal > prevVal) return <TrendingUp className="h-4 w-4 text-emerald-600 print:text-gray-800" aria-hidden />;
-                                                        if (currentVal < prevVal) return <TrendingDown className="h-4 w-4 text-red-600 print:text-gray-800" aria-hidden />;
-                                                        if (currentVal === prevVal && prevScoreRow) return <Minus className="h-4 w-4 text-gray-400 print:text-gray-600" aria-hidden />;
+                                                        if (!previousScores.length || targetRow.competencyState === 'unscored' || !sequenceItem) {
+                                                            return null;
+                                                        }
+
+                                                        const currentVal = sequenceItem.interpretation.rawScore!;
+                                                        const prevVal = sequenceItem.previousInterpretation?.rawScore ?? 0;
+                                                        const hadPreviousScoreRow = sequenceItem.previousInterpretation?.hasScoreRow;
+
+                                                        if (currentVal > prevVal) {
+                                                            return <TrendingUp className="h-4 w-4 text-emerald-600 print:text-gray-800" aria-hidden />;
+                                                        }
+                                                        if (currentVal < prevVal) {
+                                                            return <TrendingDown className="h-4 w-4 text-red-600 print:text-gray-800" aria-hidden />;
+                                                        }
+                                                        if (currentVal === prevVal && hadPreviousScoreRow) {
+                                                            return <Minus className="h-4 w-4 text-gray-400 print:text-gray-600" aria-hidden />;
+                                                        }
                                                         return null;
                                                     })()}
                                                 </div>
