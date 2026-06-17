@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { assessmentService } from '../services/assessments';
 import { buildReportProfile } from '../services/reportProfile';
 import { ReportAssessmentScoreDistribution } from '../components/report/ReportAssessmentScoreDistribution';
+import { ReportDomainSummaryTable } from '../components/report/ReportDomainSummaryTable';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
 
@@ -190,6 +191,14 @@ export function AssessmentReport({ assessmentId }: Props) {
                         />
                     </div>
                 </div>
+            </section>
+
+            {/* Domain summary */}
+            <section className="mb-12 print:mb-10 print:break-inside-auto">
+                <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-5">
+                    Domain summary
+                </h2>
+                <ReportDomainSummaryTable domains={report.domains} />
             </section>
 
             {/* Domains */}
