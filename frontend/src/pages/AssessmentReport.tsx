@@ -4,6 +4,7 @@ import { assessmentService } from '../services/assessments';
 import { buildReportProfile } from '../services/reportProfile';
 import { ReportAssessmentScoreDistribution } from '../components/report/ReportAssessmentScoreDistribution';
 import { ReportDomainSummaryTable } from '../components/report/ReportDomainSummaryTable';
+import { ReportDomainScoreDistribution } from '../components/report/ReportDomainScoreDistribution';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
 
@@ -209,7 +210,7 @@ export function AssessmentReport({ assessmentId }: Props) {
 
                     return (
                         <div key={profile.domainId} className="break-inside-avoid print:break-inside-auto">
-                            <div className="mb-6 flex flex-col gap-2 border-b border-gray-300 pb-4 sm:flex-row sm:items-end sm:justify-between print:mb-4 print:pb-3">
+                            <div className="mb-6 border-b border-gray-300 pb-4 print:mb-4 print:pb-3">
                                 <div className="flex flex-wrap items-baseline gap-3">
                                     <h2 className="text-xl font-bold text-gray-900 sm:text-2xl print:text-xl">{profile.title}</h2>
                                     <span
@@ -220,9 +221,12 @@ export function AssessmentReport({ assessmentId }: Props) {
                                         Points Captured · {pointsPercentage}%
                                     </span>
                                 </div>
-                                <p className="text-sm text-gray-600 tabular-nums">
-                                    {profile.coverage.scored} / {profile.coverage.total} targets scored
+                                <p className="mt-2 text-sm text-gray-600 tabular-nums">
+                                    {profile.coverage.scored} of {profile.coverage.total} targets scored
                                 </p>
+                                <div className="mt-4 max-w-xl">
+                                    <ReportDomainScoreDistribution distribution={profile.stateDistribution} />
+                                </div>
                             </div>
 
                             <div className="space-y-4">
