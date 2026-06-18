@@ -77,6 +77,25 @@
     opacity: 1 !important;
   }
 
+  .assessment-report-print table thead {
+    display: table-header-group;
+  }
+
+  .assessment-report-print .report-target-row {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .assessment-report-print .report-domain-header {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .assessment-report-print .report-section-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   /* Typography */
   h1,
   h2,

@@ -23,7 +23,7 @@ function ReportCompactBandBar({ distribution }: { distribution: StateDistributio
 
     return (
         <div
-            className="flex h-2 w-full min-w-[6rem] max-w-xs overflow-hidden rounded-full border border-gray-300 bg-gray-100 print:h-2 print:border-gray-400 print:bg-gray-200"
+            className="flex h-2.5 w-full min-w-[6rem] max-w-xs overflow-hidden rounded-full border border-gray-300 bg-gray-100 print:h-2.5 print:border-gray-500 print:bg-gray-200"
             role="img"
             aria-label="Domain score distribution"
         >
@@ -36,7 +36,7 @@ function ReportCompactBandBar({ distribution }: { distribution: StateDistributio
                 return (
                     <div
                         key={bucket.key}
-                        className={`h-full ${bucket.segmentClass} print:border-r print:border-white/80`}
+                        className={`h-full ${bucket.segmentClass} print:border-r print:border-gray-500`}
                         style={{ width: `${width}%` }}
                     />
                 );
@@ -56,13 +56,13 @@ export function ReportDomainSummaryTable({ domains }: Props) {
 
     return (
         <div className="overflow-x-auto print:overflow-visible">
-            <table className="w-full min-w-[36rem] border-collapse text-sm print:text-[13px]">
+            <table className="w-full min-w-[36rem] border-collapse text-sm print:text-[12px]">
                 <thead>
-                    <tr className="border-b border-gray-300 text-left print:border-gray-400">
-                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5">Domain</th>
-                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5">Coverage</th>
-                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5">Points Captured</th>
-                        <th className="pb-2 font-semibold text-gray-900 print:pb-1.5">Distribution</th>
+                    <tr className="border-b-2 border-gray-300 text-left print:border-gray-500">
+                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5 print:bg-gray-50">Domain</th>
+                        <th className="pb-2 pr-4 font-semibold text-gray-900 text-right print:pb-1.5 print:bg-gray-50">Coverage</th>
+                        <th className="pb-2 pr-4 font-semibold text-gray-900 text-right print:pb-1.5 print:bg-gray-50">Points Captured</th>
+                        <th className="pb-2 font-semibold text-gray-900 print:pb-1.5 print:bg-gray-50">Distribution</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -74,18 +74,18 @@ export function ReportDomainSummaryTable({ domains }: Props) {
                         return (
                             <tr
                                 key={profile.domainId}
-                                className="border-b border-gray-100 last:border-b-0 print:border-gray-200"
+                                className="border-b border-gray-200 last:border-b-0 print:border-gray-300"
                             >
-                                <td className="py-2.5 pr-4 align-middle font-medium text-gray-900 leading-snug print:py-2">
+                                <td className="py-2 pr-4 align-middle font-medium text-gray-900 leading-snug print:py-1.5">
                                     {profile.title}
                                 </td>
-                                <td className="py-2.5 pr-4 align-middle tabular-nums text-gray-700 whitespace-nowrap print:py-2">
+                                <td className="py-2 pr-4 align-middle text-right tabular-nums text-gray-700 whitespace-nowrap print:py-1.5">
                                     {scored} of {total} scored ({coveragePct}%)
                                 </td>
-                                <td className="py-2.5 pr-4 align-middle tabular-nums text-gray-700 whitespace-nowrap print:py-2">
+                                <td className="py-2 pr-4 align-middle text-right tabular-nums text-gray-700 whitespace-nowrap print:py-1.5">
                                     {profile.pointsCaptured.percentage}%
                                 </td>
-                                <td className="py-2.5 align-middle print:py-2">
+                                <td className="py-2 align-middle print:py-1.5">
                                     <ReportCompactBandBar distribution={profile.stateDistribution} />
                                 </td>
                             </tr>

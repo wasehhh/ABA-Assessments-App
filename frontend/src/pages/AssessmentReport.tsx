@@ -87,11 +87,15 @@ export function AssessmentReport({ assessmentId }: Props) {
         ? new Date(assessment.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })
         : null;
     const hasPreviousCycleForTrends = previousScores.length > 0;
+    const generatedAtStr = new Date(report.metadata.generatedAt).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
 
     return (
-        <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-12 print:py-10 print:text-black">
+        <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-10 print:py-8 print:text-black">
             {/* Document header — grouped for scan + print */}
-            <header className="border-b-2 border-gray-900 pb-8 mb-10 print:border-gray-900 print:pb-6 print:mb-8">
+            <header className="border-b-2 border-gray-900 pb-8 mb-10 print:border-gray-900 print:pb-5 print:mb-6 report-section-block">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500 mb-3 print:text-gray-600">
                     Assessment data report
                 </p>
@@ -140,7 +144,7 @@ export function AssessmentReport({ assessmentId }: Props) {
             {/* Disclaimer */}
             <div
                 role="note"
-                className="mb-10 rounded-lg border border-amber-200 bg-amber-50/90 px-5 py-4 print:mb-8 print:border-gray-300 print:bg-gray-50 print:px-4 print:py-3"
+                className="mb-10 rounded-lg border border-amber-200 bg-amber-50/90 px-5 py-4 print:mb-6 print:rounded-none print:border-gray-300 print:bg-gray-50 print:px-4 print:py-3 print:shadow-none report-section-block"
             >
                 <div className="flex gap-3">
                     <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 print:text-gray-600 mt-0.5" aria-hidden />
@@ -154,37 +158,37 @@ export function AssessmentReport({ assessmentId }: Props) {
             </div>
 
             {/* Executive summary */}
-            <section className="mb-12 print:mb-10 print:break-inside-auto">
-                <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-5">
+            <section className="mb-12 print:mb-8 report-section-block">
+                <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-4">
                     Executive summary
                 </h2>
-                <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-8 sm:px-8 print:border-gray-300 print:bg-white print:px-6 print:py-6">
-                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6">
+                <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-8 sm:px-8 print:rounded-none print:border-gray-300 print:bg-white print:px-5 print:py-5 print:shadow-none">
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6 print:gap-4">
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
-                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-3xl">
+                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-2xl print:text-black">
                                 {report.rollup.pointsCapturedPercentage}%
                             </div>
-                            <div className="mt-2 text-sm font-medium text-gray-600">Points Captured</div>
-                            <p className="mt-1 text-xs text-gray-500">of available points</p>
+                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">Points Captured</div>
+                            <p className="mt-1 text-xs text-gray-500 print:text-gray-700">of available points</p>
                         </div>
                         <div className="text-center sm:text-left border-b border-gray-200 pb-6 sm:border-b-0 sm:pb-0 print:border-0 print:pb-0">
-                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-700 print:text-emerald-800">
+                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-700 print:text-2xl print:text-black">
                                 {report.rollup.scoredTargets}
                             </div>
-                            <div className="mt-2 text-sm font-medium text-gray-600">Coverage</div>
-                            <p className="mt-1 text-xs text-gray-500 tabular-nums">
+                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">Coverage</div>
+                            <p className="mt-1 text-xs text-gray-500 tabular-nums print:text-gray-700">
                                 {report.rollup.scoredTargets} of {report.rollup.totalTargets} targets scored
                             </p>
                         </div>
                         <div className="text-center sm:text-left">
-                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-blue-900">
+                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-2xl print:text-black">
                                 {report.rollup.totalDomains}
                             </div>
-                            <div className="mt-2 text-sm font-medium text-gray-600">Domains covered</div>
+                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">Domains covered</div>
                         </div>
                     </div>
 
-                    <div className="mt-8 border-t border-gray-200 pt-8 print:mt-6 print:border-gray-300 print:pt-6">
+                    <div className="mt-8 border-t border-gray-200 pt-8 print:mt-5 print:border-gray-300 print:pt-5">
                         <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-4 print:mb-3">
                             Assessment Score Distribution
                         </h3>
@@ -196,39 +200,41 @@ export function AssessmentReport({ assessmentId }: Props) {
             </section>
 
             {/* Domain summary */}
-            <section className="mb-12 print:mb-10 print:break-inside-auto">
-                <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-5">
+            <section className="mb-12 print:mb-8 report-section-block">
+                <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-4">
                     Domain summary
                 </h2>
                 <ReportDomainSummaryTable domains={report.domains} />
             </section>
 
-            <p className="mb-8 text-sm text-gray-600 print:mb-6 print:text-gray-800">
+            <p className="mb-8 text-sm text-gray-600 print:mb-5 print:text-gray-800 report-section-block">
                 {hasPreviousCycleForTrends
                     ? 'Trend arrows compare scored targets with the immediately previous cycle.'
                     : 'No previous cycle available for target trend comparison.'}
             </p>
 
             {/* Domains */}
-            <section className="space-y-14 print:space-y-10">
+            <section className="space-y-14 print:space-y-8">
                 {report.domains.map((section) => {
                     const { profile } = section;
                     const pointsPercentage = profile.pointsCaptured.percentage;
 
                     return (
-                        <div key={profile.domainId} className="break-inside-avoid print:break-inside-auto">
-                            <div className="mb-6 border-b border-gray-300 pb-4 print:mb-4 print:pb-3">
+                        <article key={profile.domainId} className="print:break-inside-auto">
+                            <div className="report-domain-header mb-6 border-b border-gray-300 pb-4 print:mb-4 print:pb-3">
                                 <div className="flex flex-wrap items-baseline gap-3">
-                                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl print:text-xl">{profile.title}</h2>
+                                    <h2 className="text-xl font-bold text-gray-900 sm:text-2xl print:text-lg">{profile.title}</h2>
                                     <span
-                                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                            pointsPercentage >= 80 ? 'bg-emerald-100 text-emerald-900 print:bg-gray-100' : 'bg-gray-100 text-gray-700 print:bg-gray-100'
+                                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold print:rounded-none print:border print:border-gray-400 ${
+                                            pointsPercentage >= 80
+                                                ? 'bg-emerald-100 text-emerald-900 print:bg-white print:text-black'
+                                                : 'bg-gray-100 text-gray-700 print:bg-white print:text-black'
                                         }`}
                                     >
                                         Points Captured · {pointsPercentage}%
                                     </span>
                                 </div>
-                                <p className="mt-2 text-sm text-gray-600 tabular-nums">
+                                <p className="mt-2 text-sm text-gray-600 tabular-nums print:text-gray-800">
                                     {profile.coverage.scored} of {profile.coverage.total} targets scored
                                 </p>
                                 <div className="mt-4 max-w-xl">
@@ -236,7 +242,7 @@ export function AssessmentReport({ assessmentId }: Props) {
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="divide-y divide-gray-100 print:divide-gray-200">
                                 {section.targets.map((targetRow) => {
                                     const sequenceItem = profile.sequence.find(
                                         (item) => item.target.target_id === targetRow.targetId
@@ -250,30 +256,30 @@ export function AssessmentReport({ assessmentId }: Props) {
                                                 : 'bg-transparent';
                                     const scoreTextClass =
                                         targetRow.competencyState === 'at_maximum'
-                                            ? 'text-emerald-700'
+                                            ? 'text-emerald-700 print:text-black'
                                             : targetRow.competencyState === 'in_progress'
-                                                ? 'text-amber-700'
-                                                : 'text-gray-400';
+                                                ? 'text-amber-700 print:text-black'
+                                                : 'text-gray-400 print:text-gray-600';
 
                                     return (
                                         <div
                                             key={targetRow.targetId}
-                                            className="flex flex-col gap-2 border-b border-gray-100 pb-4 text-sm last:border-b-0 sm:flex-row sm:items-center sm:gap-4 sm:pb-3 print:border-gray-200 print:pb-3"
+                                            className="report-target-row flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:gap-4 print:py-2.5"
                                         >
-                                            <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug">{targetRow.title}</span>
-                                            <div className="flex shrink-0 items-center gap-3 sm:w-52">
-                                                <div className="min-w-0 flex-1 rounded-full bg-gray-100 h-2.5 overflow-hidden print:bg-gray-200">
+                                            <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug print:text-[13px]">{targetRow.title}</span>
+                                            <div className="flex shrink-0 items-center gap-2.5 sm:w-52 print:gap-2">
+                                                <div className="min-w-0 flex-1 rounded-full border border-gray-200 bg-gray-100 h-2.5 overflow-hidden print:border-gray-300 print:bg-gray-200">
                                                     <div
-                                                        className={`h-full rounded-full ${barColorClass}`}
+                                                        className={`h-full rounded-full ${barColorClass} print:border-r print:border-gray-400`}
                                                         style={{ width: `${Math.min(barWidth, 100)}%` }}
                                                     />
                                                 </div>
                                                 <span
-                                                    className={`w-10 shrink-0 text-right text-sm font-mono font-bold tabular-nums ${scoreTextClass}`}
+                                                    className={`w-11 shrink-0 text-right text-sm font-mono font-semibold tabular-nums ${scoreTextClass}`}
                                                 >
                                                     {targetRow.displayScoreWithMax}
                                                 </span>
-                                                <div className="flex w-6 shrink-0 justify-center">
+                                                <div className="flex w-5 shrink-0 justify-center print:w-4">
                                                     {(() => {
                                                         if (
                                                             targetRow.competencyState === 'unscored' ||
@@ -289,7 +295,7 @@ export function AssessmentReport({ assessmentId }: Props) {
                                                         if (currentVal > prevVal) {
                                                             return (
                                                                 <TrendingUp
-                                                                    className="h-4 w-4 text-emerald-600 print:text-gray-800"
+                                                                    className="h-3.5 w-3.5 text-emerald-600 print:h-3 print:w-3 print:text-gray-700"
                                                                     aria-hidden
                                                                 />
                                                             );
@@ -297,14 +303,14 @@ export function AssessmentReport({ assessmentId }: Props) {
                                                         if (currentVal < prevVal) {
                                                             return (
                                                                 <TrendingDown
-                                                                    className="h-4 w-4 text-red-600 print:text-gray-800"
+                                                                    className="h-3.5 w-3.5 text-red-600 print:h-3 print:w-3 print:text-gray-700"
                                                                     aria-hidden
                                                                 />
                                                             );
                                                         }
                                                         return (
                                                             <Minus
-                                                                className="h-4 w-4 text-gray-400 print:text-gray-600"
+                                                                className="h-3.5 w-3.5 text-gray-400 print:h-3 print:w-3 print:text-gray-600"
                                                                 aria-hidden
                                                             />
                                                         );
@@ -315,17 +321,15 @@ export function AssessmentReport({ assessmentId }: Props) {
                                     );
                                 })}
                             </div>
-                        </div>
+                        </article>
                     );
                 })}
             </section>
 
-            <footer className="mt-16 border-t border-gray-300 pt-8 text-center text-xs text-gray-500 print:mt-12 print:border-gray-400 print:pt-6 print:text-gray-600">
-                <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
+            <footer className="mt-16 border-t border-gray-300 pt-6 text-xs text-gray-500 print:mt-10 print:border-gray-400 print:pt-4 print:text-gray-700">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <span>Generated by Evalis</span>
-                    <span className="tabular-nums">
-                        {new Date().toLocaleDateString()} · {new Date().toLocaleTimeString()}
-                    </span>
+                    <span className="tabular-nums">{generatedAtStr}</span>
                 </div>
             </footer>
 
