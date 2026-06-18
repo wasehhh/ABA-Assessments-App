@@ -86,6 +86,7 @@ export function AssessmentReport({ assessmentId }: Props) {
     const recordCreatedStr = assessment.created_at
         ? new Date(assessment.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })
         : null;
+    const hasPreviousCycleForTrends = previousScores.length > 0;
 
     return (
         <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-12 print:py-10 print:text-black">
@@ -202,6 +203,12 @@ export function AssessmentReport({ assessmentId }: Props) {
                 <ReportDomainSummaryTable domains={report.domains} />
             </section>
 
+            <p className="mb-8 text-sm text-gray-600 print:mb-6 print:text-gray-800">
+                {hasPreviousCycleForTrends
+                    ? 'Trend arrows compare scored targets with the immediately previous cycle.'
+                    : 'No previous cycle available for target trend comparison.'}
+            </p>
+
             {/* Domains */}
             <section className="space-y-14 print:space-y-10">
                 {report.domains.map((section) => {
@@ -266,26 +273,41 @@ export function AssessmentReport({ assessmentId }: Props) {
                                                 >
                                                     {targetRow.displayScoreWithMax}
                                                 </span>
-                                                <div className="w-6 flex justify-center shrink-0">
+                                                <div className="flex w-6 shrink-0 justify-center">
                                                     {(() => {
-                                                        if (!previousScores.length || targetRow.competencyState === 'unscored' || !sequenceItem) {
+                                                        if (
+                                                            targetRow.competencyState === 'unscored' ||
+                                                            !sequenceItem?.previousInterpretation ||
+                                                            sequenceItem.previousInterpretation.isUnscored
+                                                        ) {
                                                             return null;
                                                         }
 
                                                         const currentVal = sequenceItem.interpretation.rawScore!;
-                                                        const prevVal = sequenceItem.previousInterpretation?.rawScore ?? 0;
-                                                        const hadPreviousScoreRow = sequenceItem.previousInterpretation?.hasScoreRow;
+                                                        const prevVal = sequenceItem.previousInterpretation.rawScore!;
 
                                                         if (currentVal > prevVal) {
-                                                            return <TrendingUp className="h-4 w-4 text-emerald-600 print:text-gray-800" aria-hidden />;
+                                                            return (
+                                                                <TrendingUp
+                                                                    className="h-4 w-4 text-emerald-600 print:text-gray-800"
+                                                                    aria-hidden
+                                                                />
+                                                            );
                                                         }
                                                         if (currentVal < prevVal) {
-                                                            return <TrendingDown className="h-4 w-4 text-red-600 print:text-gray-800" aria-hidden />;
+                                                            return (
+                                                                <TrendingDown
+                                                                    className="h-4 w-4 text-red-600 print:text-gray-800"
+                                                                    aria-hidden
+                                                                />
+                                                            );
                                                         }
-                                                        if (currentVal === prevVal && hadPreviousScoreRow) {
-                                                            return <Minus className="h-4 w-4 text-gray-400 print:text-gray-600" aria-hidden />;
-                                                        }
-                                                        return null;
+                                                        return (
+                                                            <Minus
+                                                                className="h-4 w-4 text-gray-400 print:text-gray-600"
+                                                                aria-hidden
+                                                            />
+                                                        );
                                                     })()}
                                                 </div>
                                             </div>
