@@ -1,9 +1,27 @@
-import { LearnerMapProfile } from '../../services/learnerMapProfile';
+import { LearnerMapCycleSummary, LearnerMapProfile } from '../../services/learnerMapProfile';
 import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
+import { LearnerMapAssessmentRollup } from './LearnerMapAssessmentRollup';
 import { LearnerMapDomainSection } from './LearnerMapDomainSection';
+import { LearnerMapDomainSummary } from './LearnerMapDomainSummary';
 
 interface Props {
     profile: LearnerMapProfile;
+}
+
+function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
+    if (cycles.length === 0) {
+        return 'No cycles represented';
+    }
+
+    const cycleNumbers = cycles.map((cycle) => cycle.cycleNumber);
+    const min = Math.min(...cycleNumbers);
+    const max = Math.max(...cycleNumbers);
+
+    if (min === max) {
+        return `Cycle ${min}`;
+    }
+
+    return `Cycles ${min}–${max}`;
 }
 
 export function LearnerMapView({ profile }: Props) {
@@ -12,9 +30,10 @@ export function LearnerMapView({ profile }: Props) {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
+    const cycleRangeLabel = formatCycleRange(cycles);
 
     return (
-        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 text-gray-900">
+        <div className="mx-auto max-w-6xl space-y-10 px-4 py-8 text-gray-900">
             <header className="border-b-2 border-gray-900 pb-6">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                     Longitudinal competency record
@@ -23,28 +42,11 @@ export function LearnerMapView({ profile }: Props) {
                 <p className="mt-2 text-sm text-gray-700">
                     {metadata.packTitle} (v{metadata.packVersion})
                 </p>
-                <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-                    <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Domains</dt>
-                        <dd className="tabular-nums font-medium">{totals.totalDomains}</dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Targets</dt>
-                        <dd className="tabular-nums font-medium">{totals.totalTargets}</dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Cycles</dt>
-                        <dd className="tabular-nums font-medium">{totals.totalCycles}</dd>
-                    </div>
-                    <div>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">Scored cells</dt>
-                        <dd className="tabular-nums font-medium">
-                            {totals.scoredCells} / {totals.totalCells}
-                        </dd>
-                    </div>
-                </dl>
+                <p className="mt-2 text-sm font-medium text-gray-800">{cycleRangeLabel}</p>
                 <p className="mt-3 text-xs text-gray-500">Generated {generatedAt}</p>
             </header>
+
+            <LearnerMapAssessmentRollup totals={totals} />
 
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-700">Score bands</p>
@@ -64,24 +66,42 @@ export function LearnerMapView({ profile }: Props) {
                 </p>
             </div>
 
+            <section className="space-y-4 border-t border-gray-200 pt-8">
+                <div>
+                    <h2 className="text-base font-bold uppercase tracking-wide text-gray-900">
+                        Domain summary
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-600">
+                        Scan domains before reviewing target-level detail.
+                    </p>
+                </div>
+                <LearnerMapDomainSummary domains={domains} />
+            </section>
+
             {cycles.length === 0 ? (
                 <p className="text-sm text-gray-600">No cycles available for this learner map.</p>
             ) : null}
 
-            {domains.length === 0 ? (
-                <p className="text-sm text-gray-600">No domains available in this assessment.</p>
-            ) : null}
-
             {cycles.length > 0 && domains.length > 0 ? (
-                <div className="space-y-10">
-                    {domains.map((domain) => (
-                        <LearnerMapDomainSection
-                            key={domain.domainId}
-                            domain={domain}
-                            cycles={cycles}
-                        />
-                    ))}
-                </div>
+                <section className="space-y-8 border-t border-gray-300 pt-8">
+                    <div>
+                        <h2 className="text-base font-bold uppercase tracking-wide text-gray-900">
+                            Target × cycle detail
+                        </h2>
+                        <p className="mt-1 text-sm text-gray-600">
+                            Longitudinal scores and movement by target across {cycleRangeLabel.toLowerCase()}.
+                        </p>
+                    </div>
+                    <div className="space-y-10">
+                        {domains.map((domain) => (
+                            <LearnerMapDomainSection
+                                key={domain.domainId}
+                                domain={domain}
+                                cycles={cycles}
+                            />
+                        ))}
+                    </div>
+                </section>
             ) : null}
         </div>
     );

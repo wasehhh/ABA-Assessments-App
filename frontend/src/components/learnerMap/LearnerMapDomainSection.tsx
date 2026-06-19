@@ -12,7 +12,7 @@ interface Props {
 export function LearnerMapDomainSection({ domain, cycles }: Props) {
     return (
         <section className="space-y-3">
-            <h2 className="text-base font-bold text-gray-900">{domain.title}</h2>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-800">{domain.title}</h3>
 
             {cycles.length === 0 ? (
                 <p className="text-sm text-gray-600">No cycles available for this domain.</p>
