@@ -30,9 +30,9 @@ export function LearnerMapCell({ cell }: Props) {
     const marker = movementMarker(cell.movementFromPrevious);
 
     return (
-        <td className="border border-gray-200 p-1 align-middle text-center">
+        <td className="border border-gray-100 p-0.5 align-middle text-center">
             <div
-                className={`mx-auto flex min-h-[3rem] w-full min-w-[4.5rem] flex-col items-center justify-center rounded border px-1 py-1.5 ${bucket.legendClass}`}
+                className={`mx-auto flex min-h-[2.75rem] w-full min-w-[3.5rem] flex-col items-center justify-center rounded border px-0.5 py-1 ${bucket.legendClass}`}
                 aria-label={`${bucket.label}, score ${cell.displayScoreWithMax}${
                     marker ? `, movement ${cell.movementFromPrevious}` : ''
                 }`}

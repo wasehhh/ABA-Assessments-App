@@ -62,17 +62,17 @@ export function LearnerMapView({ profile }: Props) {
                     ))}
                 </div>
                 <p className="mt-3 text-xs text-gray-600">
-                    Movement markers: ↑ higher · ↓ lower · = unchanged · + newly scored
+                    Movement markers: ↑ higher · ↓ lower · = unchanged · + newly scored · – no movement
                 </p>
             </div>
 
             <section className="space-y-4 border-t border-gray-200 pt-8">
                 <div>
                     <h2 className="text-base font-bold uppercase tracking-wide text-gray-900">
-                        Domain summary
+                        Domain competency summary
                     </h2>
                     <p className="mt-1 text-sm text-gray-600">
-                        Scan domains before reviewing target-level detail.
+                        Scan coverage, score distribution, and movement before cycle-level detail.
                     </p>
                 </div>
                 <LearnerMapDomainSummary domains={domains} />
@@ -86,10 +86,11 @@ export function LearnerMapView({ profile }: Props) {
                 <section className="space-y-8 border-t border-gray-300 pt-8">
                     <div>
                         <h2 className="text-base font-bold uppercase tracking-wide text-gray-900">
-                            Target × cycle detail
+                            Cycle × target detail
                         </h2>
                         <p className="mt-1 text-sm text-gray-600">
-                            Longitudinal scores and movement by target across {cycleRangeLabel.toLowerCase()}.
+                            Cycles as rows, targets as columns — scroll horizontally for large domains
+                            across {cycleRangeLabel.toLowerCase()}.
                         </p>
                     </div>
                     <div className="space-y-10">
