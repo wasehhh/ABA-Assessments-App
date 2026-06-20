@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -16,6 +16,26 @@ import { OrgSettings } from './pages/OrgSettings';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
 
+function DevLearnerMapRouteLoader() {
+  const [Preview, setPreview] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    void import('./pages/dev/LearnerMapPreview').then((mod) => {
+      setPreview(() => mod.LearnerMapPreview);
+    });
+  }, []);
+
+  if (!Preview) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading preview...</div>
+      </div>
+    );
+  }
+
+  return <Preview />;
+}
+
 function AppRouter() {
   const { user, loading, error } = useAuth();
   const [route, setRoute] = useState(window.location.hash || '#/login');
@@ -27,10 +47,17 @@ function AppRouter() {
   }, []);
 
   useEffect(() => {
+    if (import.meta.env.DEV) {
+      return;
+    }
     if (!loading && !user && route !== '#/login') {
       window.location.hash = '#/login';
     }
   }, [user, loading, route]);
+
+  if (import.meta.env.DEV && route.split('?')[0] === '#/dev/learner-map') {
+    return <DevLearnerMapRouteLoader />;
+  }
 
   if (error) {
     return (
