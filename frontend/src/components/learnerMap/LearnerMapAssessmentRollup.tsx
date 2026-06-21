@@ -1,8 +1,14 @@
 import { Grid3x3, Layers, LayoutGrid, Target } from 'lucide-react';
-import { LearnerMapTotals } from '../../services/learnerMapProfile';
+import { LearnerMapDomain, LearnerMapTotals } from '../../services/learnerMapProfile';
+import {
+    deriveAssessmentTargetMovementSummary,
+    targetMovementPercent,
+} from './domainCellDisplay';
+import { MOVEMENT_MARKER_ENTRIES } from './movementDisplay';
 
 interface Props {
     totals: LearnerMapTotals;
+    domains: LearnerMapDomain[];
 }
 
 interface StatItem {
@@ -11,7 +17,7 @@ interface StatItem {
     icon: typeof Layers;
 }
 
-export function LearnerMapAssessmentRollup({ totals }: Props) {
+export function LearnerMapAssessmentRollup({ totals, domains }: Props) {
     const stats: StatItem[] = [
         { label: 'Domains', value: totals.totalDomains, icon: Layers },
         { label: 'Targets', value: totals.totalTargets, icon: Target },
@@ -19,6 +25,8 @@ export function LearnerMapAssessmentRollup({ totals }: Props) {
         { label: 'Scored Cells', value: totals.scoredCells, icon: Grid3x3 },
         { label: 'Total Cells', value: totals.totalCells, icon: Grid3x3 },
     ];
+
+    const movementSummary = deriveAssessmentTargetMovementSummary(domains);
 
     return (
         <section
@@ -50,6 +58,58 @@ export function LearnerMapAssessmentRollup({ totals }: Props) {
                     );
                 })}
             </dl>
+
+            <div
+                className="mt-4 border-t border-gray-100 pt-3"
+                data-learner-map-assessment-movement-summary
+            >
+                <h3 className="text-[11px] font-bold uppercase tracking-wide text-gray-900">
+                    Latest Target Movement
+                </h3>
+                <p className="mt-0.5 text-[10px] text-gray-500">
+                    Percentages are based on total targets in this assessment.
+                </p>
+                <div
+                    className="mt-2 overflow-hidden rounded-md border border-gray-200 bg-white"
+                    data-learner-map-assessment-movement-strip
+                >
+                    <ul className="flex flex-wrap lg:flex-nowrap">
+                        {MOVEMENT_MARKER_ENTRIES.map((entry, index) => {
+                            const count = movementSummary.movement[entry.key];
+                            const percent = targetMovementPercent(
+                                count,
+                                movementSummary.totalTargets
+                            );
+
+                            return (
+                                <li
+                                    key={entry.key}
+                                    className={`min-w-[9rem] flex-1 px-2 py-2.5 text-center ${
+                                        index > 0
+                                            ? 'border-t border-gray-200 lg:border-t-0 lg:border-l'
+                                            : ''
+                                    }`}
+                                >
+                                    <div className="space-y-0.5">
+                                        <p
+                                            className={`text-[11px] font-semibold leading-tight ${entry.markerClass}`}
+                                        >
+                                            <span aria-hidden>{entry.symbol}</span> {entry.label}
+                                        </p>
+                                        <p
+                                            className={`text-sm font-semibold tabular-nums leading-tight ${entry.markerClass}`}
+                                            title={`${entry.label}: ${count} targets (${percent}%)`}
+                                        >
+                                            {count}{' '}
+                                            <span className="font-medium">({percent}%)</span>
+                                        </p>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            </div>
         </section>
     );
 }

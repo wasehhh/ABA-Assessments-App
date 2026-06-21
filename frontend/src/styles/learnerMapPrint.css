@@ -147,6 +147,52 @@
         font-size: 7pt !important;
     }
 
+    [data-learner-map-assessment-movement-summary] {
+        margin-top: 0.25rem !important;
+        padding-top: 0.2rem !important;
+    }
+
+    [data-learner-map-assessment-movement-summary] h3 {
+        font-size: 7.5pt !important;
+    }
+
+    [data-learner-map-assessment-movement-summary] > p {
+        margin-top: 0.05rem !important;
+        font-size: 6.5pt !important;
+        line-height: 1.15 !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] {
+        margin-top: 0.15rem !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] ul {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] li {
+        min-width: 0 !important;
+        flex: 1 1 0 !important;
+        padding: 0.12rem 0.15rem !important;
+        font-size: 7pt !important;
+        line-height: 1.1 !important;
+        border-top: none !important;
+        border-left: 1px solid #e5e7eb !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] li:first-child {
+        border-left: none !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] li p:first-child {
+        font-size: 6.5pt !important;
+    }
+
+    [data-learner-map-assessment-movement-strip] li p:last-child {
+        font-size: 7pt !important;
+    }
+
     [data-learner-map-export-legends] {
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;

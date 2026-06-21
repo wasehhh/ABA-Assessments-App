@@ -65,6 +65,45 @@ export function deriveTargetMovementCounts(domain: LearnerMapDomain): DomainTarg
     return movement;
 }
 
+export interface AssessmentTargetMovementSummary {
+    movement: DomainTargetMovementCounts;
+    totalTargets: number;
+}
+
+export function deriveAssessmentTargetMovementSummary(
+    domains: LearnerMapDomain[]
+): AssessmentTargetMovementSummary {
+    const movement: DomainTargetMovementCounts = {
+        up: 0,
+        flat: 0,
+        down: 0,
+        new: 0,
+        none: 0,
+    };
+
+    let totalTargets = 0;
+
+    for (const domain of domains) {
+        const domainMovement = deriveTargetMovementCounts(domain);
+        totalTargets += domain.targets.length;
+        movement.up += domainMovement.up;
+        movement.flat += domainMovement.flat;
+        movement.down += domainMovement.down;
+        movement.new += domainMovement.new;
+        movement.none += domainMovement.none;
+    }
+
+    return { movement, totalTargets };
+}
+
+export function targetMovementPercent(count: number, totalTargets: number): number {
+    if (totalTargets === 0) {
+        return 0;
+    }
+
+    return Math.round((count / totalTargets) * 100);
+}
+
 export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDisplayStats {
     const cells = collectDomainCells(domain);
     const totalCells = cells.length;

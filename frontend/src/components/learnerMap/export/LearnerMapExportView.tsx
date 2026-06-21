@@ -61,7 +61,7 @@ export function LearnerMapExportView({ profile, mode, displayContext }: Props) {
                 </div>
 
                 <div data-learner-map-export-rollup>
-                    <LearnerMapAssessmentRollup totals={profile.totals} />
+                    <LearnerMapAssessmentRollup totals={profile.totals} domains={domains} />
                 </div>
 
                 <div

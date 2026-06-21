@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { LearnerMapCell, LearnerMapDomain, LearnerMapTarget } from '../../services/learnerMapProfile';
 import {
+    deriveAssessmentTargetMovementSummary,
     deriveDomainCellStats,
     deriveTargetMovementCounts,
     resolveTargetLatestMovement,
+    targetMovementPercent,
 } from './domainCellDisplay';
 
 function makeCell(
@@ -161,5 +163,33 @@ describe('domainCellDisplay target movement', () => {
         expect(movementPercent(movement.none, stats.totalCells)).not.toBe(
             movementPercent(movement.none, stats.targetCount)
         );
+    });
+
+    it('aggregates assessment-wide movement from domain target counts', () => {
+        const domainA = makeDomain([
+            makeTarget('T1', [makeCell('c1', 1, 'up')]),
+            makeTarget('T2', [makeCell('c1', 1, 'up')]),
+            makeTarget('T3', [makeCell('c1', 1, 'none', true)]),
+        ]);
+        const domainB = makeDomain([
+            makeTarget('T4', [makeCell('c1', 1, 'down')]),
+            makeTarget('T5', [makeCell('c1', 1, 'flat')]),
+        ]);
+        domainB.domainId = 'DOM_2';
+        domainB.title = 'Domain 2';
+
+        const summary = deriveAssessmentTargetMovementSummary([domainA, domainB]);
+        const bucketTotal = MOVEMENT_KEYS.reduce(
+            (sum, key) => sum + summary.movement[key],
+            0
+        );
+
+        expect(summary.totalTargets).toBe(5);
+        expect(bucketTotal).toBe(summary.totalTargets);
+        expect(summary.movement.up).toBe(2);
+        expect(summary.movement.down).toBe(1);
+        expect(summary.movement.flat).toBe(1);
+        expect(summary.movement.none).toBe(1);
+        expect(targetMovementPercent(summary.movement.up, summary.totalTargets)).toBe(40);
     });
 });

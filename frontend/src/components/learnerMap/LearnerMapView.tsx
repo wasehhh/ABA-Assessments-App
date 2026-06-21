@@ -45,7 +45,7 @@ export function LearnerMapView({ profile, displayContext }: Props) {
                 displayContext={displayContext}
             />
 
-            <LearnerMapAssessmentRollup totals={totals} />
+            <LearnerMapAssessmentRollup totals={totals} domains={domains} />
 
             <div className="grid gap-4 md:grid-cols-2">
                 <LearnerMapScoreBandsCard />
