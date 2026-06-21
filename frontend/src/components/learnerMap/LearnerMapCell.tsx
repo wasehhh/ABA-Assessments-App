@@ -1,51 +1,59 @@
-import { LearnerMapCell as LearnerMapCellData, LearnerMapMovement } from '../../services/learnerMapProfile';
+import { LearnerMapCell as LearnerMapCellData } from '../../services/learnerMapProfile';
 import { CompetencyState } from '../../utils/scoreInterpretation';
 import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
+import { movementMarkerDisplay, movementMarkerSymbol } from './movementDisplay';
 
 interface Props {
     cell: LearnerMapCellData;
+    compact?: boolean;
 }
 
 function bucketForState(state: CompetencyState) {
     return STATE_BUCKET_DISPLAY.find((bucket) => bucket.key === state) ?? STATE_BUCKET_DISPLAY[0];
 }
 
-function movementMarker(movement: LearnerMapMovement): string {
-    switch (movement) {
-        case 'up':
-            return '↑';
-        case 'down':
-            return '↓';
-        case 'flat':
-            return '=';
-        case 'new':
-            return '+';
-        default:
-            return '';
-    }
-}
-
-export function LearnerMapCell({ cell }: Props) {
+export function LearnerMapCell({ cell, compact = false }: Props) {
     const bucket = bucketForState(cell.competencyState);
-    const marker = movementMarker(cell.movementFromPrevious);
+    const marker = movementMarkerSymbol(cell.movementFromPrevious);
+    const markerStyle = marker
+        ? movementMarkerDisplay(cell.movementFromPrevious)
+        : movementMarkerDisplay('none');
 
     return (
-        <td className="border border-gray-100 p-0.5 align-middle text-center">
+        <td className={`border border-gray-100 align-middle text-center ${compact ? 'p-0' : 'p-0.5'}`}>
             <div
-                className={`mx-auto flex min-h-[2.75rem] w-full min-w-[3.5rem] flex-col items-center justify-center rounded border px-0.5 py-1 ${bucket.legendClass}`}
+                className={`mx-auto flex w-full flex-col items-center justify-center rounded border ${
+                    compact
+                        ? 'min-h-[1.85rem] min-w-[2.25rem] px-0 py-0.5'
+                        : 'min-h-[2.75rem] min-w-[3.5rem] px-0.5 py-1'
+                } ${bucket.legendClass}`}
                 aria-label={`${bucket.label}, score ${cell.displayScoreWithMax}${
-                    marker ? `, movement ${cell.movementFromPrevious}` : ''
+                    marker ? `, ${markerStyle.label}` : ''
                 }`}
             >
-                <span className="text-xs font-mono font-semibold tabular-nums text-gray-900">
+                <span
+                    className={`font-mono font-semibold tabular-nums text-gray-900 ${
+                        compact ? 'text-[9px] leading-none' : 'text-xs'
+                    }`}
+                >
                     {cell.displayScoreWithMax}
                 </span>
                 {marker ? (
-                    <span className="mt-0.5 text-[10px] font-medium leading-none text-gray-700" aria-hidden>
+                    <span
+                        className={`font-bold leading-none ${markerStyle.markerClass} ${
+                            compact ? 'text-[8px]' : 'mt-0.5 text-[10px]'
+                        }`}
+                        aria-hidden
+                    >
                         {marker}
                     </span>
                 ) : (
-                    <span className="mt-0.5 text-[10px] leading-none text-transparent" aria-hidden>
+                    <span
+                        className={`leading-none text-transparent ${
+                            compact ? 'text-[8px]' : 'mt-0.5 text-[10px]'
+                        }`}
+                        aria-hidden
+                    >
                         ·
                     </span>
                 )}

@@ -21,7 +21,10 @@ export function LearnerMapAssessmentRollup({ totals }: Props) {
     ];
 
     return (
-        <section className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm">
+        <section
+            className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm"
+            data-learner-map-export-rollup-section
+        >
             <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-xs font-bold uppercase tracking-wide text-gray-900">
                     Assessment rollup

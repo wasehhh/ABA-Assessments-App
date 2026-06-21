@@ -1,23 +1,21 @@
-const MOVEMENT_ENTRIES = [
-    { symbol: '↑', label: 'Up', description: 'Score increased from previous cycle' },
-    { symbol: '↓', label: 'Down', description: 'Score decreased from previous cycle' },
-    { symbol: '=', label: 'No Change', description: 'Score unchanged from previous cycle' },
-    { symbol: '+', label: 'New / First', description: 'Newly scored this cycle' },
-    { symbol: '–', label: 'No Movement', description: 'No prior-cycle comparison' },
-] as const;
+import { MOVEMENT_MARKER_ENTRIES } from './movementDisplay';
 
 export function LearnerMapMovementKey() {
     return (
-        <section className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm">
+        <section
+            className="rounded-lg border border-gray-200 bg-white px-4 py-4 shadow-sm"
+            data-learner-map-export-movement-key
+        >
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-900">Movement</h2>
             <p className="mt-1 text-xs text-gray-600">
-                Markers shown beneath each scored cell when a prior cycle exists.
+                L1 summarizes latest movement per target. Appendix cell markers show movement
+                compared with the prior cycle.
             </p>
             <ul className="mt-3 space-y-2">
-                {MOVEMENT_ENTRIES.map((entry) => (
+                {MOVEMENT_MARKER_ENTRIES.map((entry) => (
                     <li key={entry.symbol} className="flex items-start gap-2 text-sm text-gray-800">
                         <span
-                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-800"
+                            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs font-bold ${entry.badgeClass}`}
                             aria-hidden
                         >
                             {entry.symbol}

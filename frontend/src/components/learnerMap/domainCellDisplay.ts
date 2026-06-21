@@ -2,6 +2,7 @@ import {
     LearnerMapCell,
     LearnerMapDomain,
     LearnerMapMovement,
+    LearnerMapTarget,
 } from '../../services/learnerMapProfile';
 import { CompetencyState } from '../../utils/scoreInterpretation';
 import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
@@ -13,7 +14,7 @@ export interface DomainCellDistributionSegment {
     count: number;
 }
 
-export interface DomainCellMovementCounts {
+export interface DomainTargetMovementCounts {
     up: number;
     flat: number;
     down: number;
@@ -27,11 +28,41 @@ export interface DomainCellDisplayStats {
     scoredCells: number;
     coveragePercent: number;
     distribution: DomainCellDistributionSegment[];
-    movement: DomainCellMovementCounts;
+    movement: DomainTargetMovementCounts;
 }
 
 export function collectDomainCells(domain: LearnerMapDomain): LearnerMapCell[] {
     return domain.targets.flatMap((target) => target.cells);
+}
+
+/**
+ * L1 uses each target's latest scored cell movement status.
+ * Targets without a valid comparison resolve to none (Not Compared).
+ * Compares against the immediately prior cycle per profile rules.
+ */
+export function resolveTargetLatestMovement(target: LearnerMapTarget): LearnerMapMovement {
+    const scoredCells = target.cells.filter((cell) => !cell.isUnscored);
+    if (scoredCells.length === 0) {
+        return 'none';
+    }
+
+    return scoredCells[scoredCells.length - 1].movementFromPrevious;
+}
+
+export function deriveTargetMovementCounts(domain: LearnerMapDomain): DomainTargetMovementCounts {
+    const movement: DomainTargetMovementCounts = {
+        up: 0,
+        flat: 0,
+        down: 0,
+        new: 0,
+        none: 0,
+    };
+
+    for (const target of domain.targets) {
+        movement[resolveTargetLatestMovement(target)] += 1;
+    }
+
+    return movement;
 }
 
 export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDisplayStats {
@@ -48,26 +79,14 @@ export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDispl
         count: cells.filter((cell) => cell.competencyState === bucket.key).length,
     }));
 
-    const movement: DomainCellMovementCounts = {
-        up: countMovement(cells, 'up'),
-        flat: countMovement(cells, 'flat'),
-        down: countMovement(cells, 'down'),
-        new: countMovement(cells, 'new'),
-        none: countMovement(cells, 'none'),
-    };
-
     return {
         targetCount: domain.targets.length,
         totalCells,
         scoredCells,
         coveragePercent,
         distribution,
-        movement,
+        movement: deriveTargetMovementCounts(domain),
     };
-}
-
-function countMovement(cells: LearnerMapCell[], movement: LearnerMapMovement): number {
-    return cells.filter((cell) => cell.movementFromPrevious === movement).length;
 }
 
 export function cycleRowCoverage(

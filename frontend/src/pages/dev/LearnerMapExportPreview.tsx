@@ -40,7 +40,7 @@ export function LearnerMapExportPreview() {
                                     Learner Map Export View · Visual QA
                                 </h1>
                                 <p className="mt-1 text-sm text-amber-900/90">
-                                    Export composition only · no print · no PDF · dev route only
+                                    Export composition · use browser print preview for QA · dev route only
                                 </p>
                             </div>
                         </div>
