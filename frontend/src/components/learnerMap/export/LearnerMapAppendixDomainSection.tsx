@@ -3,6 +3,7 @@ import { getDomainIdentity } from '../domainIdentity';
 import { LearnerMapDomainSection } from '../LearnerMapDomainSection';
 import {
     formatAppendixSegmentContinuityLabel,
+    LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT,
     segmentDomainTargets,
 } from './learnerMapAppendixSegmentation';
 
@@ -56,6 +57,7 @@ export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }:
                             exportLayout
                             appendixCompact
                             hideSectionHeader
+                            fixedTargetColumns={LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT}
                         />
                     </div>
                 </div>
@@ -93,6 +95,7 @@ export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }:
                                         exportLayout
                                         appendixCompact
                                         hideSectionHeader
+                                        fixedTargetColumns={LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT}
                                     />
                                 </div>
                             </div>

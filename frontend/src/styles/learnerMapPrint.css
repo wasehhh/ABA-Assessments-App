@@ -403,6 +403,12 @@
         break-inside: avoid !important;
     }
 
+    [data-learner-map-domain-table='export'] [data-appendix-column-placeholder] {
+        background: transparent !important;
+        border-color: transparent !important;
+        box-shadow: none !important;
+    }
+
     /* P8 — export footer */
     [data-learner-map-export-footer] {
         page-break-inside: avoid !important;

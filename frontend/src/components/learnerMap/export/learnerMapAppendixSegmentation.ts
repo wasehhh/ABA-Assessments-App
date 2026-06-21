@@ -46,6 +46,13 @@ export function formatAppendixSegmentContinuityLabel(
     return `Segment ${segment.segmentNumber} of ${segment.totalSegments} · Targets ${segment.startIndex + 1}–${segment.endIndex + 1} of ${totalTargets}`;
 }
 
+export function appendixSegmentPlaceholderCount(
+    targetCount: number,
+    segmentSize: number = LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT
+): number {
+    return Math.max(0, segmentSize - targetCount);
+}
+
 /** @deprecated Use formatAppendixSegmentContinuityLabel */
 export function formatAppendixSegmentRange(
     segment: LearnerMapTargetSegment,
