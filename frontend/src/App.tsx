@@ -36,6 +36,26 @@ function DevLearnerMapRouteLoader() {
   return <Preview />;
 }
 
+function DevLearnerMapExportRouteLoader() {
+  const [Preview, setPreview] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    void import('./pages/dev/LearnerMapExportPreview').then((mod) => {
+      setPreview(() => mod.LearnerMapExportPreview);
+    });
+  }, []);
+
+  if (!Preview) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading export preview...</div>
+      </div>
+    );
+  }
+
+  return <Preview />;
+}
+
 function AppRouter() {
   const { user, loading, error } = useAuth();
   const [route, setRoute] = useState(window.location.hash || '#/login');
@@ -57,6 +77,10 @@ function AppRouter() {
 
   if (import.meta.env.DEV && route.split('?')[0] === '#/dev/learner-map') {
     return <DevLearnerMapRouteLoader />;
+  }
+
+  if (import.meta.env.DEV && route.split('?')[0] === '#/dev/learner-map-export') {
+    return <DevLearnerMapExportRouteLoader />;
   }
 
   if (error) {

@@ -8,3 +8,6 @@ export { LearnerMapScoreBandsCard } from './LearnerMapScoreBandsCard';
 export { LearnerMapMovementKey } from './LearnerMapMovementKey';
 export type { LearnerMapDisplayContext } from './learnerMapDisplayContext';
 export { buildMockDisplayContext, LEARNER_MAP_CLINICAL_DISCLAIMER } from './learnerMapDisplayContext';
+export { LearnerMapExportView } from './export/LearnerMapExportView';
+export type { LearnerMapExportMode } from './export/learnerMapExportMode';
+export { LEARNER_MAP_EXPORT_MODES } from './export/learnerMapExportMode';

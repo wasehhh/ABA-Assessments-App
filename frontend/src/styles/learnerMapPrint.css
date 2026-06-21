@@ -1,0 +1,128 @@
+/**
+ * Print rules for Learner Map export documents.
+ * Scoped to [data-learner-map-export-document] — does not affect live app surfaces.
+ */
+@media print {
+    body:has([data-learner-map-export-document]) {
+        background: #fff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Hide dev preview chrome outside the export root */
+    .learner-map-export-preview-page > .no-print {
+        display: none !important;
+    }
+
+    [data-learner-map-export-root] {
+        background: #fff !important;
+        overflow: visible !important;
+    }
+
+    [data-learner-map-export-document] {
+        box-sizing: border-box;
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0.45in 0.5in !important;
+        color: #000 !important;
+        background: #fff !important;
+        font-size: 10pt;
+        line-height: 1.35;
+    }
+
+    [data-learner-map-export-document] * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Override global print grid collapse from index.css */
+    [data-learner-map-export-document] .grid {
+        display: grid !important;
+    }
+
+    /* Allow long sections to paginate; avoid is applied selectively below */
+    [data-learner-map-export-document] .bg-white,
+    [data-learner-map-export-document] .rounded-lg,
+    [data-learner-map-export-document] section {
+        box-shadow: none !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    [data-learner-map-export-document] .space-y-8 > * + * {
+        margin-top: 1.1rem !important;
+    }
+
+    [data-learner-map-export-document] header.space-y-5 > * + * {
+        margin-top: 0.75rem !important;
+    }
+
+    /* P3 — keep critical blocks together */
+    [data-learner-map-export-header-group],
+    [data-learner-map-export-header-group] > header > div:first-child,
+    [data-learner-map-export-header-group] > header > section:nth-of-type(1),
+    [data-learner-map-export-header-group] > header > section:nth-of-type(2),
+    [data-learner-map-export-rollup],
+    [data-learner-map-export-legends],
+    [data-learner-map-export-l1] > div:first-child {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* P4 — domain competency summary table */
+    [data-learner-map-export-l1] table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    [data-learner-map-export-l1] table thead {
+        display: table-header-group !important;
+    }
+
+    [data-learner-map-export-l1] .overflow-x-auto {
+        overflow: visible !important;
+    }
+
+    [data-learner-map-export-l1] tbody tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* P5 — appendix begins on a new printed page */
+    [data-learner-map-export-appendix] {
+        page-break-before: always !important;
+        break-before: page !important;
+        padding-top: 0 !important;
+        border-top: none !important;
+    }
+
+    [data-learner-map-export-appendix-intro] {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+    }
+
+    /* P6 — keep each domain appendix block together when possible */
+    [data-learner-map-export-domain-section] {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    [data-learner-map-export-domain-section] .overflow-x-auto {
+        overflow: visible !important;
+    }
+
+    /* P8 — export footer */
+    [data-learner-map-export-footer] {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        margin-top: 1.25rem !important;
+        padding-top: 0.65rem !important;
+        border-top: 1px solid #bbb !important;
+        text-align: center;
+        color: #444 !important;
+        font-size: 9pt !important;
+    }
+}
