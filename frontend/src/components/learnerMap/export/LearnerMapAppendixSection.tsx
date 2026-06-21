@@ -4,9 +4,10 @@ import { LearnerMapAppendixDomainSection } from './LearnerMapAppendixDomainSecti
 interface Props {
     domains: LearnerMapDomain[];
     cycles: LearnerMapCycleSummary[];
+    domainIndexById?: Record<string, number>;
 }
 
-export function LearnerMapAppendixSection({ domains, cycles }: Props) {
+export function LearnerMapAppendixSection({ domains, cycles, domainIndexById }: Props) {
     return (
         <div className="space-y-6">
             {domains.map((domain, domainIndex) => (
@@ -14,7 +15,7 @@ export function LearnerMapAppendixSection({ domains, cycles }: Props) {
                     key={domain.domainId}
                     domain={domain}
                     cycles={cycles}
-                    domainIndex={domainIndex}
+                    domainIndex={domainIndexById?.[domain.domainId] ?? domainIndex}
                 />
             ))}
         </div>

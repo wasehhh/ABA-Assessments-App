@@ -18,7 +18,11 @@ export {
 export type { MovementMarkerDisplay } from './movementDisplay';
 export { LearnerMapExportView } from './export/LearnerMapExportView';
 export type { LearnerMapExportMode } from './export/learnerMapExportMode';
-export { LEARNER_MAP_EXPORT_MODES } from './export/learnerMapExportMode';
+export {
+    LEARNER_MAP_EXPORT_MODES,
+    buildDomainIndexById,
+    resolveAppendixDomains,
+} from './export/learnerMapExportMode';
 export {
     LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT,
     formatAppendixSegmentContinuityLabel,

@@ -6,12 +6,18 @@ import { LearnerMapDisplayContext } from '../learnerMapDisplayContext';
 import { LearnerMapMovementKey } from '../LearnerMapMovementKey';
 import { LearnerMapScoreBandsCard } from '../LearnerMapScoreBandsCard';
 import { LearnerMapAppendixSection } from './LearnerMapAppendixSection';
-import { LearnerMapExportMode, LEARNER_MAP_EXPORT_MODES } from './learnerMapExportMode';
+import {
+    buildDomainIndexById,
+    LearnerMapExportMode,
+    LEARNER_MAP_EXPORT_MODES,
+    resolveAppendixDomains,
+} from './learnerMapExportMode';
 
 interface Props {
     profile: LearnerMapProfile;
     mode: LearnerMapExportMode;
     displayContext?: LearnerMapDisplayContext;
+    selectedDomainIds?: string[];
 }
 
 function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
@@ -30,16 +36,36 @@ function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
     return `Cycles ${min}–${max}`;
 }
 
-export function LearnerMapExportView({ profile, mode, displayContext }: Props) {
+export function LearnerMapExportView({
+    profile,
+    mode,
+    displayContext,
+    selectedDomainIds,
+}: Props) {
     const { metadata, cycles, domains } = profile;
     const generatedAt = new Date(metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
     const cycleRangeLabel = formatCycleRange(cycles);
-    const showAppendix = mode === 'full' && cycles.length > 0 && domains.length > 0;
+    const appendixDomains = resolveAppendixDomains(domains, mode, selectedDomainIds);
+    const showAppendix =
+        (mode === 'full' || mode === 'selected-domains') &&
+        cycles.length > 0 &&
+        appendixDomains.length > 0;
     const modeLabel =
         LEARNER_MAP_EXPORT_MODES.find((entry) => entry.id === mode)?.label ?? mode;
+    const domainIndexById = buildDomainIndexById(domains);
+
+    const appendixTitle =
+        mode === 'selected-domains'
+            ? 'Appendix — Selected Domain Detail'
+            : 'Appendix — Cycle × Target Detail';
+
+    const appendixDescription =
+        mode === 'selected-domains'
+            ? 'This appendix contains target-level longitudinal assessment detail for selected domains.'
+            : 'This appendix contains target-level longitudinal assessment detail by domain.';
 
     return (
         <div
@@ -98,14 +124,17 @@ export function LearnerMapExportView({ profile, mode, displayContext }: Props) {
                     >
                         <div data-learner-map-export-appendix-intro>
                             <h2 className="text-base font-bold uppercase tracking-wide text-gray-900">
-                                Appendix — Cycle × Target Detail
+                                {appendixTitle}
                             </h2>
                             <p className="mt-1 max-w-3xl text-sm text-gray-600">
-                                This appendix contains target-level longitudinal assessment detail by
-                                domain.
+                                {appendixDescription}
                             </p>
                         </div>
-                        <LearnerMapAppendixSection domains={domains} cycles={cycles} />
+                        <LearnerMapAppendixSection
+                            domains={appendixDomains}
+                            cycles={cycles}
+                            domainIndexById={domainIndexById}
+                        />
                     </section>
                 ) : null}
 
