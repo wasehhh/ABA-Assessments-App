@@ -25,19 +25,19 @@ export const STATE_BUCKET_DISPLAY: StateBucketDisplay[] = [
     {
         key: 'not_yet',
         label: STATE_DISPLAY_LABELS.not_yet,
-        segmentClass: 'bg-gray-500',
-        legendClass: 'border-gray-500 bg-gray-200',
+        segmentClass: 'bg-orange-500',
+        legendClass: 'border-orange-500 bg-orange-50',
     },
     {
         key: 'in_progress',
         label: STATE_DISPLAY_LABELS.in_progress,
-        segmentClass: 'bg-amber-400',
-        legendClass: 'border-amber-400 bg-amber-50',
+        segmentClass: 'bg-yellow-400',
+        legendClass: 'border-yellow-400 bg-yellow-50',
     },
     {
         key: 'at_maximum',
         label: STATE_DISPLAY_LABELS.at_maximum,
-        segmentClass: 'bg-emerald-600',
-        legendClass: 'border-emerald-600 bg-emerald-50',
+        segmentClass: 'bg-green-600',
+        legendClass: 'border-green-600 bg-green-50',
     },
 ];

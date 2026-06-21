@@ -1,5 +1,10 @@
 export { LearnerMapView } from './LearnerMapView';
+export { LearnerMapArtifactHeader } from './LearnerMapArtifactHeader';
 export { LearnerMapAssessmentRollup } from './LearnerMapAssessmentRollup';
 export { LearnerMapDomainSummary } from './LearnerMapDomainSummary';
 export { LearnerMapDomainSection } from './LearnerMapDomainSection';
 export { LearnerMapCell } from './LearnerMapCell';
+export { LearnerMapScoreBandsCard } from './LearnerMapScoreBandsCard';
+export { LearnerMapMovementKey } from './LearnerMapMovementKey';
+export type { LearnerMapDisplayContext } from './learnerMapDisplayContext';
+export { buildMockDisplayContext, LEARNER_MAP_CLINICAL_DISCLAIMER } from './learnerMapDisplayContext';

@@ -1,6 +1,7 @@
 import {
     LearnerMapCycleSummary,
     LearnerMapDomain,
+    LearnerMapTarget,
 } from '../../services/learnerMapProfile';
 import { cycleRowCoverage } from './domainCellDisplay';
 import { LearnerMapCell } from './LearnerMapCell';
@@ -10,12 +11,24 @@ interface Props {
     cycles: LearnerMapCycleSummary[];
 }
 
-function targetColumnLabel(title: string, index: number): string {
-    const trimmed = title.trim();
-    if (trimmed.length <= 12) {
-        return trimmed;
-    }
-    return `${index + 1}`;
+function targetHeaderDisplay(target: LearnerMapTarget, index: number) {
+    const fullTitle = target.title.trim();
+    const numericSuffix = fullTitle.match(/(\d+(?:\.\d+)?)\s*$/);
+    const codeFromTitle = numericSuffix?.[1];
+    const codeFromId = target.targetId.match(/T(\d+)$/i)?.[1];
+    const code = codeFromTitle ?? codeFromId ?? `${index + 1}`;
+
+    const strippedTitle = fullTitle.replace(/^Target\s+/i, '').trim();
+    const subtitle =
+        strippedTitle && strippedTitle !== code
+            ? strippedTitle
+            : target.targetId.replace(/^DOM_\d+_/i, '').replace(/^D\d+T/i, 'T');
+
+    return {
+        code,
+        subtitle,
+        fullTitle,
+    };
 }
 
 export function LearnerMapDomainSection({ domain, cycles }: Props) {
@@ -42,15 +55,25 @@ export function LearnerMapDomainSection({ domain, cycles }: Props) {
                                 <th className="sticky left-0 z-20 min-w-[5.5rem] border-r border-gray-200 bg-gray-50 px-2 py-2 font-semibold text-gray-900">
                                     Cycle
                                 </th>
-                                {domain.targets.map((target, index) => (
-                                    <th
-                                        key={target.targetId}
-                                        className="min-w-[3.75rem] max-w-[5rem] px-1 py-2 text-center text-[11px] font-semibold leading-tight text-gray-900"
-                                        title={target.title}
-                                    >
-                                        {targetColumnLabel(target.title, index)}
-                                    </th>
-                                ))}
+                                {domain.targets.map((target, index) => {
+                                    const header = targetHeaderDisplay(target, index);
+                                    return (
+                                        <th
+                                            key={target.targetId}
+                                            className="min-w-[4.75rem] max-w-[6rem] px-1 py-2 text-center align-bottom"
+                                            title={header.fullTitle}
+                                        >
+                                            <div className="mx-auto flex max-w-[5.5rem] flex-col items-center gap-0.5">
+                                                <span className="text-[11px] font-bold tabular-nums leading-none text-gray-900">
+                                                    {header.code}
+                                                </span>
+                                                <span className="line-clamp-2 text-[9px] font-medium leading-tight text-gray-600">
+                                                    {header.subtitle}
+                                                </span>
+                                            </div>
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody>
