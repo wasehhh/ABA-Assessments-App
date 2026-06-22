@@ -1,5 +1,5 @@
 import { StateDistribution } from '../../../services/domainProfile';
-import { STATE_BUCKET_DISPLAY } from './stateDisplay';
+import { competencyLegendSwatchClass, STATE_BUCKET_DISPLAY } from './stateDisplay';
 
 interface Props {
     distribution: StateDistribution;
@@ -63,7 +63,7 @@ export function DomainStateDistribution({ distribution, variant = 'default' }: P
                             title={`${bucket.label}: ${count} targets (${percentage}%)`}
                         >
                             <span
-                                className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${bucket.legendClass}`}
+                                className={`h-2.5 w-2.5 shrink-0 rounded-sm ${competencyLegendSwatchClass(bucket.key)}`}
                                 aria-hidden
                             />
                             <span>

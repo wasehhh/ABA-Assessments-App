@@ -1,11 +1,4 @@
-import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
-
-const SEGMENT_BORDER_CLASS: Record<string, string> = {
-    unscored: 'border-gray-400',
-    not_yet: 'border-orange-600',
-    in_progress: 'border-yellow-500',
-    at_maximum: 'border-green-700',
-};
+import { STATE_BUCKET_DISPLAY, COMPETENCY_STATE_BORDER_CLASS } from '../assessment/domainProfile/stateDisplay';
 
 export function LearnerMapScoreBandsCard() {
     return (
@@ -21,7 +14,7 @@ export function LearnerMapScoreBandsCard() {
                 {STATE_BUCKET_DISPLAY.map((bucket) => (
                     <li key={bucket.key} className="flex items-center gap-2.5 text-sm text-gray-800">
                         <span
-                            className={`inline-flex h-5 w-6 shrink-0 rounded-sm border-2 ${SEGMENT_BORDER_CLASS[bucket.key]} ${bucket.segmentClass}`}
+                            className={`inline-flex h-5 w-6 shrink-0 rounded-sm border-2 ${COMPETENCY_STATE_BORDER_CLASS[bucket.key]} ${bucket.segmentClass}`}
                             aria-hidden
                             data-learner-map-score-band-swatch
                         />

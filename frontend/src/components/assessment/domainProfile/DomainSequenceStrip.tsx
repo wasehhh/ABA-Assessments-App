@@ -1,18 +1,10 @@
 import { DomainProfileTarget } from '../../../services/domainProfile';
-import { CompetencyState } from '../../../utils/scoreInterpretation';
-import { STATE_DISPLAY_LABELS } from './stateDisplay';
+import { competencySequenceCellClass, STATE_DISPLAY_LABELS } from './stateDisplay';
 
 interface Props {
     sequence: DomainProfileTarget[];
     scoredCount: number;
 }
-
-const CELL_STYLES: Record<CompetencyState, string> = {
-    unscored: 'border-2 border-dashed border-gray-300 bg-white',
-    not_yet: 'border-2 border-gray-500 bg-gray-300',
-    in_progress: 'border-2 border-amber-600 bg-amber-400',
-    at_maximum: 'border-2 border-emerald-800 bg-emerald-500',
-};
 
 export function DomainSequenceStrip({ sequence, scoredCount }: Props) {
     if (sequence.length === 0) {
@@ -51,7 +43,7 @@ export function DomainSequenceStrip({ sequence, scoredCount }: Props) {
                             <div
                                 key={targetId}
                                 role="listitem"
-                                className={`h-8 w-8 shrink-0 rounded-sm ${CELL_STYLES[state]}`}
+                                className={`h-8 w-8 shrink-0 rounded-sm ${competencySequenceCellClass(state)}`}
                                 title={`${targetId} — ${scoreDisplay}`}
                                 aria-label={`Target ${targetId}, ${stateLabel}, ${scoreDisplay}`}
                             />
