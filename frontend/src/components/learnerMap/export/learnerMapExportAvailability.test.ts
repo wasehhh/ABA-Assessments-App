@@ -26,14 +26,25 @@ describe('getLearnerMapExportAvailability', () => {
     it('requires at least two cycles', () => {
         expect(getLearnerMapExportAvailability(makeProfile(1), 1)).toEqual({
             available: false,
-            reason: 'Learner Map export is available after a second assessment cycle.',
+            reason:
+                'Learner Map export becomes available after a second assessment cycle has been completed.',
+            guidance: 'Complete a second cycle, then return here to export.',
         });
     });
 
     it('requires scored data', () => {
         expect(getLearnerMapExportAvailability(makeProfile(0), 2)).toEqual({
             available: false,
-            reason: 'Score at least one target before exporting a Learner Map.',
+            reason: 'Score at least one target before Learner Map export becomes available.',
+            guidance: 'Enter scores in the assessment matrix, then open Learner Map again.',
+        });
+    });
+
+    it('explains when the profile cannot be prepared', () => {
+        expect(getLearnerMapExportAvailability(null, 2)).toEqual({
+            available: false,
+            reason: 'Unable to prepare a Learner Map export for this assessment.',
+            guidance: 'Review the assessment data and try again from the Learner Map.',
         });
     });
 

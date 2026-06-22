@@ -4,10 +4,17 @@ import { useAuth } from '../context/AuthContext';
 import { LearnerMapView } from '../components/learnerMap';
 import { getLearnerMapExportAvailability } from '../components/learnerMap/export/learnerMapExportAvailability';
 import { LearnerMapExportDialog } from '../components/learnerMap/export/LearnerMapExportDialog';
+import { shouldOpenLearnerMapExportDialog } from '../components/learnerMap/export/learnerMapExportState';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
 
 interface Props {
     assessmentId: string;
+}
+
+function readLearnerMapSearch(): string {
+    const hash = window.location.hash;
+    const queryIndex = hash.indexOf('?');
+    return queryIndex >= 0 ? hash.slice(queryIndex) : '';
 }
 
 export function AssessmentLearnerMap({ assessmentId }: Props) {
@@ -59,6 +66,17 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
             ),
         [productionData]
     );
+
+    useEffect(() => {
+        if (!productionData || !exportAvailability.available) {
+            return;
+        }
+
+        if (shouldOpenLearnerMapExportDialog(readLearnerMapSearch())) {
+            setShowExportDialog(true);
+            window.location.hash = `#/assessment/${assessmentId}/learner-map`;
+        }
+    }, [assessmentId, exportAvailability.available, productionData]);
 
     if (loading) {
         return (
@@ -145,6 +163,12 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
                         {exportDisabled && exportAvailability.reason ? (
                             <p className="max-w-xs text-xs text-gray-500 sm:text-right">
                                 {exportAvailability.reason}
+                                {exportAvailability.guidance ? (
+                                    <>
+                                        {' '}
+                                        {exportAvailability.guidance}
+                                    </>
+                                ) : null}
                             </p>
                         ) : null}
                     </div>

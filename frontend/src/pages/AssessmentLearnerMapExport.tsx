@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LearnerMapExportView } from '../components/learnerMap/export/LearnerMapExportView';
+import { isLearnerMapFullExportAcknowledged } from '../components/learnerMap/export/learnerMapExportAcknowledgment';
 import { getLearnerMapExportAvailability } from '../components/learnerMap/export/learnerMapExportAvailability';
+import { resolveLearnerMapExportLoadError } from '../components/learnerMap/export/learnerMapExportErrors';
 import {
     estimateAppendixSize,
     formatAppendixSizeEstimateLabel,
@@ -11,6 +13,7 @@ import {
     LEARNER_MAP_EXPORT_MODES,
 } from '../components/learnerMap/export/learnerMapExportMode';
 import {
+    buildLearnerMapRouteHash,
     parseLearnerMapExportPreviewParams,
     resolveLearnerMapExportPreviewParams,
 } from '../components/learnerMap/export/learnerMapExportState';
@@ -26,32 +29,119 @@ function readExportPreviewSearch(): string {
     return queryIndex >= 0 ? hash.slice(queryIndex) : '';
 }
 
+function ExportStatusPanel({
+    title,
+    message,
+    guidance,
+    tone,
+    assessmentId,
+    showLearnerMapAction = true,
+    showAssessmentAction = true,
+    showExportDialogAction = false,
+}: {
+    title: string;
+    message: string;
+    guidance?: string;
+    tone: 'error' | 'warning' | 'info';
+    assessmentId: string;
+    showLearnerMapAction?: boolean;
+    showAssessmentAction?: boolean;
+    showExportDialogAction?: boolean;
+}) {
+    const toneClasses =
+        tone === 'error'
+            ? 'border-red-200 text-red-900'
+            : tone === 'warning'
+              ? 'border-amber-200 text-amber-950'
+              : 'border-blue-200 text-blue-950';
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-200 p-6">
+            <div className={`max-w-md rounded-lg border bg-white p-6 shadow-sm ${toneClasses}`}>
+                <p className="font-semibold">{title}</p>
+                <p className="mt-2 text-sm leading-relaxed">{message}</p>
+                {guidance ? (
+                    <p className="mt-2 text-sm leading-relaxed opacity-90">{guidance}</p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-4">
+                    {showLearnerMapAction ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                window.location.hash = buildLearnerMapRouteHash(assessmentId);
+                            }}
+                            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                        >
+                            Back to Learner Map
+                        </button>
+                    ) : null}
+                    {showExportDialogAction ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                window.location.hash = buildLearnerMapRouteHash(assessmentId, {
+                                    openExportDialog: true,
+                                });
+                            }}
+                            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                        >
+                            Return to Export Dialog
+                        </button>
+                    ) : null}
+                    {showAssessmentAction ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                window.location.hash = `#/assessment/${assessmentId}`;
+                            }}
+                            className="text-sm font-medium text-emerald-700 hover:text-emerald-800"
+                        >
+                            Back to Assessment
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function AssessmentLearnerMapExport({ assessmentId }: Props) {
     const { profile } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [loadError, setLoadError] = useState<unknown>(null);
     const [productionData, setProductionData] = useState<Awaited<
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
 
     const exportParams = useMemo(() => parseLearnerMapExportPreviewParams(readExportPreviewSearch()), []);
+    const fullExportAcknowledged = isLearnerMapFullExportAcknowledged(
+        assessmentId,
+        exportParams.exportMode
+    );
 
     useEffect(() => {
+        if (!fullExportAcknowledged) {
+            setLoading(false);
+            setLoadError(null);
+            setProductionData(null);
+            return;
+        }
+
         let cancelled = false;
 
         const load = async () => {
             setLoading(true);
-            setError(null);
+            setLoadError(null);
 
             try {
                 const data = await loadLearnerMapProductionData(assessmentId, profile?.org_id);
                 if (!cancelled) {
                     setProductionData(data);
                 }
-            } catch (loadError) {
-                console.error(loadError);
+            } catch (error) {
+                console.error(error);
                 if (!cancelled) {
-                    setError('Unable to build Learner Map for this assessment.');
+                    setLoadError(error);
                     setProductionData(null);
                 }
             } finally {
@@ -66,7 +156,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [assessmentId, profile?.org_id]);
+    }, [assessmentId, profile?.org_id, fullExportAcknowledged]);
 
     const exportAvailability = useMemo(
         () =>
@@ -77,6 +167,20 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         [productionData]
     );
 
+    if (!fullExportAcknowledged) {
+        return (
+            <ExportStatusPanel
+                tone="info"
+                title="Full export acknowledgment required"
+                message="Full export includes target-level detail for every domain and may create a long document. Complete the export dialog and confirm the acknowledgment before opening the preview."
+                guidance="Use Return to Export Dialog to choose Full export again and confirm the warning."
+                assessmentId={assessmentId}
+                showAssessmentAction={false}
+                showExportDialogAction
+            />
+        );
+    }
+
     if (loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-200 text-gray-600">
@@ -85,45 +189,29 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         );
     }
 
-    if (error || !productionData) {
+    if (loadError || !productionData) {
+        const errorDisplay = resolveLearnerMapExportLoadError(loadError);
+
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-200 p-6">
-                <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 text-red-800 shadow-sm">
-                    <p>{error ?? 'Unable to build Learner Map for this assessment.'}</p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            window.location.hash = `#/assessment/${assessmentId}/learner-map`;
-                        }}
-                        className="mt-4 text-sm font-medium text-emerald-700 hover:text-emerald-800"
-                    >
-                        Back to Learner Map
-                    </button>
-                </div>
-            </div>
+            <ExportStatusPanel
+                tone="error"
+                title={errorDisplay.title}
+                message={errorDisplay.message}
+                assessmentId={assessmentId}
+            />
         );
     }
 
     if (!exportAvailability.available) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-200 p-6">
-                <div className="max-w-md rounded-lg border border-amber-200 bg-white p-6 text-amber-950 shadow-sm">
-                    <p className="font-semibold">Export unavailable</p>
-                    <p className="mt-2 text-sm leading-relaxed">
-                        {exportAvailability.reason ??
-                            'Learner Map export is not available for this assessment.'}
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            window.location.hash = `#/assessment/${assessmentId}`;
-                        }}
-                        className="mt-4 text-sm font-medium text-emerald-700 hover:text-emerald-800"
-                    >
-                        Back to assessment
-                    </button>
-                </div>
-            </div>
+            <ExportStatusPanel
+                tone="warning"
+                title="Learner Map export is not available yet"
+                message={exportAvailability.reason ?? 'Learner Map export is not available for this assessment.'}
+                guidance={exportAvailability.guidance}
+                assessmentId={assessmentId}
+                showExportDialogAction={false}
+            />
         );
     }
 
@@ -168,7 +256,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    window.location.hash = `#/assessment/${assessmentId}/learner-map`;
+                                    window.location.hash = buildLearnerMapRouteHash(assessmentId);
                                 }}
                                 className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
                             >

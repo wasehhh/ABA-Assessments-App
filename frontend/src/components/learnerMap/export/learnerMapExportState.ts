@@ -25,6 +25,27 @@ export function canContinueLearnerMapExport(
     return true;
 }
 
+export function normalizeExportDomainIds(raw: string | null | undefined): string[] {
+    if (!raw) {
+        return [];
+    }
+
+    const seen = new Set<string>();
+    const selectedDomainIds: string[] = [];
+
+    for (const entry of raw.split(',')) {
+        const trimmed = entry.trim();
+        if (!trimmed || seen.has(trimmed)) {
+            continue;
+        }
+
+        seen.add(trimmed);
+        selectedDomainIds.push(trimmed);
+    }
+
+    return selectedDomainIds;
+}
+
 export function parseLearnerMapExportPreviewParams(
     search: string
 ): Pick<LearnerMapExportState, 'exportMode' | 'selectedDomainIds'> {
@@ -32,12 +53,7 @@ export function parseLearnerMapExportPreviewParams(
     const modeParam = params.get('mode');
     const exportMode: LearnerMapExportMode =
         modeParam === 'full' || modeParam === 'selected-domains' ? modeParam : 'standard';
-    const selectedDomainIds =
-        params
-            .get('domains')
-            ?.split(',')
-            .map((entry) => entry.trim())
-            .filter(Boolean) ?? [];
+    const selectedDomainIds = normalizeExportDomainIds(params.get('domains'));
 
     return { exportMode, selectedDomainIds };
 }
@@ -74,4 +90,22 @@ export function buildLearnerMapExportPreviewHash(
     }
 
     return `#/assessment/${assessmentId}/learner-map/export?${params.toString()}`;
+}
+
+export function buildLearnerMapRouteHash(
+    assessmentId: string,
+    options?: { openExportDialog?: boolean }
+): string {
+    const base = `#/assessment/${assessmentId}/learner-map`;
+
+    if (options?.openExportDialog) {
+        return `${base}?export=dialog`;
+    }
+
+    return base;
+}
+
+export function shouldOpenLearnerMapExportDialog(search: string): boolean {
+    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    return params.get('export') === 'dialog';
 }

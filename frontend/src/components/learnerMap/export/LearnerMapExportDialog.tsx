@@ -17,6 +17,7 @@ import {
     DEFAULT_LEARNER_MAP_EXPORT_STATE,
     LearnerMapExportState,
 } from './learnerMapExportState';
+import { setLearnerMapFullExportAcknowledged } from './learnerMapExportAcknowledgment';
 
 interface Props {
     isOpen: boolean;
@@ -90,6 +91,10 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
     const handleContinue = () => {
         if (!canContinue) {
             return;
+        }
+
+        if (state.exportMode === 'full') {
+            setLearnerMapFullExportAcknowledged(assessmentId);
         }
 
         window.location.hash = buildLearnerMapExportPreviewHash(assessmentId, state);
