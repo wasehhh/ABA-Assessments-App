@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { LearnerMapCell, LearnerMapDomain, LearnerMapTarget } from '../../services/learnerMapProfile';
+import { CompetencyState } from '../../utils/scoreInterpretation';
 import {
     deriveAssessmentCoverageSummary,
     deriveAssessmentTargetMovementSummary,
     deriveDomainCellStats,
     deriveTargetMovementCounts,
     domainHasAnyScoredTargets,
+    resolveTargetLatestCompetencyState,
     resolveTargetLatestMovement,
     targetCoveragePercent,
     targetMovementPercent,
@@ -15,14 +17,15 @@ function makeCell(
     cycleId: string,
     cycleNumber: number,
     movement: LearnerMapCell['movementFromPrevious'],
-    isUnscored = false
+    isUnscored = false,
+    competencyState: CompetencyState = isUnscored ? 'unscored' : 'in_progress'
 ): LearnerMapCell {
     return {
         cycleId,
         cycleNumber,
         rawScore: isUnscored ? null : 2,
         displayScoreWithMax: isUnscored ? '—' : '2/4',
-        competencyState: isUnscored ? 'unscored' : 'in_progress',
+        competencyState,
         normalizedRatio: isUnscored ? null : 0.5,
         isUnscored,
         movementFromPrevious: movement,
@@ -244,5 +247,84 @@ describe('domainCellDisplay target movement', () => {
             coveragePercent: 40,
         });
         expect(targetCoveragePercent(2, 5)).toBe(40);
+    });
+
+    describe('L1 latest target score distribution', () => {
+        function distributionCount(
+            stats: ReturnType<typeof deriveDomainCellStats>,
+            key: CompetencyState
+        ): number {
+            return stats.distribution.find((segment) => segment.key === key)?.count ?? 0;
+        }
+
+        it('shows zero unscored when every target has at least one score despite historical unscored cells', () => {
+            const domain = makeDomain([
+                makeTarget('T1', [
+                    makeCell('c1', 1, 'none', true),
+                    makeCell('c2', 2, 'new', false, 'in_progress'),
+                ]),
+                makeTarget('T2', [
+                    makeCell('c1', 1, 'none', true),
+                    makeCell('c2', 2, 'flat', false, 'at_maximum'),
+                ]),
+            ]);
+
+            const stats = deriveDomainCellStats(domain);
+
+            expect(stats.coveragePercent).toBe(100);
+            expect(distributionCount(stats, 'unscored')).toBe(0);
+            expect(distributionCount(stats, 'in_progress')).toBe(1);
+            expect(distributionCount(stats, 'at_maximum')).toBe(1);
+        });
+
+        it('counts never-scored targets as unscored in distribution', () => {
+            const domain = makeDomain([
+                makeTarget('T1', [makeCell('c1', 1, 'up', false, 'in_progress')]),
+                makeTarget('T2', [makeCell('c1', 1, 'none', true)]),
+                makeTarget('T3', [makeCell('c1', 1, 'none', true)]),
+            ]);
+
+            const stats = deriveDomainCellStats(domain);
+
+            expect(stats.coveragePercent).toBe(33);
+            expect(distributionCount(stats, 'unscored')).toBe(2);
+            expect(distributionCount(stats, 'in_progress')).toBe(1);
+        });
+
+        it('uses the latest scored competency state for each target', () => {
+            const target = makeTarget('T1', [
+                makeCell('c1', 1, 'none', false, 'not_yet'),
+                makeCell('c2', 2, 'up', false, 'in_progress'),
+                makeCell('c3', 3, 'up', false, 'at_maximum'),
+            ]);
+
+            expect(resolveTargetLatestCompetencyState(target)).toBe('at_maximum');
+
+            const stats = deriveDomainCellStats(makeDomain([target]));
+
+            expect(distributionCount(stats, 'at_maximum')).toBe(1);
+            expect(distributionCount(stats, 'unscored')).toBe(0);
+            expect(distributionCount(stats, 'not_yet')).toBe(0);
+        });
+
+        it('does not inflate unscored percentage from earlier unscored cycle cells', () => {
+            const domain = makeDomain(
+                Array.from({ length: 4 }, (_, index) =>
+                    makeTarget(`T${index + 1}`, [
+                        makeCell('c1', 1, 'none', true),
+                        makeCell('c2', 2, 'new', false, 'in_progress'),
+                        makeCell('c3', 3, 'flat', false, 'in_progress'),
+                    ])
+                )
+            );
+
+            const stats = deriveDomainCellStats(domain);
+
+            expect(stats.coveragePercent).toBe(100);
+            expect(stats.totalCells).toBe(12);
+            expect(stats.scoredCells).toBe(8);
+            expect(distributionCount(stats, 'unscored')).toBe(0);
+            expect(distributionCount(stats, 'in_progress')).toBe(4);
+        });
     });
 });

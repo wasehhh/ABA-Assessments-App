@@ -90,6 +90,32 @@ export function resolveTargetLatestMovement(target: LearnerMapTarget): LearnerMa
     return scoredCells[scoredCells.length - 1].movementFromPrevious;
 }
 
+/**
+ * L1 score distribution uses each target's latest scored competency state.
+ * Targets with no scored observations remain Unscored.
+ */
+export function resolveTargetLatestCompetencyState(target: LearnerMapTarget): CompetencyState {
+    const scoredCells = target.cells.filter((cell) => !cell.isUnscored);
+    if (scoredCells.length === 0) {
+        return 'unscored';
+    }
+
+    return scoredCells[scoredCells.length - 1].competencyState;
+}
+
+export function deriveLatestTargetStateDistribution(
+    domain: LearnerMapDomain
+): DomainCellDistributionSegment[] {
+    return STATE_BUCKET_DISPLAY.map((bucket) => ({
+        key: bucket.key,
+        label: bucket.label,
+        segmentClass: bucket.segmentClass,
+        count: domain.targets.filter(
+            (target) => resolveTargetLatestCompetencyState(target) === bucket.key
+        ).length,
+    }));
+}
+
 export function deriveTargetMovementCounts(domain: LearnerMapDomain): DomainTargetMovementCounts {
     const movement: DomainTargetMovementCounts = {
         up: 0,
@@ -153,12 +179,7 @@ export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDispl
     const targetsAssessed = countTargetsAssessed(domain.targets);
     const coveragePercent = targetCoveragePercent(targetsAssessed, targetCount);
 
-    const distribution = STATE_BUCKET_DISPLAY.map((bucket) => ({
-        key: bucket.key,
-        label: bucket.label,
-        segmentClass: bucket.segmentClass,
-        count: cells.filter((cell) => cell.competencyState === bucket.key).length,
-    }));
+    const distribution = deriveLatestTargetStateDistribution(domain);
 
     return {
         targetCount,

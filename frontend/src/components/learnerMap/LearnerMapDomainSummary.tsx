@@ -23,12 +23,12 @@ function formatPercent(count: number, total: number): number {
 
 function ScoreDistributionBar({
     distribution,
-    totalCells,
+    totalTargets,
 }: {
     distribution: ReturnType<typeof deriveDomainCellStats>['distribution'];
-    totalCells: number;
+    totalTargets: number;
 }) {
-    if (totalCells === 0) {
+    if (totalTargets === 0) {
         return <span className="text-xs text-gray-500">—</span>;
     }
 
@@ -43,11 +43,11 @@ function ScoreDistributionBar({
                 className="flex h-7 overflow-hidden rounded border border-gray-200"
                 role="img"
                 aria-label={distribution
-                    .map((segment) => `${segment.label} ${formatPercent(segment.count, totalCells)}%`)
+                    .map((segment) => `${segment.label} ${formatPercent(segment.count, totalTargets)}%`)
                     .join(', ')}
             >
                 {distribution.map((segment) => {
-                    const percent = formatPercent(segment.count, totalCells);
+                    const percent = formatPercent(segment.count, totalTargets);
                     if (percent === 0) {
                         return null;
                     }
@@ -69,7 +69,7 @@ function ScoreDistributionBar({
                     .filter((segment) => segment.count > 0)
                     .map((segment) => (
                         <span key={segment.key}>
-                            {segment.label} {formatPercent(segment.count, totalCells)}%
+                            {segment.label} {formatPercent(segment.count, totalTargets)}%
                         </span>
                     ))}
             </div>
@@ -200,7 +200,7 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                     <td className="px-3 py-3">
                                         <ScoreDistributionBar
                                             distribution={stats.distribution}
-                                            totalCells={stats.totalCells}
+                                            totalTargets={stats.targetCount}
                                         />
                                     </td>
                                     {MOVEMENT_COLUMNS.map((column) => (
