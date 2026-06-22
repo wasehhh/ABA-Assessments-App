@@ -113,7 +113,7 @@ export function LearnerMapExportView({
                         </h2>
                         <p className="mt-1 max-w-3xl text-sm text-gray-600">
                             Domain coverage, score distribution, and movement across all cycles in
-                            this record.
+                            this assessment.
                         </p>
                     </div>
                     <LearnerMapDomainSummary domains={domains} />

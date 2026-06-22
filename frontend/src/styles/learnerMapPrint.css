@@ -298,6 +298,13 @@
         break-inside: avoid !important;
     }
 
+    [data-learner-map-export-l1] td:first-child,
+    [data-learner-map-export-domain-header] h3 {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        hyphens: auto;
+    }
+
     [data-learner-map-export-l1] .h-7 {
         height: 0.95rem !important;
     }

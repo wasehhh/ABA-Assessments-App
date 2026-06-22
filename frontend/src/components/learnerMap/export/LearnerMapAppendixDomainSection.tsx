@@ -47,7 +47,7 @@ export function LearnerMapAppendixDomainSection({
                 data-learner-map-export-domain-header
             >
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                    Domain Record
+                    Domain Detail
                 </p>
                 <h3
                     className={`mt-0.5 text-sm font-bold uppercase tracking-wide leading-snug ${identity.accentTextClass}`}

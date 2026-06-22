@@ -92,7 +92,7 @@ export function resolveTargetLatestMovement(target: LearnerMapTarget): LearnerMa
 
 /**
  * L1 score distribution uses each target's latest scored competency state.
- * Targets with no scored observations remain Unscored.
+ * Targets with no scored cycles remain Unscored.
  */
 export function resolveTargetLatestCompetencyState(target: LearnerMapTarget): CompetencyState {
     const scoredCells = target.cells.filter((cell) => !cell.isUnscored);
@@ -169,6 +169,50 @@ export function targetMovementPercent(count: number, totalTargets: number): numb
     }
 
     return Math.round((count / totalTargets) * 100);
+}
+
+/**
+ * Largest-remainder allocation so segment bar widths sum to 100% when any targets exist.
+ * Prevents visual gaps from independent Math.round on each bucket.
+ */
+export function computeRoundedPercentWidths(counts: number[], total: number): number[] {
+    if (total <= 0 || counts.length === 0) {
+        return counts.map(() => 0);
+    }
+
+    const exactPercents = counts.map((count) => (count / total) * 100);
+    const widths = exactPercents.map((percent) => Math.floor(percent));
+    let remainder = 100 - widths.reduce((sum, width) => sum + width, 0);
+
+    const rankedByFraction = exactPercents
+        .map((percent, index) => ({
+            index,
+            fraction: percent - Math.floor(percent),
+            count: counts[index],
+        }))
+        .filter((entry) => entry.count > 0)
+        .sort((left, right) => {
+            if (right.fraction !== left.fraction) {
+                return right.fraction - left.fraction;
+            }
+
+            return left.index - right.index;
+        });
+
+    for (let slot = 0; slot < remainder && rankedByFraction.length > 0; slot += 1) {
+        widths[rankedByFraction[slot % rankedByFraction.length].index] += 1;
+    }
+
+    return widths;
+}
+
+export function distributionSegmentDisplayPercent(count: number, total: number): number {
+    if (total === 0 || count === 0) {
+        return 0;
+    }
+
+    const rounded = Math.round((count / total) * 100);
+    return rounded === 0 ? 1 : rounded;
 }
 
 export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDisplayStats {

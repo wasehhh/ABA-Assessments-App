@@ -37,8 +37,10 @@ export function LearnerMapArtifactHeader({
     const learnerName = displayContext?.learnerName ?? '—';
     const assessmentName =
         displayContext?.assessmentName ?? `Assessment ${metadata.assessmentId}`;
-    const organizationName = displayContext?.organizationName ?? '—';
+    const organizationName = displayContext?.organizationName?.trim() || '—';
     const cycleRangeDetail = formatCycleRange(cycles);
+    const packTitle = metadata.packTitle?.trim() || '—';
+    const packVersion = metadata.packVersion?.trim() || '—';
 
     return (
         <header className="space-y-5" data-learner-map-export-artifact-header>
@@ -83,8 +85,8 @@ export function LearnerMapArtifactHeader({
                                     Assessment Pack
                                 </dt>
                                 <dd className="mt-0.5 leading-snug">
-                                    {metadata.packTitle}{' '}
-                                    <span className="text-gray-600">(v{metadata.packVersion})</span>
+                                    {packTitle}{' '}
+                                    <span className="text-gray-600">(v{packVersion})</span>
                                 </dd>
                             </div>
                             <div className="grid grid-cols-2 gap-3 pt-1">
@@ -142,8 +144,8 @@ export function LearnerMapArtifactHeader({
                             Assessment Pack
                         </dt>
                         <dd className="mt-1 text-sm font-medium text-gray-900">
-                            {metadata.packTitle}{' '}
-                            <span className="font-normal text-gray-600">v{metadata.packVersion}</span>
+                            {packTitle}{' '}
+                            <span className="font-normal text-gray-600">v{packVersion}</span>
                         </dd>
                     </div>
                     <div>

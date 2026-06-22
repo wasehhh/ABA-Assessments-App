@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { LearnerMapCell, LearnerMapDomain, LearnerMapTarget } from '../../services/learnerMapProfile';
 import { CompetencyState } from '../../utils/scoreInterpretation';
 import {
+    computeRoundedPercentWidths,
+    countTargetsAssessed,
     deriveAssessmentCoverageSummary,
     deriveAssessmentTargetMovementSummary,
     deriveDomainCellStats,
     deriveTargetMovementCounts,
+    distributionSegmentDisplayPercent,
     domainHasAnyScoredTargets,
     resolveTargetLatestCompetencyState,
     resolveTargetLatestMovement,
@@ -307,7 +310,7 @@ describe('domainCellDisplay target movement', () => {
             expect(distributionCount(stats, 'not_yet')).toBe(0);
         });
 
-        it('does not inflate unscored percentage from earlier unscored cycle cells', () => {
+    it('does not inflate unscored percentage from earlier unscored cycle cells', () => {
             const domain = makeDomain(
                 Array.from({ length: 4 }, (_, index) =>
                     makeTarget(`T${index + 1}`, [
@@ -326,5 +329,21 @@ describe('domainCellDisplay target movement', () => {
             expect(distributionCount(stats, 'unscored')).toBe(0);
             expect(distributionCount(stats, 'in_progress')).toBe(4);
         });
+    });
+});
+
+describe('distribution display percentages', () => {
+    it('allocates bar widths that sum to 100 using largest remainder', () => {
+        expect(computeRoundedPercentWidths([1, 1, 1], 3)).toEqual([34, 33, 33]);
+        expect(computeRoundedPercentWidths([1, 0, 0, 0], 3)).toEqual([100, 0, 0, 0]);
+        expect(computeRoundedPercentWidths([1, 1, 1, 0], 3).reduce((sum, width) => sum + width, 0)).toBe(
+            100
+        );
+    });
+
+    it('shows at least 1% label for nonzero buckets that round to zero', () => {
+        expect(distributionSegmentDisplayPercent(1, 200)).toBe(1);
+        expect(distributionSegmentDisplayPercent(0, 200)).toBe(0);
+        expect(distributionSegmentDisplayPercent(40, 100)).toBe(40);
     });
 });

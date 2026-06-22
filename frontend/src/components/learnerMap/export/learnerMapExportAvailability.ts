@@ -1,4 +1,5 @@
 import { LearnerMapProfile } from '../../../services/learnerMapProfile';
+import { deriveAssessmentCoverageSummary } from '../domainCellDisplay';
 
 export interface LearnerMapExportAvailability {
     available: boolean;
@@ -27,7 +28,7 @@ export function getLearnerMapExportAvailability(
         };
     }
 
-    if (profile.totals.scoredCells === 0) {
+    if (deriveAssessmentCoverageSummary(profile.domains).targetsAssessed === 0) {
         return {
             available: false,
             reason: 'Score at least one target before Learner Map export becomes available.',

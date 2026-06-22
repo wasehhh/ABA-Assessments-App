@@ -1,5 +1,9 @@
 import { LearnerMapDomain } from '../../services/learnerMapProfile';
-import { deriveDomainCellStats } from './domainCellDisplay';
+import {
+    computeRoundedPercentWidths,
+    deriveDomainCellStats,
+    distributionSegmentDisplayPercent,
+} from './domainCellDisplay';
 import { getDomainIdentity } from './domainIdentity';
 import { MOVEMENT_MARKER_ENTRIES, movementMetricEmphasisClass } from './movementDisplay';
 
@@ -15,10 +19,7 @@ const SEGMENT_TEXT_CLASS: Record<string, string> = {
 };
 
 function formatPercent(count: number, total: number): number {
-    if (total === 0) {
-        return 0;
-    }
-    return Math.round((count / total) * 100);
+    return distributionSegmentDisplayPercent(count, total);
 }
 
 function ScoreDistributionBar({
@@ -37,6 +38,11 @@ function ScoreDistributionBar({
         return <span className="text-xs text-gray-500">—</span>;
     }
 
+    const segmentWidths = computeRoundedPercentWidths(
+        distribution.map((segment) => segment.count),
+        totalTargets
+    );
+
     return (
         <div className="min-w-[14rem]">
             <div
@@ -46,20 +52,22 @@ function ScoreDistributionBar({
                     .map((segment) => `${segment.label} ${formatPercent(segment.count, totalTargets)}%`)
                     .join(', ')}
             >
-                {distribution.map((segment) => {
-                    const percent = formatPercent(segment.count, totalTargets);
-                    if (percent === 0) {
+                {distribution.map((segment, index) => {
+                    const widthPercent = segmentWidths[index];
+                    if (segment.count === 0 || widthPercent === 0) {
                         return null;
                     }
+
+                    const labelPercent = formatPercent(segment.count, totalTargets);
 
                     return (
                         <span
                             key={segment.key}
                             className={`${segment.segmentClass} flex items-center justify-center px-0.5 text-[10px] font-semibold leading-none tabular-nums ${SEGMENT_TEXT_CLASS[segment.key]}`}
-                            style={{ width: `${percent}%` }}
-                            title={`${segment.label}: ${percent}% (${segment.count})`}
+                            style={{ width: `${widthPercent}%` }}
+                            title={`${segment.label}: ${labelPercent}% (${segment.count})`}
                         >
-                            {percent >= 8 ? `${percent}%` : ''}
+                            {widthPercent >= 8 ? `${labelPercent}%` : ''}
                         </span>
                     );
                 })}

@@ -2,7 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { LearnerMapProfile } from '../../../services/learnerMapProfile';
 import { getLearnerMapExportAvailability } from './learnerMapExportAvailability';
 
-function makeProfile(scoredCells: number): LearnerMapProfile {
+function makeProfile(targetsAssessed: number): LearnerMapProfile {
+    const totalTargets = Math.max(targetsAssessed, 1);
+    const targets = Array.from({ length: totalTargets }, (_, index) => ({
+        targetId: `T${index + 1}`,
+        title: `Target ${index + 1}`,
+        cells: [
+            {
+                cycleId: 'c1',
+                cycleNumber: 1,
+                rawScore: index < targetsAssessed ? 2 : null,
+                displayScoreWithMax: index < targetsAssessed ? '2/4' : '—',
+                competencyState: index < targetsAssessed ? ('in_progress' as const) : ('unscored' as const),
+                normalizedRatio: index < targetsAssessed ? 0.5 : null,
+                isUnscored: index >= targetsAssessed,
+                movementFromPrevious: 'none' as const,
+            },
+        ],
+    }));
+
     return {
         metadata: {
             assessmentId: 'assess-1',
@@ -11,13 +29,19 @@ function makeProfile(scoredCells: number): LearnerMapProfile {
             generatedAt: '2026-01-01T00:00:00.000Z',
         },
         cycles: [],
-        domains: [],
+        domains: [
+            {
+                domainId: 'DOM_1',
+                title: 'Domain 1',
+                targets,
+            },
+        ],
         totals: {
             totalDomains: 1,
-            totalTargets: 1,
+            totalTargets,
             totalCycles: 2,
-            totalCells: 2,
-            scoredCells,
+            totalCells: totalTargets * 2,
+            scoredCells: targetsAssessed,
         },
     };
 }
@@ -32,8 +56,27 @@ describe('getLearnerMapExportAvailability', () => {
         });
     });
 
-    it('requires scored data', () => {
+    it('requires scored targets', () => {
         expect(getLearnerMapExportAvailability(makeProfile(0), 2)).toEqual({
+            available: false,
+            reason: 'Score at least one target before Learner Map export becomes available.',
+            guidance: 'Enter scores in the assessment matrix, then open Learner Map again.',
+        });
+    });
+
+    it('blocks export when totals.scoredCells is positive but no targets are assessed', () => {
+        const profile: LearnerMapProfile = {
+            ...makeProfile(0),
+            totals: {
+                totalDomains: 1,
+                totalTargets: 2,
+                totalCycles: 2,
+                totalCells: 4,
+                scoredCells: 3,
+            },
+        };
+
+        expect(getLearnerMapExportAvailability(profile, 2)).toEqual({
             available: false,
             reason: 'Score at least one target before Learner Map export becomes available.',
             guidance: 'Enter scores in the assessment matrix, then open Learner Map again.',
