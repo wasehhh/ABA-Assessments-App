@@ -8,7 +8,7 @@ export function LearnerMapMovementKey() {
         >
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-900">Movement</h2>
             <p className="mt-1 text-xs text-gray-600">
-                L1 summarizes latest movement per target. Appendix cell markers show movement
+                L1 summarizes latest movement per target. Appendix score markers show movement
                 compared with the prior cycle.
             </p>
             <ul className="mt-3 space-y-2">

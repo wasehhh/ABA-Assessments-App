@@ -194,6 +194,7 @@ export function LearnerMapExportPreview() {
                     exportMode === 'selected-domains' ? selectedDomainIds : undefined
                 }
                 displayContext={buildMockDisplayContext(scenario.profile, scenario.label)}
+                cycleDateLabels={scenario.cycleDateLabels}
             />
         </div>
     );

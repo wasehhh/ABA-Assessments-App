@@ -18,6 +18,7 @@ interface Props {
     mode: LearnerMapExportMode;
     displayContext?: LearnerMapDisplayContext;
     selectedDomainIds?: string[];
+    cycleDateLabels?: Record<string, string>;
 }
 
 function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
@@ -41,6 +42,7 @@ export function LearnerMapExportView({
     mode,
     displayContext,
     selectedDomainIds,
+    cycleDateLabels,
 }: Props) {
     const { metadata, cycles, domains } = profile;
     const generatedAt = new Date(metadata.generatedAt).toLocaleString(undefined, {
@@ -134,6 +136,7 @@ export function LearnerMapExportView({
                             domains={appendixDomains}
                             cycles={cycles}
                             domainIndexById={domainIndexById}
+                            cycleDateLabels={cycleDateLabels}
                         />
                     </section>
                 ) : null}

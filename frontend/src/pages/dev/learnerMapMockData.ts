@@ -1,4 +1,5 @@
 import { AssessmentScore, ContentPackData, Target } from '../../types';
+import { buildCycleDateLabels } from '../../components/learnerMap/cycleDateDisplay';
 import {
     buildLearnerMapProfile,
     LearnerMapProfile,
@@ -11,6 +12,7 @@ export interface LearnerMapMockScenario {
     label: string;
     description: string;
     profile: LearnerMapProfile;
+    cycleDateLabels: Record<string, string>;
 }
 
 const MOCK_GENERATED_AT = new Date('2026-05-22T12:00:00.000Z');
@@ -93,11 +95,21 @@ function buildMockPack(options: {
     };
 }
 
+const MOCK_CYCLE_ANCHOR_DATES = [
+    '2026-01-15T00:00:00.000Z',
+    '2026-03-20T00:00:00.000Z',
+    '2026-06-10T00:00:00.000Z',
+    '2026-09-05T00:00:00.000Z',
+];
+
 function makeCycles(count: number) {
     return Array.from({ length: count }, (_, index) => ({
         id: `cycle-${index + 1}`,
         cycle_number: index + 1,
         status: index === 0 ? ('locked' as const) : ('in_progress' as const),
+        start_date: MOCK_CYCLE_ANCHOR_DATES[index] ?? null,
+        end_date: null,
+        created_at: MOCK_CYCLE_ANCHOR_DATES[index] ?? '2026-01-01T00:00:00.000Z',
     }));
 }
 
@@ -186,21 +198,25 @@ function buildScenarioProfile(options: {
     assessmentId: string;
     pack: ContentPackData;
     cycleCount: number;
-}): LearnerMapProfile {
+}): { profile: LearnerMapProfile; cycleDateLabels: Record<string, string> } {
     const cycles = makeCycles(options.cycleCount);
     const scoresByCycle = buildScoresForPack(options.pack, cycles, options.assessmentId);
+    const cycleDateLabels = buildCycleDateLabels(cycles);
 
-    return buildLearnerMapProfile({
-        assessment: {
-            id: options.assessmentId,
-            pack_snapshot: options.pack,
-        },
-        cycles: cycles.map((cycle, index) => ({
-            cycle,
-            scores: scoresByCycle[index],
-        })),
-        generatedAt: MOCK_GENERATED_AT,
-    });
+    return {
+        profile: buildLearnerMapProfile({
+            assessment: {
+                id: options.assessmentId,
+                pack_snapshot: options.pack,
+            },
+            cycles: cycles.map((cycle, index) => ({
+                cycle,
+                scores: scoresByCycle[index],
+            })),
+            generatedAt: MOCK_GENERATED_AT,
+        }),
+        cycleDateLabels,
+    };
 }
 
 const smallPack = buildMockPack({
@@ -229,7 +245,7 @@ export const LEARNER_MAP_MOCK_SCENARIOS: LearnerMapMockScenario[] = [
         id: 'small',
         label: 'Small',
         description: '2 domains · 4 targets each · 2 cycles',
-        profile: buildScenarioProfile({
+        ...buildScenarioProfile({
             assessmentId: 'assess-dev-small',
             pack: smallPack,
             cycleCount: 2,
@@ -239,7 +255,7 @@ export const LEARNER_MAP_MOCK_SCENARIOS: LearnerMapMockScenario[] = [
         id: 'medium',
         label: 'Medium',
         description: '6 domains · 15 targets each · 3 cycles',
-        profile: buildScenarioProfile({
+        ...buildScenarioProfile({
             assessmentId: 'assess-dev-medium',
             pack: mediumPack,
             cycleCount: 3,
@@ -249,7 +265,7 @@ export const LEARNER_MAP_MOCK_SCENARIOS: LearnerMapMockScenario[] = [
         id: 'large',
         label: 'Large',
         description: '12 domains · 35 targets each · 4 cycles',
-        profile: buildScenarioProfile({
+        ...buildScenarioProfile({
             assessmentId: 'assess-dev-large',
             pack: largePack,
             cycleCount: 4,

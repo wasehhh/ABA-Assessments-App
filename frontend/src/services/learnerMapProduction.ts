@@ -6,12 +6,14 @@ import {
     LearnerMapProfile,
 } from './learnerMapProfile';
 import { buildProductionDisplayContext, LearnerMapDisplayContext } from '../components/learnerMap/learnerMapDisplayContext';
+import { buildCycleDateLabels } from '../components/learnerMap/cycleDateDisplay';
 
 export interface LearnerMapProductionData {
     assessment: Awaited<ReturnType<typeof assessmentService.getById>>;
     cycles: Awaited<ReturnType<typeof assessmentService.getCycles>>;
     profile: LearnerMapProfile;
     displayContext: LearnerMapDisplayContext;
+    cycleDateLabels: Record<string, string>;
 }
 
 export async function loadLearnerMapProductionData(
@@ -61,11 +63,13 @@ export async function loadLearnerMapProductionData(
     }
 
     const displayContext = buildProductionDisplayContext(assessment, organizationName);
+    const cycleDateLabels = buildCycleDateLabels(sortedCycles);
 
     return {
         assessment,
         cycles: sortedCycles,
         profile,
         displayContext,
+        cycleDateLabels,
     };
 }

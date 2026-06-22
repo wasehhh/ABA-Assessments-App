@@ -1,4 +1,5 @@
 import { LearnerMapCycleSummary, LearnerMapDomain } from '../../../services/learnerMapProfile';
+import { domainHasAnyScoredTargets } from '../domainCellDisplay';
 import { getDomainIdentity } from '../domainIdentity';
 import { LearnerMapDomainSection } from '../LearnerMapDomainSection';
 import {
@@ -11,6 +12,7 @@ interface Props {
     domain: LearnerMapDomain;
     cycles: LearnerMapCycleSummary[];
     domainIndex: number;
+    cycleDateLabels?: Record<string, string>;
 }
 
 function segmentContinuityLabel(
@@ -24,9 +26,15 @@ function segmentContinuityLabel(
     return base;
 }
 
-export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }: Props) {
+export function LearnerMapAppendixDomainSection({
+    domain,
+    cycles,
+    domainIndex,
+    cycleDateLabels,
+}: Props) {
     const segments = segmentDomainTargets(domain.targets);
     const identity = getDomainIdentity(domainIndex);
+    const hasScoredTargets = domainHasAnyScoredTargets(domain);
 
     return (
         <div
@@ -48,7 +56,14 @@ export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }:
                 </h3>
             </div>
 
-            {segments.length === 0 ? (
+            {!hasScoredTargets ? (
+                <p
+                    className="pt-2 text-sm leading-relaxed text-gray-600"
+                    data-learner-map-export-domain-empty
+                >
+                    No targets have been scored in the selected cycles.
+                </p>
+            ) : segments.length === 0 ? (
                 <div className="pt-2" data-learner-map-export-domain-segment>
                     <div data-learner-map-export-segment-table-group>
                         <LearnerMapDomainSection
@@ -58,6 +73,7 @@ export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }:
                             appendixCompact
                             hideSectionHeader
                             fixedTargetColumns={LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT}
+                            cycleDateLabels={cycleDateLabels}
                         />
                     </div>
                 </div>
@@ -96,6 +112,7 @@ export function LearnerMapAppendixDomainSection({ domain, cycles, domainIndex }:
                                         appendixCompact
                                         hideSectionHeader
                                         fixedTargetColumns={LEARNER_MAP_APPENDIX_TARGETS_PER_SEGMENT}
+                                        cycleDateLabels={cycleDateLabels}
                                     />
                                 </div>
                             </div>

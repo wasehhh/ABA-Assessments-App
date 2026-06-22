@@ -3,6 +3,7 @@ import {
     LearnerMapDomain,
     LearnerMapTarget,
 } from '../../services/learnerMapProfile';
+import { getDomainIdentity } from './domainIdentity';
 import { LearnerMapCell } from './LearnerMapCell';
 
 interface Props {
@@ -16,6 +17,52 @@ interface Props {
     appendixCompact?: boolean;
     hideSectionHeader?: boolean;
     fixedTargetColumns?: number;
+    domainIndex?: number;
+    cycleDateLabels?: Record<string, string>;
+}
+
+function CycleRowLabel({
+    cycleNumber,
+    cycleId,
+    cycleDateLabels,
+    compact,
+}: {
+    cycleNumber: number;
+    cycleId: string;
+    cycleDateLabels?: Record<string, string>;
+    compact: boolean;
+}) {
+    const dateLabel = cycleDateLabels?.[cycleId];
+
+    if (!dateLabel) {
+        return (
+            <div
+                className={`tabular-nums ${compact ? 'text-center text-[10px] font-semibold leading-none' : 'text-center font-medium'}`}
+            >
+                {cycleNumber}
+            </div>
+        );
+    }
+
+    if (compact) {
+        return (
+            <div className="text-center leading-tight">
+                <div className="text-[10px] font-semibold tabular-nums leading-none">
+                    {cycleNumber}
+                </div>
+                <div className="mt-0.5 text-[8px] font-medium leading-none text-gray-500">
+                    {dateLabel}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="text-center text-sm leading-tight">
+            <span className="font-medium tabular-nums">{cycleNumber}</span>
+            <span className="text-gray-500"> · {dateLabel}</span>
+        </div>
+    );
 }
 
 function targetHeaderDisplay(target: LearnerMapTarget, index: number) {
@@ -86,10 +133,14 @@ export function LearnerMapDomainSection({
     appendixCompact = false,
     hideSectionHeader = false,
     fixedTargetColumns,
+    domainIndex,
+    cycleDateLabels,
 }: Props) {
     const visibleTargets = targets ?? domain.targets;
     const headingTitle = titleOverride ?? domain.title;
     const compact = appendixCompact && exportLayout;
+    const nativeIdentity =
+        domainIndex !== undefined && !exportLayout ? getDomainIdentity(domainIndex) : null;
     const targetColumnCount =
         fixedTargetColumns && compact
             ? fixedTargetColumns
@@ -106,11 +157,26 @@ export function LearnerMapDomainSection({
         <section
             className={`${hideSectionHeader ? 'space-y-0' : 'space-y-3'} ${
                 exportLayout ? 'learner-map-export-domain-segment-block' : ''
+            } ${
+                nativeIdentity
+                    ? `rounded-r-lg border border-gray-200 border-l-4 ${nativeIdentity.borderClass}`
+                    : ''
             }`}
+            data-domain-identity={nativeIdentity?.id}
         >
             {!hideSectionHeader ? (
                 <div className={segmentRangeLabel ? 'space-y-1' : 'flex flex-wrap items-center gap-2'}>
-                    <h3 className="text-sm font-bold uppercase tracking-wide text-gray-800">
+                    {nativeIdentity ? (
+                        <span
+                            className={`h-4 w-1 shrink-0 rounded-sm ${nativeIdentity.markerClass}`}
+                            aria-hidden
+                        />
+                    ) : null}
+                    <h3
+                        className={`text-sm font-bold uppercase tracking-wide ${
+                            nativeIdentity ? nativeIdentity.accentTextClass : 'text-gray-800'
+                        }`}
+                    >
                         {headingTitle}
                     </h3>
                     {segmentRangeLabel ? (
@@ -241,34 +307,19 @@ export function LearnerMapDomainSection({
                                         } ${exportLayout ? '' : 'sticky left-0 z-10'}`}
                                     >
                                         {compact ? (
-                                            <div className="text-center text-[10px] font-semibold tabular-nums leading-none">
-                                                {cycle.cycleNumber}
-                                            </div>
+                                            <CycleRowLabel
+                                                cycleNumber={cycle.cycleNumber}
+                                                cycleId={cycle.cycleId}
+                                                cycleDateLabels={cycleDateLabels}
+                                                compact
+                                            />
                                         ) : (
-                                            <>
-                                                <div className="tabular-nums">
-                                                    Cycle {cycle.cycleNumber}
-                                                </div>
-                                                <div className="mt-0.5 text-[10px] font-normal tabular-nums text-gray-500">
-                                                    n=
-                                                    {
-                                                        (targets
-                                                            ? visibleTargets
-                                                            : domain.targets
-                                                        ).filter((target) => {
-                                                            const cell = target.cells.find(
-                                                                (entry) =>
-                                                                    entry.cycleId === cycle.cycleId
-                                                            );
-                                                            return (
-                                                                cell !== undefined &&
-                                                                !cell.isUnscored
-                                                            );
-                                                        }).length
-                                                    }
-                                                    /{visibleTargets.length}
-                                                </div>
-                                            </>
+                                            <CycleRowLabel
+                                                cycleNumber={cycle.cycleNumber}
+                                                cycleId={cycle.cycleId}
+                                                cycleDateLabels={cycleDateLabels}
+                                                compact={false}
+                                            />
                                         )}
                                     </th>
                                     {visibleTargets.map((target) => {

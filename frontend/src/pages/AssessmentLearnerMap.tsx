@@ -151,7 +151,11 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
                 </div>
             </div>
 
-            <LearnerMapView profile={learnerMapProfile} displayContext={displayContext} />
+            <LearnerMapView
+                profile={learnerMapProfile}
+                displayContext={displayContext}
+                cycleDateLabels={productionData.cycleDateLabels}
+            />
 
             <LearnerMapExportDialog
                 isOpen={showExportDialog}

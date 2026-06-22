@@ -5,9 +5,15 @@ interface Props {
     domains: LearnerMapDomain[];
     cycles: LearnerMapCycleSummary[];
     domainIndexById?: Record<string, number>;
+    cycleDateLabels?: Record<string, string>;
 }
 
-export function LearnerMapAppendixSection({ domains, cycles, domainIndexById }: Props) {
+export function LearnerMapAppendixSection({
+    domains,
+    cycles,
+    domainIndexById,
+    cycleDateLabels,
+}: Props) {
     return (
         <div className="space-y-6">
             {domains.map((domain, domainIndex) => (
@@ -16,6 +22,7 @@ export function LearnerMapAppendixSection({ domains, cycles, domainIndexById }: 
                     domain={domain}
                     cycles={cycles}
                     domainIndex={domainIndexById?.[domain.domainId] ?? domainIndex}
+                    cycleDateLabels={cycleDateLabels}
                 />
             ))}
         </div>

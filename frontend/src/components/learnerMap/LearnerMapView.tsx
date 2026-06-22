@@ -10,6 +10,7 @@ import { LearnerMapScoreBandsCard } from './LearnerMapScoreBandsCard';
 interface Props {
     profile: LearnerMapProfile;
     displayContext?: LearnerMapDisplayContext;
+    cycleDateLabels?: Record<string, string>;
 }
 
 function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
@@ -28,7 +29,7 @@ function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
     return `Cycles ${min}–${max}`;
 }
 
-export function LearnerMapView({ profile, displayContext }: Props) {
+export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Props) {
     const { metadata, cycles, domains, totals } = profile;
     const generatedAt = new Date(metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -87,11 +88,13 @@ export function LearnerMapView({ profile, displayContext }: Props) {
                         </p>
                     </div>
                     <div className="space-y-10">
-                        {domains.map((domain) => (
+                        {domains.map((domain, index) => (
                             <LearnerMapDomainSection
                                 key={domain.domainId}
                                 domain={domain}
                                 cycles={cycles}
+                                domainIndex={index}
+                                cycleDateLabels={cycleDateLabels}
                             />
                         ))}
                     </div>

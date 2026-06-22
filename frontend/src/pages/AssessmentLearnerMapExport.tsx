@@ -123,7 +123,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         );
     }
 
-    const { profile: learnerMapProfile, displayContext } = productionData;
+    const { profile: learnerMapProfile, displayContext, cycleDateLabels } = productionData;
     const resolvedExportParams = resolveLearnerMapExportPreviewParams(
         exportParams,
         learnerMapProfile.domains.map((domain) => domain.domainId)
@@ -190,6 +190,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
                         : undefined
                 }
                 displayContext={displayContext}
+                cycleDateLabels={cycleDateLabels}
             />
         </div>
     );

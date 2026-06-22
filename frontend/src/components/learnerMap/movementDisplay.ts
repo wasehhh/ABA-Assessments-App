@@ -47,8 +47,8 @@ export const MOVEMENT_MARKER_ENTRIES: MovementMarkerDisplay[] = [
         symbol: '–',
         label: 'Not Compared',
         description: 'No valid prior comparison is available',
-        markerClass: 'text-gray-500',
-        badgeClass: 'border-gray-300 bg-gray-50 text-gray-600',
+        markerClass: 'text-gray-400',
+        badgeClass: 'border-gray-200 bg-gray-50/80 text-gray-500',
     },
 ];
 
@@ -60,6 +60,14 @@ export function movementMarkerDisplay(
     movement: LearnerMapMovement | 'none'
 ): MovementMarkerDisplay {
     return MOVEMENT_BY_KEY[movement] ?? MOVEMENT_BY_KEY.none;
+}
+
+export function movementMetricEmphasisClass(key: LearnerMapMovement | 'none'): string {
+    if (key === 'none') {
+        return 'text-gray-400 font-medium';
+    }
+
+    return movementMarkerDisplay(key).markerClass;
 }
 
 export function movementMarkerSymbol(movement: LearnerMapMovement): string {
