@@ -1,10 +1,11 @@
-import { Grid3x3, Layers, LayoutGrid, Target } from 'lucide-react';
+import { ClipboardCheck, Layers, LayoutGrid, PieChart, Target } from 'lucide-react';
 import { LearnerMapDomain, LearnerMapTotals } from '../../services/learnerMapProfile';
 import {
+    deriveAssessmentCoverageSummary,
     deriveAssessmentTargetMovementSummary,
     targetMovementPercent,
 } from './domainCellDisplay';
-import { MOVEMENT_MARKER_ENTRIES } from './movementDisplay';
+import { MOVEMENT_MARKER_ENTRIES, movementMetricEmphasisClass } from './movementDisplay';
 
 interface Props {
     totals: LearnerMapTotals;
@@ -18,12 +19,21 @@ interface StatItem {
 }
 
 export function LearnerMapAssessmentRollup({ totals, domains }: Props) {
+    const coverageSummary = deriveAssessmentCoverageSummary(domains);
     const stats: StatItem[] = [
         { label: 'Domains', value: totals.totalDomains, icon: Layers },
         { label: 'Targets', value: totals.totalTargets, icon: Target },
         { label: 'Cycles', value: totals.totalCycles, icon: LayoutGrid },
-        { label: 'Scored Cells', value: totals.scoredCells, icon: Grid3x3 },
-        { label: 'Total Cells', value: totals.totalCells, icon: Grid3x3 },
+        {
+            label: 'Targets Assessed',
+            value: coverageSummary.targetsAssessed,
+            icon: ClipboardCheck,
+        },
+        {
+            label: 'Assessment Coverage',
+            value: `${coverageSummary.coveragePercent}%`,
+            icon: PieChart,
+        },
     ];
 
     const movementSummary = deriveAssessmentTargetMovementSummary(domains);
@@ -85,6 +95,8 @@ export function LearnerMapAssessmentRollup({ totals, domains }: Props) {
                                 <li
                                     key={entry.key}
                                     className={`min-w-[9rem] flex-1 px-2 py-2.5 text-center ${
+                                        entry.key === 'none' ? 'bg-gray-50/60' : ''
+                                    } ${
                                         index > 0
                                             ? 'border-t border-gray-200 lg:border-t-0 lg:border-l'
                                             : ''
@@ -92,12 +104,20 @@ export function LearnerMapAssessmentRollup({ totals, domains }: Props) {
                                 >
                                     <div className="space-y-0.5">
                                         <p
-                                            className={`text-[11px] font-semibold leading-tight ${entry.markerClass}`}
+                                            className={`text-[11px] leading-tight ${
+                                                entry.key === 'none'
+                                                    ? 'font-medium text-gray-400'
+                                                    : `font-semibold ${entry.markerClass}`
+                                            }`}
                                         >
                                             <span aria-hidden>{entry.symbol}</span> {entry.label}
                                         </p>
                                         <p
-                                            className={`text-sm font-semibold tabular-nums leading-tight ${entry.markerClass}`}
+                                            className={`tabular-nums leading-tight ${movementMetricEmphasisClass(entry.key)} ${
+                                                entry.key === 'none'
+                                                    ? 'text-xs font-medium'
+                                                    : 'text-sm font-semibold'
+                                            }`}
                                             title={`${entry.label}: ${count} targets (${percent}%)`}
                                         >
                                             {count}{' '}

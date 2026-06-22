@@ -1,7 +1,7 @@
 import { LearnerMapDomain } from '../../services/learnerMapProfile';
 import { deriveDomainCellStats } from './domainCellDisplay';
 import { getDomainIdentity } from './domainIdentity';
-import { MOVEMENT_MARKER_ENTRIES } from './movementDisplay';
+import { MOVEMENT_MARKER_ENTRIES, movementMetricEmphasisClass } from './movementDisplay';
 
 interface Props {
     domains: LearnerMapDomain[];
@@ -85,19 +85,33 @@ function MovementMetric({
     count,
     totalTargets,
     label,
-    markerClass,
+    movementKey,
 }: {
     count: number;
     totalTargets: number;
     label: string;
-    markerClass: string;
+    movementKey: (typeof MOVEMENT_MARKER_ENTRIES)[number]['key'];
 }) {
     const percent = formatPercent(count, totalTargets);
+    const emphasisClass = movementMetricEmphasisClass(movementKey);
+    const deemphasized = movementKey === 'none';
 
     return (
         <div className="text-center" title={`${label}: ${percent}% (${count} targets)`}>
-            <div className={`text-sm font-semibold tabular-nums ${markerClass}`}>{percent}%</div>
-            <div className="mt-0.5 text-[10px] tabular-nums text-gray-500">({count})</div>
+            <div
+                className={`tabular-nums ${emphasisClass} ${
+                    deemphasized ? 'text-xs font-medium' : 'text-sm font-semibold'
+                }`}
+            >
+                {percent}%
+            </div>
+            <div
+                className={`mt-0.5 tabular-nums ${
+                    deemphasized ? 'text-[10px] text-gray-400' : 'text-[10px] text-gray-500'
+                }`}
+            >
+                ({count})
+            </div>
         </div>
     );
 }
@@ -112,7 +126,7 @@ export function LearnerMapDomainSummary({ domains }: Props) {
     return (
         <div data-learner-map-export-l1-table>
             <div className="overflow-x-auto rounded-md border border-gray-200">
-                <table className="w-full min-w-[64rem] border-collapse text-sm">
+                <table className="w-full min-w-[52rem] border-collapse text-sm">
                     <thead className="bg-gray-50">
                         <tr className="border-b border-gray-200 text-left">
                             <th
@@ -120,18 +134,6 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                 className="px-3 py-2.5 align-bottom font-semibold text-gray-900"
                             >
                                 Domain
-                            </th>
-                            <th
-                                rowSpan={2}
-                                className="px-2 py-2.5 align-bottom text-right text-xs font-semibold text-gray-600"
-                            >
-                                Targets
-                            </th>
-                            <th
-                                rowSpan={2}
-                                className="px-2 py-2.5 align-bottom text-right text-xs font-semibold text-gray-600"
-                            >
-                                Scored Cells
                             </th>
                             <th
                                 rowSpan={2}
@@ -159,7 +161,15 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                     className="border-l border-gray-100 px-1 py-1.5 text-center text-xs font-bold first:border-l-gray-200"
                                     title={column.label}
                                 >
-                                    <span className={column.markerClass}>{column.symbol}</span>
+                                    <span
+                                        className={
+                                            column.key === 'none'
+                                                ? 'text-gray-400'
+                                                : column.markerClass
+                                        }
+                                    >
+                                        {column.symbol}
+                                    </span>
                                 </th>
                             ))}
                         </tr>
@@ -184,12 +194,6 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                             <span>{domain.title}</span>
                                         </div>
                                     </td>
-                                    <td className="px-2 py-3 text-right tabular-nums text-xs text-gray-600">
-                                        {stats.targetCount}
-                                    </td>
-                                    <td className="px-2 py-3 text-right tabular-nums text-xs text-gray-600">
-                                        {stats.scoredCells}/{stats.totalCells}
-                                    </td>
                                     <td className="px-2 py-3 text-right tabular-nums text-base font-semibold text-gray-900">
                                         {stats.coveragePercent}%
                                     </td>
@@ -208,7 +212,7 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                                 count={stats.movement[column.key]}
                                                 totalTargets={stats.targetCount}
                                                 label={column.label}
-                                                markerClass={column.markerClass}
+                                                movementKey={column.key}
                                             />
                                         </td>
                                     ))}

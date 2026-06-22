@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Beaker } from 'lucide-react';
 import { LearnerMapView } from '../../components/learnerMap';
 import { buildMockDisplayContext } from '../../components/learnerMap/learnerMapDisplayContext';
+import { deriveAssessmentCoverageSummary } from '../../components/learnerMap/domainCellDisplay';
 import {
     getLearnerMapMockScenario,
     LEARNER_MAP_MOCK_SCENARIOS,
@@ -23,7 +24,8 @@ export function LearnerMapPreview() {
     }
 
     const scenario = getLearnerMapMockScenario(scenarioId);
-    const { totals } = scenario.profile;
+    const { totals, domains } = scenario.profile;
+    const coverageSummary = deriveAssessmentCoverageSummary(domains);
     const targetsPerDomain = averageTargetsPerDomain(totals.totalTargets, totals.totalDomains);
 
     return (
@@ -81,7 +83,7 @@ export function LearnerMapPreview() {
                             </span>
                             <span className="text-amber-900/90">{scenario.description}</span>
                         </div>
-                        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                        <dl className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-3 lg:grid-cols-5">
                             <div className="rounded-md bg-amber-50 px-3 py-2">
                                 <dt className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
                                     Domains
@@ -111,10 +113,18 @@ export function LearnerMapPreview() {
                             </div>
                             <div className="rounded-md bg-amber-50 px-3 py-2">
                                 <dt className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                                    Scored Cells
+                                    Targets Assessed
                                 </dt>
                                 <dd className="mt-0.5 tabular-nums font-semibold text-amber-950">
-                                    {totals.scoredCells}/{totals.totalCells}
+                                    {coverageSummary.targetsAssessed}
+                                </dd>
+                            </div>
+                            <div className="rounded-md bg-amber-50 px-3 py-2">
+                                <dt className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                                    Assessment Coverage
+                                </dt>
+                                <dd className="mt-0.5 tabular-nums font-semibold text-amber-950">
+                                    {coverageSummary.coveragePercent}%
                                 </dd>
                             </div>
                         </dl>
@@ -125,6 +135,7 @@ export function LearnerMapPreview() {
             <LearnerMapView
                 profile={scenario.profile}
                 displayContext={buildMockDisplayContext(scenario.profile, scenario.label)}
+                cycleDateLabels={scenario.cycleDateLabels}
             />
         </div>
     );

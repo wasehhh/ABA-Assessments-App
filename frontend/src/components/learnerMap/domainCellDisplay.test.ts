@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { LearnerMapCell, LearnerMapDomain, LearnerMapTarget } from '../../services/learnerMapProfile';
 import {
+    deriveAssessmentCoverageSummary,
     deriveAssessmentTargetMovementSummary,
     deriveDomainCellStats,
     deriveTargetMovementCounts,
+    domainHasAnyScoredTargets,
     resolveTargetLatestMovement,
+    targetCoveragePercent,
     targetMovementPercent,
 } from './domainCellDisplay';
 
@@ -191,5 +194,55 @@ describe('domainCellDisplay target movement', () => {
         expect(summary.movement.flat).toBe(1);
         expect(summary.movement.none).toBe(1);
         expect(targetMovementPercent(summary.movement.up, summary.totalTargets)).toBe(40);
+    });
+
+    it('detects domains with no scored targets for appendix empty states', () => {
+        const emptyDomain = makeDomain([
+            makeTarget('T1', [makeCell('c1', 1, 'none', true)]),
+        ]);
+        const scoredDomain = makeDomain([makeTarget('T2', [makeCell('c1', 1, 'up')])]);
+
+        expect(domainHasAnyScoredTargets(emptyDomain)).toBe(false);
+        expect(domainHasAnyScoredTargets(scoredDomain)).toBe(true);
+    });
+
+    it('calculates coverage from unique assessed targets, not scored cells', () => {
+        const domain = makeDomain([
+            makeTarget('T1', [
+                makeCell('c1', 1, 'up'),
+                makeCell('c2', 2, 'flat'),
+                makeCell('c3', 3, 'down'),
+            ]),
+            makeTarget('T2', [makeCell('c1', 1, 'none', true)]),
+            makeTarget('T3', [makeCell('c1', 1, 'none', true)]),
+        ]);
+
+        const stats = deriveDomainCellStats(domain);
+
+        expect(stats.targetsAssessed).toBe(1);
+        expect(stats.targetCount).toBe(3);
+        expect(stats.coveragePercent).toBe(33);
+        expect(stats.scoredCells).toBe(3);
+        expect(stats.totalCells).toBe(5);
+    });
+
+    it('derives assessment-wide targets assessed and coverage', () => {
+        const domainA = makeDomain([
+            makeTarget('T1', [makeCell('c1', 1, 'up')]),
+            makeTarget('T2', [makeCell('c1', 1, 'none', true)]),
+        ]);
+        const domainB = makeDomain([
+            makeTarget('T3', [makeCell('c1', 1, 'flat')]),
+            makeTarget('T4', [makeCell('c1', 1, 'none', true)]),
+            makeTarget('T5', [makeCell('c1', 1, 'none', true)]),
+        ]);
+        domainB.domainId = 'DOM_2';
+
+        expect(deriveAssessmentCoverageSummary([domainA, domainB])).toEqual({
+            targetsAssessed: 2,
+            totalTargets: 5,
+            coveragePercent: 40,
+        });
+        expect(targetCoveragePercent(2, 5)).toBe(40);
     });
 });

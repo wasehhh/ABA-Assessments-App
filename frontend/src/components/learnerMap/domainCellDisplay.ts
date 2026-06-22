@@ -24,11 +24,52 @@ export interface DomainTargetMovementCounts {
 
 export interface DomainCellDisplayStats {
     targetCount: number;
+    targetsAssessed: number;
     totalCells: number;
     scoredCells: number;
     coveragePercent: number;
     distribution: DomainCellDistributionSegment[];
     movement: DomainTargetMovementCounts;
+}
+
+export function targetHasBeenScored(target: LearnerMapTarget): boolean {
+    return target.cells.some((cell) => !cell.isUnscored);
+}
+
+export function countTargetsAssessed(targets: LearnerMapTarget[]): number {
+    return targets.filter(targetHasBeenScored).length;
+}
+
+export function targetCoveragePercent(targetsAssessed: number, totalTargets: number): number {
+    if (totalTargets === 0) {
+        return 0;
+    }
+
+    return Math.round((targetsAssessed / totalTargets) * 100);
+}
+
+export interface AssessmentCoverageSummary {
+    targetsAssessed: number;
+    totalTargets: number;
+    coveragePercent: number;
+}
+
+export function deriveAssessmentCoverageSummary(
+    domains: LearnerMapDomain[]
+): AssessmentCoverageSummary {
+    let targetsAssessed = 0;
+    let totalTargets = 0;
+
+    for (const domain of domains) {
+        totalTargets += domain.targets.length;
+        targetsAssessed += countTargetsAssessed(domain.targets);
+    }
+
+    return {
+        targetsAssessed,
+        totalTargets,
+        coveragePercent: targetCoveragePercent(targetsAssessed, totalTargets),
+    };
 }
 
 export function collectDomainCells(domain: LearnerMapDomain): LearnerMapCell[] {
@@ -108,8 +149,9 @@ export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDispl
     const cells = collectDomainCells(domain);
     const totalCells = cells.length;
     const scoredCells = cells.filter((cell) => !cell.isUnscored).length;
-    const coveragePercent =
-        totalCells === 0 ? 0 : Math.round((scoredCells / totalCells) * 100);
+    const targetCount = domain.targets.length;
+    const targetsAssessed = countTargetsAssessed(domain.targets);
+    const coveragePercent = targetCoveragePercent(targetsAssessed, targetCount);
 
     const distribution = STATE_BUCKET_DISPLAY.map((bucket) => ({
         key: bucket.key,
@@ -119,13 +161,20 @@ export function deriveDomainCellStats(domain: LearnerMapDomain): DomainCellDispl
     }));
 
     return {
-        targetCount: domain.targets.length,
+        targetCount,
+        targetsAssessed,
         totalCells,
         scoredCells,
         coveragePercent,
         distribution,
         movement: deriveTargetMovementCounts(domain),
     };
+}
+
+export function domainHasAnyScoredTargets(domain: LearnerMapDomain): boolean {
+    return domain.targets.some((target) =>
+        target.cells.some((cell) => !cell.isUnscored)
+    );
 }
 
 export function cycleRowCoverage(
