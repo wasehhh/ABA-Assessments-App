@@ -6,7 +6,7 @@ import { analyticsService } from '../services/analytics';
 import { buildDomainProfiles } from '../services/domainProfile';
 import { formatComparisonContext } from '../services/assessmentLandscape';
 import { clientService } from '../services/clients';
-import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2 } from 'lucide-react';
+import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2, Map } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
@@ -603,6 +603,17 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                   New Cycle
                 </button>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.hash = `#/assessment/${assessmentId}/learner-map`;
+                }}
+                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+              >
+                <Map className="w-4 h-4" />
+                Learner Map
+              </button>
 
               <div className="relative">
                 <button

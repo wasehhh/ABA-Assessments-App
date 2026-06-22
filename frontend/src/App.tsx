@@ -10,6 +10,8 @@ import { Assessments } from './pages/Assessments';
 import { AssessmentMatrix } from './pages/AssessmentMatrix';
 import { Users } from './pages/Users';
 import { AssessmentReport } from './pages/AssessmentReport';
+import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
+import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
 import { Settings } from './pages/Settings';
 import { AuditLog } from './pages/AuditLog';
 import { OrgSettings } from './pages/OrgSettings';
@@ -125,13 +127,29 @@ function AppRouter() {
     return <Login />;
   }
 
-  const reportMatch = route.match(/#\/assessment\/([^\/]+)\/report/);
+  const baseRoute = route.split('?')[0];
+
+  const reportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report$/);
   if (reportMatch) {
     // Standalone layout for report
     return <AssessmentReport assessmentId={reportMatch[1]} />;
   }
 
-  const assessmentMatch = route.match(/#\/assessment\/([^\/]+)/);
+  const learnerMapExportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/learner-map\/export$/);
+  if (learnerMapExportMatch) {
+    return <AssessmentLearnerMapExport assessmentId={learnerMapExportMatch[1]} />;
+  }
+
+  const learnerMapMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/learner-map$/);
+  if (learnerMapMatch) {
+    return (
+      <Layout>
+        <AssessmentLearnerMap assessmentId={learnerMapMatch[1]} />
+      </Layout>
+    );
+  }
+
+  const assessmentMatch = baseRoute.match(/^#\/assessment\/([^\/]+)$/);
   if (assessmentMatch) {
     return (
       <Layout>
