@@ -2,6 +2,12 @@ import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LearnerMapDomain } from '../../../services/learnerMapProfile';
 import {
+    estimateAppendixSize,
+    formatAppendixSizeEstimateLabel,
+    isAllDomainsSelected,
+    isLargeAppendixExport,
+} from './learnerMapExportEstimate';
+import {
     LEARNER_MAP_EXPORT_MODES,
     LearnerMapExportMode,
 } from './learnerMapExportMode';
@@ -21,10 +27,12 @@ interface Props {
 
 export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose }: Props) {
     const [state, setState] = useState<LearnerMapExportState>(DEFAULT_LEARNER_MAP_EXPORT_STATE);
+    const [fullAcknowledged, setFullAcknowledged] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setState(DEFAULT_LEARNER_MAP_EXPORT_STATE);
+            setFullAcknowledged(false);
         }
     }, [isOpen]);
 
@@ -34,10 +42,29 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
 
     const showDomainChecklist = state.exportMode === 'selected-domains';
     const showFullWarning = state.exportMode === 'full';
-    const canContinue = canContinueLearnerMapExport(state);
+    const canContinue = canContinueLearnerMapExport(state, { fullAcknowledged });
+    const appendixEstimate = estimateAppendixSize(
+        domains,
+        state.exportMode,
+        state.selectedDomainIds
+    );
+    const appendixEstimateLabel = formatAppendixSizeEstimateLabel(
+        state.exportMode,
+        appendixEstimate
+    );
+    const showAllDomainsNudge =
+        showDomainChecklist &&
+        isAllDomainsSelected(state.selectedDomainIds, domains.length);
+    const showLargeExportWarning =
+        showFullWarning &&
+        appendixEstimate !== null &&
+        isLargeAppendixExport(appendixEstimate.segmentCount);
 
     const setExportMode = (exportMode: LearnerMapExportMode) => {
         setState((current) => ({ ...current, exportMode }));
+        if (exportMode !== 'full') {
+            setFullAcknowledged(false);
+        }
     };
 
     const toggleDomainSelection = (domainId: string) => {
@@ -138,6 +165,13 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
                     })}
                 </fieldset>
 
+                <p
+                    className="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                    data-learner-map-export-size-estimate
+                >
+                    {appendixEstimateLabel}
+                </p>
+
                 {showDomainChecklist ? (
                     <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -184,6 +218,15 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
                                 Select at least one domain to include target-level detail.
                             </p>
                         ) : null}
+                        {showAllDomainsNudge ? (
+                            <p
+                                className="mt-2 text-sm text-blue-800"
+                                data-learner-map-export-all-domains-nudge
+                            >
+                                All domains are selected. Full export may be more appropriate for a
+                                complete target-level record.
+                            </p>
+                        ) : null}
                     </div>
                 ) : null}
 
@@ -197,6 +240,20 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
                             Full export includes target-level detail for every domain and may create a
                             long document. Use this for audit, deep review, or complete records.
                         </p>
+                        {showLargeExportWarning ? (
+                            <p className="mt-2 font-medium text-amber-900">
+                                This export may be long when printed.
+                            </p>
+                        ) : null}
+                        <label className="mt-3 flex cursor-pointer items-start gap-2">
+                            <input
+                                type="checkbox"
+                                className="mt-0.5"
+                                checked={fullAcknowledged}
+                                onChange={(event) => setFullAcknowledged(event.target.checked)}
+                            />
+                            <span>I understand this may produce a long document.</span>
+                        </label>
                     </div>
                 ) : null}
 

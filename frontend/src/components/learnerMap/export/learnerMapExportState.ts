@@ -10,9 +10,16 @@ export const DEFAULT_LEARNER_MAP_EXPORT_STATE: LearnerMapExportState = {
     selectedDomainIds: [],
 };
 
-export function canContinueLearnerMapExport(state: LearnerMapExportState): boolean {
+export function canContinueLearnerMapExport(
+    state: LearnerMapExportState,
+    options?: { fullAcknowledged?: boolean }
+): boolean {
     if (state.exportMode === 'selected-domains') {
         return state.selectedDomainIds.length > 0;
+    }
+
+    if (state.exportMode === 'full') {
+        return options?.fullAcknowledged === true;
     }
 
     return true;

@@ -30,11 +30,22 @@ describe('learnerMapExportState', () => {
         ).toBe(true);
     });
 
-    it('allows continue for standard and full modes', () => {
+    it('allows continue for standard mode without acknowledgment', () => {
         expect(canContinueLearnerMapExport({ exportMode: 'standard', selectedDomainIds: [] })).toBe(
             true
         );
-        expect(canContinueLearnerMapExport({ exportMode: 'full', selectedDomainIds: [] })).toBe(true);
+    });
+
+    it('requires full acknowledgment for full mode', () => {
+        expect(canContinueLearnerMapExport({ exportMode: 'full', selectedDomainIds: [] })).toBe(
+            false
+        );
+        expect(
+            canContinueLearnerMapExport(
+                { exportMode: 'full', selectedDomainIds: [] },
+                { fullAcknowledged: true }
+            )
+        ).toBe(true);
     });
 
     it('defaults invalid mode URL params to standard', () => {

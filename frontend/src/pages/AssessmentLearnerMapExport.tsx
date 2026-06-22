@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LearnerMapExportView } from '../components/learnerMap/export/LearnerMapExportView';
 import { getLearnerMapExportAvailability } from '../components/learnerMap/export/learnerMapExportAvailability';
+import {
+    estimateAppendixSize,
+    formatAppendixSizeEstimateLabel,
+} from '../components/learnerMap/export/learnerMapExportEstimate';
 import {
     LEARNER_MAP_EXPORT_MODES,
 } from '../components/learnerMap/export/learnerMapExportMode';
@@ -139,6 +143,21 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
                   )
                   .map((domain) => domain.title)
             : [];
+    const appendixEstimate = estimateAppendixSize(
+        learnerMapProfile.domains,
+        resolvedExportParams.exportMode,
+        resolvedExportParams.exportMode === 'selected-domains'
+            ? resolvedExportParams.selectedDomainIds
+            : undefined
+    );
+    const appendixEstimateLabel = formatAppendixSizeEstimateLabel(
+        resolvedExportParams.exportMode,
+        appendixEstimate
+    );
+
+    const handlePrint = () => {
+        window.print();
+    };
 
     return (
         <div className="learner-map-export-preview-page min-h-screen bg-slate-200">
@@ -171,6 +190,17 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
                                     Selected domains: {selectedDomainTitles.join(', ')}
                                 </p>
                             ) : null}
+                            <p className="mt-2 text-sm text-gray-600">{appendixEstimateLabel}</p>
+                        </div>
+                        <div className="no-print flex shrink-0 items-start">
+                            <button
+                                type="button"
+                                onClick={handlePrint}
+                                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
+                            >
+                                <Printer className="h-4 w-4" aria-hidden />
+                                Print / Save PDF
+                            </button>
                         </div>
                     </div>
                     <p className="mt-3 text-sm text-gray-600">
