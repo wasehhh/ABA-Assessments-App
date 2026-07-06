@@ -29,6 +29,44 @@ export interface Client {
 
 export type ScoringType = 'numeric' | 'checkbox' | 'yesno' | 'text';
 
+/** Configurable UI names for pack structure levels. Absent → Alpha defaults. */
+export interface StructureLabels {
+  /** e.g. "Domain", "Level", "Module", "Age Band" */
+  primary_group: string;
+  /** e.g. "Domain", "Program", "Skill Area" */
+  secondary_group?: string;
+  /** e.g. "Target", "Milestone", "Item" */
+  target: string;
+}
+
+/** Named reusable scoring scale at pack level. */
+export interface ScoringScaleDefinition {
+  scale_id: string;
+  title: string;
+  type: ScoringType;
+  scale?: number[];
+  scale_labels?: Record<number, string>;
+  task_steps?: string[];
+  no_opportunity_allowed?: boolean;
+}
+
+/** Optional catalog entry for secondary groups within a primary group (domain). */
+export interface SecondaryGroupCatalogEntry {
+  secondary_group_id: string;
+  title: string;
+  description?: string;
+}
+
+export interface TargetScoring {
+  type: ScoringType;
+  /** Optional reference into ContentPackData.scoring_scales */
+  scale_id?: string;
+  scale?: number[];
+  scale_labels?: Record<number, string>;
+  task_steps?: string[]; // Named steps for Task Analysis (was checkbox_count)
+  no_opportunity_allowed: boolean;
+}
+
 export interface Target {
   target_id: string;
   title: string;
@@ -39,13 +77,9 @@ export interface Target {
   examples?: string;
   instructions?: string;
   notes?: string;
-  scoring: {
-    type: ScoringType;
-    scale?: number[];
-    scale_labels: Record<number, string>;
-    task_steps?: string[]; // Named steps for Task Analysis (was checkbox_count)
-    no_opportunity_allowed: boolean;
-  };
+  /** Optional secondary group membership within parent domain. */
+  secondary_group_id?: string;
+  scoring: TargetScoring;
 }
 
 export interface Domain {
@@ -53,6 +87,8 @@ export interface Domain {
   title: string;
   /** Optional prose about the skill domain (e.g. from CSV `domain_description`). */
   description?: string;
+  /** Optional explicit order/titles for secondary groups in this primary group. */
+  secondary_groups?: SecondaryGroupCatalogEntry[];
   targets: Target[];
 }
 
@@ -62,6 +98,8 @@ export interface ContentPackData {
   title: string;
   description: string;
   version: string;
+  structure_labels?: StructureLabels;
+  scoring_scales?: ScoringScaleDefinition[];
   domains: Domain[];
 }
 
