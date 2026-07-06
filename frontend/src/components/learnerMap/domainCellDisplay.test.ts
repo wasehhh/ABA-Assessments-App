@@ -39,6 +39,7 @@ function makeTarget(targetId: string, cells: LearnerMapCell[]): LearnerMapTarget
     return {
         targetId,
         title: targetId,
+        displayTargetMax: '4',
         cells,
     };
 }

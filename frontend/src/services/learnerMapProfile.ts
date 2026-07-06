@@ -1,6 +1,7 @@
 import { AssessmentCycle, AssessmentScore, ContentPackData } from '../types';
 import {
     CompetencyState,
+    getTargetMaxScore,
     interpretTargetScore,
     TargetScoreInterpretation,
 } from '../utils/scoreInterpretation';
@@ -34,6 +35,7 @@ export interface LearnerMapCell {
 export interface LearnerMapTarget {
     targetId: string;
     title: string;
+    displayTargetMax: string;
     cells: LearnerMapCell[];
 }
 
@@ -191,6 +193,7 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
             return {
                 targetId: target.target_id,
                 title: target.title,
+                displayTargetMax: String(getTargetMaxScore(target)),
                 cells,
             };
         }),

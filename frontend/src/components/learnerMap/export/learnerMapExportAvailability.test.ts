@@ -7,6 +7,7 @@ function makeProfile(targetsAssessed: number): LearnerMapProfile {
     const targets = Array.from({ length: totalTargets }, (_, index) => ({
         targetId: `T${index + 1}`,
         title: `Target ${index + 1}`,
+        displayTargetMax: '4',
         cells: [
             {
                 cycleId: 'c1',

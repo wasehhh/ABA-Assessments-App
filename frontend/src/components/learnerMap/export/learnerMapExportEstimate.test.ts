@@ -15,6 +15,7 @@ function makeDomain(domainId: string, targetCount: number): LearnerMapDomain {
         targets: Array.from({ length: targetCount }, (_, index) => ({
             targetId: `${domainId}_T${index + 1}`,
             title: `Target ${index + 1}`,
+            displayTargetMax: '4',
             cells: [],
         })),
     };

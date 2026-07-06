@@ -96,6 +96,37 @@
     break-inside: avoid;
   }
 
+  /* Assessment Snapshot — Target Threads V1 */
+  .assessment-snapshot-print {
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .assessment-snapshot-print .assessment-snapshot-domain-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-domain-column] {
+    margin-bottom: 0 !important;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-target-thread] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-evidence-bead],
+  .assessment-snapshot-print [data-assessment-snapshot-target-max-ring] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   /* Typography */
   h1,
   h2,

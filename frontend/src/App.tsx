@@ -58,6 +58,26 @@ function DevLearnerMapExportRouteLoader() {
   return <Preview />;
 }
 
+function DevAssessmentSnapshotRouteLoader() {
+  const [Preview, setPreview] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    void import('./pages/dev/AssessmentSnapshotPreview').then((mod) => {
+      setPreview(() => mod.AssessmentSnapshotPreview);
+    });
+  }, []);
+
+  if (!Preview) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600">Loading assessment snapshot preview...</div>
+      </div>
+    );
+  }
+
+  return <Preview />;
+}
+
 function AppRouter() {
   const { user, loading, error } = useAuth();
   const [route, setRoute] = useState(window.location.hash || '#/login');
@@ -83,6 +103,10 @@ function AppRouter() {
 
   if (import.meta.env.DEV && route.split('?')[0] === '#/dev/learner-map-export') {
     return <DevLearnerMapExportRouteLoader />;
+  }
+
+  if (import.meta.env.DEV && route.split('?')[0] === '#/dev/assessment-snapshot') {
+    return <DevAssessmentSnapshotRouteLoader />;
   }
 
   if (error) {
