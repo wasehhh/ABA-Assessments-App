@@ -1,9 +1,11 @@
 import { StateDistribution } from '../../services/domainProfile';
 import { ReportDomainSection } from '../../services/reportProfile';
+import { StructureLabels } from '../../types';
 import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
 
 interface Props {
     domains: ReportDomainSection[];
+    structureLabels?: StructureLabels;
 }
 
 function coveragePercent(scored: number, total: number): number {
@@ -45,11 +47,13 @@ function ReportCompactBandBar({ distribution }: { distribution: StateDistributio
     );
 }
 
-export function ReportDomainSummaryTable({ domains }: Props) {
+export function ReportDomainSummaryTable({ domains, structureLabels }: Props) {
+    const primaryLabel = structureLabels?.primary_group ?? 'Domain';
+
     if (domains.length === 0) {
         return (
             <p className="text-sm text-gray-600 print:text-gray-800">
-                No domains available in this assessment.
+                No {primaryLabel.toLowerCase()}s available in this assessment.
             </p>
         );
     }
@@ -59,7 +63,7 @@ export function ReportDomainSummaryTable({ domains }: Props) {
             <table className="w-full min-w-[36rem] border-collapse text-sm print:text-[12px]">
                 <thead>
                     <tr className="border-b-2 border-gray-300 text-left print:border-gray-500">
-                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5 print:bg-gray-50">Domain</th>
+                        <th className="pb-2 pr-4 font-semibold text-gray-900 print:pb-1.5 print:bg-gray-50">{primaryLabel}</th>
                         <th className="pb-2 pr-4 font-semibold text-gray-900 text-right print:pb-1.5 print:bg-gray-50">Coverage</th>
                         <th className="pb-2 pr-4 font-semibold text-gray-900 text-right print:pb-1.5 print:bg-gray-50">Points Captured</th>
                         <th className="pb-2 font-semibold text-gray-900 print:pb-1.5 print:bg-gray-50">Distribution</th>

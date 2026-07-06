@@ -369,4 +369,91 @@ describe('buildReportProfile', () => {
         expect(report.metadata.cycleStatus).toBeNull();
         expect(report.metadata.clientName).toBeNull();
     });
+
+    it('exposes structure labels and secondary target sections for grouped packs', () => {
+        const groupedPack: ContentPackData = {
+            pack_id: 'pack-1',
+            org_id: 'org-1',
+            title: 'Grouped Pack',
+            description: '',
+            version: '1.0',
+            structure_labels: {
+                primary_group: 'Level',
+                secondary_group: 'Domain',
+                target: 'Milestone',
+            },
+            domains: [
+                {
+                    domain_id: 'L1',
+                    title: 'Level 1',
+                    secondary_groups: [
+                        { secondary_group_id: 'sg_a', title: 'Listening' },
+                    ],
+                    targets: [
+                        {
+                            target_id: 'T1',
+                            title: 'Listen 1',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            secondary_group_id: 'sg_a',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 1, 2, 3, 4],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                        {
+                            target_id: 'T2',
+                            title: 'Ungrouped',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 1, 2, 3, 4],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const report = buildReportProfile({
+            assessment: {
+                id: 'assess-1',
+                pack_snapshot: groupedPack,
+            },
+            cycle: { id: 'cycle-1', cycle_number: 1, status: 'closed' },
+            scores: [makeScore('T1', 'L1', 2)],
+            generatedAt,
+        });
+
+        expect(report.structureLabels).toEqual({
+            primary_group: 'Level',
+            secondary_group: 'Domain',
+            target: 'Milestone',
+        });
+        expect(report.domains[0].targetSections?.map((section) => section.title)).toEqual([
+            'Listening',
+            'Ungrouped',
+        ]);
+        expect(report.domains[0].targets.map((row) => row.targetId)).toEqual(['T1', 'T2']);
+    });
+
+    it('leaves targetSections undefined for flat packs', () => {
+        const report = buildReportProfile({
+            ...baseInput,
+            scores: [],
+        });
+
+        expect(report.structureLabels).toEqual({
+            primary_group: 'Domain',
+            target: 'Target',
+        });
+        report.domains.forEach((section) => {
+            expect(section.targetSections).toBeUndefined();
+        });
+    });
 });

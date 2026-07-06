@@ -1,4 +1,5 @@
 import { LearnerMapCycleSummary, LearnerMapDomain } from '../../../services/learnerMapProfile';
+import { StructureLabels } from '../../../types';
 import { CycleColumnHeader } from './CycleColumnHeader';
 import { domainAccentClass } from './targetThreadsShared';
 import { domainColumnStyle, ThreadsLayoutTokens } from './threadsLayout';
@@ -10,6 +11,7 @@ interface Props {
     cycles: LearnerMapCycleSummary[];
     cycleDateLabels?: Record<string, string>;
     layout: ThreadsLayoutTokens;
+    structureLabels: StructureLabels;
 }
 
 export function DomainColumn({
@@ -18,9 +20,28 @@ export function DomainColumn({
     cycles,
     cycleDateLabels,
     layout,
+    structureLabels,
 }: Props) {
-    const targetCountLabel = `${domain.targets.length} target${domain.targets.length === 1 ? '' : 's'}`;
+    const targetLabel = structureLabels.target;
+    const targetCountLabel = `${domain.targets.length} ${targetLabel.toLowerCase()}${domain.targets.length === 1 ? '' : 's'}`;
     const columnStyle = domainColumnStyle(layout);
+    const sections = domain.targetSections;
+    let targetIndex = 0;
+
+    const renderTarget = (target: (typeof domain.targets)[number]) => {
+        const index = targetIndex;
+        targetIndex += 1;
+        return (
+            <TargetThread
+                key={target.targetId}
+                target={target}
+                targetIndex={index}
+                cycles={cycles}
+                cycleDateLabels={cycleDateLabels}
+                layout={layout}
+            />
+        );
+    };
 
     return (
         <section
@@ -55,16 +76,24 @@ export function DomainColumn({
             />
 
             <div className={layout.threadRowGapClass}>
-                {domain.targets.map((target, targetIndex) => (
-                    <TargetThread
-                        key={target.targetId}
-                        target={target}
-                        targetIndex={targetIndex}
-                        cycles={cycles}
-                        cycleDateLabels={cycleDateLabels}
-                        layout={layout}
-                    />
-                ))}
+                {sections
+                    ? sections.map((section) => (
+                          <div
+                              key={section.secondaryGroupId ?? section.title}
+                              className="space-y-1"
+                              data-assessment-snapshot-secondary-group
+                          >
+                              <p
+                                  className={`px-0.5 text-center font-semibold uppercase tracking-wide text-gray-500 ${layout.domainMetaClass}`}
+                              >
+                                  {section.title}
+                              </p>
+                              <div className={layout.threadRowGapClass}>
+                                  {section.targets.map((target) => renderTarget(target))}
+                              </div>
+                          </div>
+                      ))
+                    : domain.targets.map((target) => renderTarget(target))}
             </div>
         </section>
     );

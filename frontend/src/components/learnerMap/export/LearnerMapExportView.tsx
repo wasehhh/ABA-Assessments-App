@@ -44,7 +44,7 @@ export function LearnerMapExportView({
     selectedDomainIds,
     cycleDateLabels,
 }: Props) {
-    const { metadata, cycles, domains } = profile;
+    const { metadata, cycles, domains, structureLabels } = profile;
     const generatedAt = new Date(metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -59,15 +59,17 @@ export function LearnerMapExportView({
         LEARNER_MAP_EXPORT_MODES.find((entry) => entry.id === mode)?.label ?? mode;
     const domainIndexById = buildDomainIndexById(domains);
 
+    const primaryLabel = structureLabels.primary_group;
+    const targetLabel = structureLabels.target;
     const appendixTitle =
         mode === 'selected-domains'
-            ? 'Appendix — Selected Domain Detail'
-            : 'Appendix — Cycle × Target Detail';
+            ? `Appendix — Selected ${primaryLabel} Detail`
+            : `Appendix — Cycle × ${targetLabel} Detail`;
 
     const appendixDescription =
         mode === 'selected-domains'
-            ? 'This appendix contains target-level longitudinal assessment detail for selected domains.'
-            : 'This appendix contains target-level longitudinal assessment detail by domain.';
+            ? `This appendix contains ${targetLabel.toLowerCase()}-level longitudinal assessment detail for selected ${primaryLabel.toLowerCase()}s.`
+            : `This appendix contains ${targetLabel.toLowerCase()}-level longitudinal assessment detail by ${primaryLabel.toLowerCase()}.`;
 
     return (
         <div
@@ -109,14 +111,14 @@ export function LearnerMapExportView({
                             Primary supervision layer
                         </p>
                         <h2 className="mt-1 text-lg font-bold tracking-tight text-gray-900">
-                            Domain competency summary
+                            {primaryLabel} competency summary
                         </h2>
                         <p className="mt-1 max-w-3xl text-sm text-gray-600">
-                            Domain coverage, score distribution, and movement across all cycles in
+                            {primaryLabel} coverage, score distribution, and movement across all cycles in
                             this assessment.
                         </p>
                     </div>
-                    <LearnerMapDomainSummary domains={domains} />
+                    <LearnerMapDomainSummary domains={domains} structureLabels={structureLabels} />
                 </section>
 
                 {showAppendix ? (
@@ -137,6 +139,7 @@ export function LearnerMapExportView({
                             cycles={cycles}
                             domainIndexById={domainIndexById}
                             cycleDateLabels={cycleDateLabels}
+                            structureLabels={structureLabels}
                         />
                     </section>
                 ) : null}

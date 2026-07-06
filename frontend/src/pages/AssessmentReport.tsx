@@ -91,6 +91,8 @@ export function AssessmentReport({ assessmentId }: Props) {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
+    const primaryLabel = report.structureLabels.primary_group;
+    const targetLabel = report.structureLabels.target;
 
     return (
         <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-10 print:py-8 print:text-black">
@@ -177,14 +179,17 @@ export function AssessmentReport({ assessmentId }: Props) {
                             </div>
                             <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">Coverage</div>
                             <p className="mt-1 text-xs text-gray-500 tabular-nums print:text-gray-700">
-                                {report.rollup.scoredTargets} of {report.rollup.totalTargets} targets scored
+                                {report.rollup.scoredTargets} of {report.rollup.totalTargets}{' '}
+                                {targetLabel.toLowerCase()}s scored
                             </p>
                         </div>
                         <div className="text-center sm:text-left">
                             <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-2xl print:text-black">
                                 {report.rollup.totalDomains}
                             </div>
-                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">Domains covered</div>
+                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">
+                                {primaryLabel}s covered
+                            </div>
                         </div>
                     </div>
 
@@ -202,15 +207,18 @@ export function AssessmentReport({ assessmentId }: Props) {
             {/* Domain summary */}
             <section className="mb-12 print:mb-8 report-section-block">
                 <h2 className="text-base font-bold uppercase tracking-wide text-gray-900 border-b-2 border-gray-900 pb-2 mb-6 print:mb-4">
-                    Domain summary
+                    {primaryLabel} summary
                 </h2>
-                <ReportDomainSummaryTable domains={report.domains} />
+                <ReportDomainSummaryTable
+                    domains={report.domains}
+                    structureLabels={report.structureLabels}
+                />
             </section>
 
             <p className="mb-8 text-sm text-gray-600 print:mb-5 print:text-gray-800 report-section-block">
                 {hasPreviousCycleForTrends
-                    ? 'Trend arrows compare scored targets with the immediately previous cycle.'
-                    : 'No previous cycle available for target trend comparison.'}
+                    ? `Trend arrows compare scored ${targetLabel.toLowerCase()}s with the immediately previous cycle.`
+                    : `No previous cycle available for ${targetLabel.toLowerCase()} trend comparison.`}
             </p>
 
             {/* Domains */}
@@ -235,7 +243,8 @@ export function AssessmentReport({ assessmentId }: Props) {
                                     </span>
                                 </div>
                                 <p className="mt-2 text-sm text-gray-600 tabular-nums print:text-gray-800">
-                                    {profile.coverage.scored} of {profile.coverage.total} targets scored
+                                    {profile.coverage.scored} of {profile.coverage.total}{' '}
+                                    {targetLabel.toLowerCase()}s scored
                                 </p>
                                 <div className="mt-4 max-w-xl">
                                     <ReportDomainScoreDistribution distribution={profile.stateDistribution} />
@@ -243,83 +252,112 @@ export function AssessmentReport({ assessmentId }: Props) {
                             </div>
 
                             <div className="divide-y divide-gray-100 print:divide-gray-200">
-                                {section.targets.map((targetRow) => {
-                                    const sequenceItem = profile.sequence.find(
-                                        (item) => item.target.target_id === targetRow.targetId
-                                    );
-                                    const barWidth = (targetRow.normalizedRatio ?? 0) * 100;
-                                    const barColorClass =
-                                        targetRow.competencyState === 'at_maximum'
-                                            ? 'bg-emerald-600'
-                                            : targetRow.competencyState === 'in_progress'
-                                                ? 'bg-amber-400'
-                                                : 'bg-transparent';
-                                    const scoreTextClass =
-                                        targetRow.competencyState === 'at_maximum'
-                                            ? 'text-emerald-700 print:text-black'
-                                            : targetRow.competencyState === 'in_progress'
-                                                ? 'text-amber-700 print:text-black'
-                                                : 'text-gray-400 print:text-gray-600';
-
-                                    return (
+                                {(section.targetSections ?? [{ title: '', targets: section.targets }]).map(
+                                    (targetSection) => (
                                         <div
-                                            key={targetRow.targetId}
-                                            className="report-target-row flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:gap-4 print:py-2.5"
+                                            key={
+                                                targetSection.secondaryGroupId ??
+                                                (targetSection.title || 'flat')
+                                            }
                                         >
-                                            <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug print:text-[13px]">{targetRow.title}</span>
-                                            <div className="flex shrink-0 items-center gap-2.5 sm:w-52 print:gap-2">
-                                                <div className="min-w-0 flex-1 rounded-full border border-gray-200 bg-gray-100 h-2.5 overflow-hidden print:border-gray-300 print:bg-gray-200">
+                                            {section.targetSections ? (
+                                                <h3 className="bg-gray-50 px-0 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 print:bg-white print:text-gray-800">
+                                                    {targetSection.title}
+                                                </h3>
+                                            ) : null}
+                                            {targetSection.targets.map((targetRow) => {
+                                                const sequenceItem = profile.sequence.find(
+                                                    (item) =>
+                                                        item.target.target_id === targetRow.targetId
+                                                );
+                                                const barWidth =
+                                                    (targetRow.normalizedRatio ?? 0) * 100;
+                                                const barColorClass =
+                                                    targetRow.competencyState === 'at_maximum'
+                                                        ? 'bg-emerald-600'
+                                                        : targetRow.competencyState === 'in_progress'
+                                                          ? 'bg-amber-400'
+                                                          : 'bg-transparent';
+                                                const scoreTextClass =
+                                                    targetRow.competencyState === 'at_maximum'
+                                                        ? 'text-emerald-700 print:text-black'
+                                                        : targetRow.competencyState === 'in_progress'
+                                                          ? 'text-amber-700 print:text-black'
+                                                          : 'text-gray-400 print:text-gray-600';
+
+                                                return (
                                                     <div
-                                                        className={`h-full rounded-full ${barColorClass} print:border-r print:border-gray-400`}
-                                                        style={{ width: `${Math.min(barWidth, 100)}%` }}
-                                                    />
-                                                </div>
-                                                <span
-                                                    className={`w-11 shrink-0 text-right text-sm font-mono font-semibold tabular-nums ${scoreTextClass}`}
-                                                >
-                                                    {targetRow.displayScoreWithMax}
-                                                </span>
-                                                <div className="flex w-5 shrink-0 justify-center print:w-4">
-                                                    {(() => {
-                                                        if (
-                                                            targetRow.competencyState === 'unscored' ||
-                                                            !sequenceItem?.previousInterpretation ||
-                                                            sequenceItem.previousInterpretation.isUnscored
-                                                        ) {
-                                                            return null;
-                                                        }
-
-                                                        const currentVal = sequenceItem.interpretation.rawScore!;
-                                                        const prevVal = sequenceItem.previousInterpretation.rawScore!;
-
-                                                        if (currentVal > prevVal) {
-                                                            return (
-                                                                <TrendingUp
-                                                                    className="h-3.5 w-3.5 text-emerald-600 print:h-3 print:w-3 print:text-gray-700"
-                                                                    aria-hidden
+                                                        key={targetRow.targetId}
+                                                        className="report-target-row flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-center sm:gap-4 print:py-2.5"
+                                                    >
+                                                        <span className="min-w-0 flex-1 text-base text-gray-800 leading-snug print:text-[13px]">
+                                                            {targetRow.title}
+                                                        </span>
+                                                        <div className="flex shrink-0 items-center gap-2.5 sm:w-52 print:gap-2">
+                                                            <div className="min-w-0 flex-1 rounded-full border border-gray-200 bg-gray-100 h-2.5 overflow-hidden print:border-gray-300 print:bg-gray-200">
+                                                                <div
+                                                                    className={`h-full rounded-full ${barColorClass} print:border-r print:border-gray-400`}
+                                                                    style={{
+                                                                        width: `${Math.min(barWidth, 100)}%`,
+                                                                    }}
                                                                 />
-                                                            );
-                                                        }
-                                                        if (currentVal < prevVal) {
-                                                            return (
-                                                                <TrendingDown
-                                                                    className="h-3.5 w-3.5 text-red-600 print:h-3 print:w-3 print:text-gray-700"
-                                                                    aria-hidden
-                                                                />
-                                                            );
-                                                        }
-                                                        return (
-                                                            <Minus
-                                                                className="h-3.5 w-3.5 text-gray-400 print:h-3 print:w-3 print:text-gray-600"
-                                                                aria-hidden
-                                                            />
-                                                        );
-                                                    })()}
-                                                </div>
-                                            </div>
+                                                            </div>
+                                                            <span
+                                                                className={`w-11 shrink-0 text-right text-sm font-mono font-semibold tabular-nums ${scoreTextClass}`}
+                                                            >
+                                                                {targetRow.displayScoreWithMax}
+                                                            </span>
+                                                            <div className="flex w-5 shrink-0 justify-center print:w-4">
+                                                                {(() => {
+                                                                    if (
+                                                                        targetRow.competencyState ===
+                                                                            'unscored' ||
+                                                                        !sequenceItem?.previousInterpretation ||
+                                                                        sequenceItem.previousInterpretation
+                                                                            .isUnscored
+                                                                    ) {
+                                                                        return null;
+                                                                    }
+
+                                                                    const currentVal =
+                                                                        sequenceItem.interpretation
+                                                                            .rawScore!;
+                                                                    const prevVal =
+                                                                        sequenceItem
+                                                                            .previousInterpretation
+                                                                            .rawScore!;
+
+                                                                    if (currentVal > prevVal) {
+                                                                        return (
+                                                                            <TrendingUp
+                                                                                className="h-3.5 w-3.5 text-emerald-600 print:h-3 print:w-3 print:text-gray-700"
+                                                                                aria-hidden
+                                                                            />
+                                                                        );
+                                                                    }
+                                                                    if (currentVal < prevVal) {
+                                                                        return (
+                                                                            <TrendingDown
+                                                                                className="h-3.5 w-3.5 text-red-600 print:h-3 print:w-3 print:text-gray-700"
+                                                                                aria-hidden
+                                                                            />
+                                                                        );
+                                                                    }
+                                                                    return (
+                                                                        <Minus
+                                                                            className="h-3.5 w-3.5 text-gray-400 print:h-3 print:w-3 print:text-gray-600"
+                                                                            aria-hidden
+                                                                        />
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
-                                    );
-                                })}
+                                    )
+                                )}
                             </div>
                         </article>
                     );

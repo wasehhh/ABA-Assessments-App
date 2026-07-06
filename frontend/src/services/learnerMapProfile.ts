@@ -1,10 +1,18 @@
-import { AssessmentCycle, AssessmentScore, ContentPackData } from '../types';
+import { AssessmentCycle, AssessmentScore, ContentPackData, StructureLabels } from '../types';
 import {
     CompetencyState,
     getTargetMaxScore,
     interpretTargetScore,
     TargetScoreInterpretation,
 } from '../utils/scoreInterpretation';
+import {
+    buildReadSurfaceTargetSections,
+    getPackDomainTargetOrder,
+    getPackStructureLabels,
+    ReadSurfaceTargetSection,
+} from '../utils/readSurfaceDisplay';
+
+export type LearnerMapTargetSection = ReadSurfaceTargetSection<LearnerMapTarget>;
 
 export type LearnerMapMovement = 'up' | 'down' | 'flat' | 'new' | 'none';
 
@@ -43,6 +51,8 @@ export interface LearnerMapDomain {
     domainId: string;
     title: string;
     targets: LearnerMapTarget[];
+    /** Present when authored secondary groups exist on the pack domain. */
+    targetSections?: LearnerMapTargetSection[];
 }
 
 export interface LearnerMapTotals {
@@ -55,6 +65,7 @@ export interface LearnerMapTotals {
 
 export interface LearnerMapProfile {
     metadata: LearnerMapMetadata;
+    structureLabels: StructureLabels;
     cycles: LearnerMapCycleSummary[];
     domains: LearnerMapDomain[];
     totals: LearnerMapTotals;
@@ -153,10 +164,11 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
         sortedCycles.map(({ cycle, scores }) => [cycle.id, scores])
     );
 
-    const domains: LearnerMapDomain[] = input.assessment.pack_snapshot.domains.map((domain) => ({
-        domainId: domain.domain_id,
-        title: domain.title,
-        targets: domain.targets.map((target) => {
+    const structureLabels = getPackStructureLabels(input.assessment.pack_snapshot);
+
+    const domains: LearnerMapDomain[] = input.assessment.pack_snapshot.domains.map((domain) => {
+        const orderedTargets = getPackDomainTargetOrder(domain);
+        const targets: LearnerMapTarget[] = orderedTargets.map((target) => {
             const cells: LearnerMapCell[] = sortedCycles.map(({ cycle }, cycleIndex) => {
                 const scores = scoresByCycleId.get(cycle.id) ?? [];
                 const interpretation = interpretTargetScore(
@@ -196,8 +208,17 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
                 displayTargetMax: String(getTargetMaxScore(target)),
                 cells,
             };
-        }),
-    }));
+        });
+
+        const targetsById = new Map(targets.map((target) => [target.targetId, target]));
+
+        return {
+            domainId: domain.domain_id,
+            title: domain.title,
+            targets,
+            targetSections: buildReadSurfaceTargetSections(domain, targetsById),
+        };
+    });
 
     return {
         metadata: {
@@ -206,6 +227,7 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
             packVersion: input.assessment.pack_snapshot.version,
             generatedAt: generatedAt.toISOString(),
         },
+        structureLabels,
         cycles: sortedCycles.map(({ cycle }) => ({
             cycleId: cycle.id,
             cycleNumber: cycle.cycle_number,

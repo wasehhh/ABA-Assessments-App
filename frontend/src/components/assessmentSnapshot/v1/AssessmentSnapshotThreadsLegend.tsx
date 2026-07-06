@@ -1,7 +1,14 @@
 import { STATE_BUCKET_DISPLAY } from '../../assessment/domainProfile/stateDisplay';
+import { StructureLabels } from '../../../types';
 import { scoredBeadClass, unscoredBeadClass } from './targetThreadsShared';
 
-export function AssessmentSnapshotThreadsLegend() {
+interface Props {
+    structureLabels: StructureLabels;
+}
+
+export function AssessmentSnapshotThreadsLegend({ structureLabels }: Props) {
+    const targetLabel = structureLabels.target;
+
     return (
         <div
             className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-gray-200 pb-2 print:border-gray-400 print:pb-1.5"
@@ -29,7 +36,7 @@ export function AssessmentSnapshotThreadsLegend() {
                         className="inline-flex h-3 w-3 items-center justify-center rounded-full border-2 border-green-800 bg-white print:border-gray-800"
                         aria-hidden
                     />
-                    <span>Target max</span>
+                    <span>{targetLabel} max</span>
                 </span>
             </div>
             <p className="text-[9px] text-gray-600 print:text-[8px] print:text-black">

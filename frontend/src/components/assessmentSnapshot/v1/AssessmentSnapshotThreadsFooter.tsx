@@ -7,6 +7,7 @@ interface Props {
 
 export function AssessmentSnapshotThreadsFooter({ profile, generatedAtLabel }: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
+    const targetLabel = profile.structureLabels.target.toLowerCase();
 
     return (
         <footer
@@ -14,7 +15,9 @@ export function AssessmentSnapshotThreadsFooter({ profile, generatedAtLabel }: P
             data-assessment-snapshot-footer
         >
             Assessment Snapshot · {profile.metadata.packTitle} v{profile.metadata.packVersion} ·{' '}
-            {totalTargets} targets · {profile.cycles.length} cycles · Generated {generatedAtLabel}
+            {totalTargets} {targetLabel}
+            {totalTargets === 1 ? '' : 's'} · {profile.cycles.length} cycles · Generated{' '}
+            {generatedAtLabel}
         </footer>
     );
 }

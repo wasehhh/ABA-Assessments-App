@@ -29,6 +29,10 @@ function makeProfile(targetsAssessed: number): LearnerMapProfile {
             packVersion: '1.0',
             generatedAt: '2026-01-01T00:00:00.000Z',
         },
+        structureLabels: {
+            primary_group: 'Domain',
+            target: 'Target',
+        },
         cycles: [],
         domains: [
             {

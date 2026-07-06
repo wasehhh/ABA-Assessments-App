@@ -30,7 +30,9 @@ function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
 }
 
 export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Props) {
-    const { metadata, cycles, domains, totals } = profile;
+    const { metadata, cycles, domains, totals, structureLabels } = profile;
+    const primaryLabel = structureLabels.primary_group;
+    const targetLabel = structureLabels.target;
     const generatedAt = new Date(metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -59,14 +61,14 @@ export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Pro
                         Primary supervision layer
                     </p>
                     <h2 className="mt-1 text-lg font-bold tracking-tight text-gray-900">
-                        Domain competency summary
+                        {primaryLabel} competency summary
                     </h2>
                     <p className="mt-1 max-w-3xl text-sm text-gray-600">
-                        Scan domain coverage, score distribution, and movement before opening cycle-level
-                        detail below.
+                        Scan {primaryLabel.toLowerCase()} coverage, score distribution, and movement
+                        before opening cycle-level detail below.
                     </p>
                 </div>
-                <LearnerMapDomainSummary domains={domains} />
+                <LearnerMapDomainSummary domains={domains} structureLabels={structureLabels} />
             </section>
 
             {cycles.length === 0 ? (
@@ -80,11 +82,11 @@ export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Pro
                             Supporting detail
                         </p>
                         <h2 className="mt-1 text-base font-bold uppercase tracking-wide text-gray-900">
-                            Cycle × target detail
+                            Cycle × {targetLabel.toLowerCase()} detail
                         </h2>
                         <p className="mt-1 text-sm text-gray-600">
-                            Cycles as rows, targets as columns — scroll horizontally for large domains
-                            across {cycleRangeLabel.toLowerCase()}.
+                            Cycles as rows, {targetLabel.toLowerCase()}s as columns — scroll horizontally
+                            for large {primaryLabel.toLowerCase()}s across {cycleRangeLabel.toLowerCase()}.
                         </p>
                     </div>
                     <div className="space-y-10">
@@ -95,6 +97,7 @@ export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Pro
                                 cycles={cycles}
                                 domainIndex={index}
                                 cycleDateLabels={cycleDateLabels}
+                                structureLabels={structureLabels}
                             />
                         ))}
                     </div>

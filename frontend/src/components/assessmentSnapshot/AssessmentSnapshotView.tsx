@@ -144,7 +144,7 @@ export function AssessmentSnapshotView({
                     )}
                 </div>
             ) : null}
-            {isV1 ? <AssessmentSnapshotThreadsLegend /> : <AssessmentSnapshotLegend />}
+            {isV1 ? <AssessmentSnapshotThreadsLegend structureLabels={profile.structureLabels} /> : <AssessmentSnapshotLegend />}
             {isV1 ? (
                 <AssessmentSnapshotTargetThreads
                     profile={profile}

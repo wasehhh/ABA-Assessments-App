@@ -1,4 +1,5 @@
 import { LearnerMapDomain } from '../../services/learnerMapProfile';
+import { StructureLabels } from '../../types';
 import {
     computeRoundedPercentWidths,
     deriveDomainCellStats,
@@ -9,6 +10,7 @@ import { MOVEMENT_MARKER_ENTRIES, movementMetricEmphasisClass } from './movement
 
 interface Props {
     domains: LearnerMapDomain[];
+    structureLabels?: StructureLabels;
 }
 
 const SEGMENT_TEXT_CLASS: Record<string, string> = {
@@ -124,10 +126,15 @@ function MovementMetric({
     );
 }
 
-export function LearnerMapDomainSummary({ domains }: Props) {
+export function LearnerMapDomainSummary({ domains, structureLabels }: Props) {
+    const primaryLabel = structureLabels?.primary_group ?? 'Domain';
+    const targetLabel = structureLabels?.target ?? 'Target';
+
     if (domains.length === 0) {
         return (
-            <p className="text-sm text-gray-600">No domains available in this assessment.</p>
+            <p className="text-sm text-gray-600">
+                No {primaryLabel.toLowerCase()}s available in this assessment.
+            </p>
         );
     }
 
@@ -141,7 +148,7 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                 rowSpan={2}
                                 className="px-3 py-2.5 align-bottom font-semibold text-gray-900"
                             >
-                                Domain
+                                {primaryLabel}
                             </th>
                             <th
                                 rowSpan={2}
@@ -159,7 +166,7 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                                 colSpan={5}
                                 className="border-l border-gray-200 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-900"
                             >
-                                Latest Target Movement
+                                Latest {targetLabel} Movement
                             </th>
                         </tr>
                         <tr className="border-b border-gray-200">
@@ -231,7 +238,8 @@ export function LearnerMapDomainSummary({ domains }: Props) {
                 </table>
             </div>
             <p className="mt-3 text-xs text-gray-500" data-learner-map-export-l1-footnote>
-                Showing all {domains.length} domain{domains.length === 1 ? '' : 's'}.
+                Showing all {domains.length} {primaryLabel.toLowerCase()}
+                {domains.length === 1 ? '' : 's'}.
             </p>
         </div>
     );

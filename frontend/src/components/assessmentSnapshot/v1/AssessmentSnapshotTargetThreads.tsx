@@ -31,6 +31,7 @@ export function AssessmentSnapshotTargetThreads({
                         cycles={profile.cycles}
                         cycleDateLabels={cycleDateLabels}
                         layout={layout}
+                        structureLabels={profile.structureLabels}
                     />
                 ))}
             </div>

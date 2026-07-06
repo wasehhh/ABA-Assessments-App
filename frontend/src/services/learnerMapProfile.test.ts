@@ -482,4 +482,101 @@ describe('buildLearnerMapProfile', () => {
             generatedAt: generatedAt.toISOString(),
         });
     });
+
+    it('exposes default structure labels for flat packs', () => {
+        const profile = buildLearnerMapProfile({
+            assessment: baseAssessment,
+            cycles: [{ cycle: cycle1, scores: [] }],
+            generatedAt,
+        });
+
+        expect(profile.structureLabels).toEqual({
+            primary_group: 'Domain',
+            target: 'Target',
+        });
+        expect(profile.domains[0].targetSections).toBeUndefined();
+    });
+
+    it('builds secondary target sections and preserves ungrouped targets', () => {
+        const groupedPack: ContentPackData = {
+            ...baseAssessment.pack_snapshot,
+            structure_labels: {
+                primary_group: 'Level',
+                secondary_group: 'Domain',
+                target: 'Milestone',
+            },
+            domains: [
+                {
+                    domain_id: 'L1',
+                    title: 'Level 1',
+                    secondary_groups: [
+                        { secondary_group_id: 'sg_a', title: 'Listening' },
+                        { secondary_group_id: 'sg_b', title: 'Motor' },
+                    ],
+                    targets: [
+                        {
+                            target_id: 'T1',
+                            title: 'Listen 1',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            secondary_group_id: 'sg_a',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 1, 2, 3, 4],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                        {
+                            target_id: 'T2',
+                            title: 'Motor 1',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            secondary_group_id: 'sg_b',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 1, 2, 3, 4],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                        {
+                            target_id: 'T3',
+                            title: 'Ungrouped',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 1, 2, 3, 4],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const profile = buildLearnerMapProfile({
+            assessment: { id: 'assess-1', pack_snapshot: groupedPack },
+            cycles: [{ cycle: cycle1, scores: [] }],
+            generatedAt,
+        });
+
+        expect(profile.structureLabels).toEqual({
+            primary_group: 'Level',
+            secondary_group: 'Domain',
+            target: 'Milestone',
+        });
+        expect(profile.domains[0].targetSections?.map((section) => section.title)).toEqual([
+            'Listening',
+            'Motor',
+            'Ungrouped',
+        ]);
+        expect(profile.domains[0].targets.map((target) => target.targetId)).toEqual([
+            'T1',
+            'T2',
+            'T3',
+        ]);
+    });
 });

@@ -3,6 +3,8 @@ import {
     LearnerMapDomain,
     LearnerMapTarget,
 } from '../../services/learnerMapProfile';
+import { StructureLabels } from '../../types';
+import { buildSecondaryGroupHeaderCells } from '../../utils/readSurfaceDisplay';
 import { getDomainIdentity } from './domainIdentity';
 import { LearnerMapCell } from './LearnerMapCell';
 
@@ -19,6 +21,7 @@ interface Props {
     fixedTargetColumns?: number;
     domainIndex?: number;
     cycleDateLabels?: Record<string, string>;
+    structureLabels?: StructureLabels;
 }
 
 function CycleRowLabel({
@@ -135,10 +138,20 @@ export function LearnerMapDomainSection({
     fixedTargetColumns,
     domainIndex,
     cycleDateLabels,
+    structureLabels,
 }: Props) {
     const visibleTargets = targets ?? domain.targets;
     const headingTitle = titleOverride ?? domain.title;
     const compact = appendixCompact && exportLayout;
+    const targetLabel = structureLabels?.target ?? 'Target';
+    const secondaryGroupHeaderCells =
+        domain.targetSections && visibleTargets.length > 0
+            ? buildSecondaryGroupHeaderCells(domain.targetSections, visibleTargets)
+            : null;
+    const showSecondaryGroupRow = Boolean(
+        secondaryGroupHeaderCells?.some((cell) => cell.title.length > 0)
+    );
+    const cycleHeaderRowSpan = compact ? (showSecondaryGroupRow ? 3 : 2) : showSecondaryGroupRow ? 2 : 1;
     const nativeIdentity =
         domainIndex !== undefined && !exportLayout ? getDomainIdentity(domainIndex) : null;
     const targetColumnCount =
@@ -185,7 +198,8 @@ export function LearnerMapDomainSection({
                         </p>
                     ) : (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-700">
-                            {domain.targets.length} targets
+                            {domain.targets.length} {targetLabel.toLowerCase()}
+                            {domain.targets.length === 1 ? '' : 's'}
                         </span>
                     )}
                 </div>
@@ -194,7 +208,9 @@ export function LearnerMapDomainSection({
             {cycles.length === 0 ? (
                 <p className="text-sm text-gray-600">No cycles available for this domain.</p>
             ) : visibleTargets.length === 0 ? (
-                <p className="text-sm text-gray-600">No targets in this domain.</p>
+                <p className="text-sm text-gray-600">
+                    No {targetLabel.toLowerCase()}s in this domain.
+                </p>
             ) : (
                 <div
                     className={tableWrapperClass}
@@ -210,7 +226,7 @@ export function LearnerMapDomainSection({
                                 <>
                                     <tr className="border-b border-gray-200 text-left">
                                         <th
-                                            rowSpan={2}
+                                            rowSpan={cycleHeaderRowSpan}
                                             className="min-w-[2.25rem] border-r border-gray-200 bg-gray-50 px-1 py-1 align-middle text-[9px] font-semibold leading-tight text-gray-600"
                                         >
                                             Cycles ↓
@@ -219,9 +235,30 @@ export function LearnerMapDomainSection({
                                             colSpan={targetColumnCount}
                                             className="px-1 py-1 text-center text-[9px] font-semibold tracking-wide text-gray-600"
                                         >
-                                            Targets →
+                                            {targetLabel}s →
                                         </th>
                                     </tr>
+                                    {showSecondaryGroupRow ? (
+                                        <tr className="border-b border-gray-200 text-left">
+                                            {secondaryGroupHeaderCells!.map((cell, index) => (
+                                                <th
+                                                    key={`secondary-${index}-${cell.title}`}
+                                                    colSpan={cell.colSpan}
+                                                    className="px-0.5 py-0.5 text-center text-[8px] font-semibold uppercase tracking-wide text-gray-500"
+                                                >
+                                                    {cell.title}
+                                                </th>
+                                            ))}
+                                            {Array.from({ length: placeholderCount }).map(
+                                                (_, index) => (
+                                                    <AppendixPlaceholderHeader
+                                                        key={`placeholder-secondary-${index}`}
+                                                        compact
+                                                    />
+                                                )
+                                            )}
+                                        </tr>
+                                    ) : null}
                                     <tr className="border-b-2 border-gray-300 text-left">
                                         {visibleTargets.map((target, index) => {
                                             const domainOrderNumber = targetOffset + index + 1;
@@ -250,16 +287,44 @@ export function LearnerMapDomainSection({
                                     </tr>
                                 </>
                             ) : (
-                                <tr className="border-b-2 border-gray-300 text-left">
-                                    <th
-                                        className={`border-r border-gray-200 bg-gray-50 font-semibold text-gray-900 ${
-                                            compact
-                                                ? 'min-w-[2.25rem] px-1 py-1'
-                                                : 'min-w-[5.5rem] px-2 py-2'
-                                        } ${exportLayout ? '' : 'sticky left-0 z-20'}`}
-                                    >
-                                        Cycle
-                                    </th>
+                                <>
+                                    {showSecondaryGroupRow ? (
+                                        <tr className="border-b border-gray-200 text-left">
+                                            <th
+                                                rowSpan={2}
+                                                className={`border-r border-gray-200 bg-gray-50 font-semibold text-gray-900 ${
+                                                    compact
+                                                        ? 'min-w-[2.25rem] px-1 py-1'
+                                                        : 'min-w-[5.5rem] px-2 py-2'
+                                                } ${exportLayout ? '' : 'sticky left-0 z-20'}`}
+                                            >
+                                                Cycle
+                                            </th>
+                                            {secondaryGroupHeaderCells!.map((cell, index) => (
+                                                <th
+                                                    key={`secondary-${index}-${cell.title}`}
+                                                    colSpan={cell.colSpan}
+                                                    className={`text-center text-[10px] font-semibold uppercase tracking-wide text-gray-500 ${
+                                                        compact ? 'px-0.5 py-1' : 'px-1 py-1.5'
+                                                    }`}
+                                                >
+                                                    {cell.title}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    ) : null}
+                                    <tr className="border-b-2 border-gray-300 text-left">
+                                        {!showSecondaryGroupRow ? (
+                                            <th
+                                                className={`border-r border-gray-200 bg-gray-50 font-semibold text-gray-900 ${
+                                                    compact
+                                                        ? 'min-w-[2.25rem] px-1 py-1'
+                                                        : 'min-w-[5.5rem] px-2 py-2'
+                                                } ${exportLayout ? '' : 'sticky left-0 z-20'}`}
+                                            >
+                                                Cycle
+                                            </th>
+                                        ) : null}
                                     {visibleTargets.map((target, index) => {
                                         const header = targetHeaderDisplay(
                                             target,
@@ -295,6 +360,7 @@ export function LearnerMapDomainSection({
                                         );
                                     })}
                                 </tr>
+                                </>
                             )}
                         </thead>
                         <tbody>

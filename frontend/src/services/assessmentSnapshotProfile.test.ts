@@ -51,6 +51,7 @@ describe('buildAssessmentSnapshotProfile', () => {
         const snapshotProfile = buildAssessmentSnapshotProfile(learnerMapProfile);
 
         expect(snapshotProfile.metadata).toEqual(learnerMapProfile.metadata);
+        expect(snapshotProfile.structureLabels).toEqual(learnerMapProfile.structureLabels);
         expect(snapshotProfile.cycles).toEqual(learnerMapProfile.cycles);
         expect(snapshotProfile.domains).toEqual(learnerMapProfile.domains);
         expect(snapshotProfile.domains[0].targets[0].cells).toHaveLength(2);

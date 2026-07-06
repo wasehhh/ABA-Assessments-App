@@ -1,4 +1,5 @@
 import { LearnerMapCycleSummary, LearnerMapDomain, LearnerMapProfile } from './learnerMapProfile';
+import { StructureLabels } from '../types';
 
 /**
  * Evidence-only view of normalized assessment data for Assessment Snapshot.
@@ -6,6 +7,7 @@ import { LearnerMapCycleSummary, LearnerMapDomain, LearnerMapProfile } from './l
  */
 export interface AssessmentSnapshotProfile {
     metadata: LearnerMapProfile['metadata'];
+    structureLabels: StructureLabels;
     cycles: LearnerMapCycleSummary[];
     domains: LearnerMapDomain[];
 }
@@ -15,6 +17,7 @@ export function buildAssessmentSnapshotProfile(
 ): AssessmentSnapshotProfile {
     return {
         metadata: learnerMapProfile.metadata,
+        structureLabels: learnerMapProfile.structureLabels,
         cycles: learnerMapProfile.cycles,
         domains: learnerMapProfile.domains,
     };

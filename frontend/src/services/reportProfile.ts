@@ -1,4 +1,4 @@
-import { AssessmentCycle, AssessmentScore, ContentPackData } from '../types';
+import { AssessmentCycle, AssessmentScore, ContentPackData, StructureLabels } from '../types';
 import {
     AssessmentLandscapeRollup,
     buildAssessmentLandscapeRollup,
@@ -9,6 +9,13 @@ import {
     StateDistribution,
 } from './domainProfile';
 import { CompetencyState } from '../utils/scoreInterpretation';
+import {
+    buildReadSurfaceTargetSections,
+    getPackStructureLabels,
+    ReadSurfaceTargetSection,
+} from '../utils/readSurfaceDisplay';
+
+export type ReportTargetSection = ReadSurfaceTargetSection<ReportTargetRow>;
 
 export interface ReportProfileMetadata {
     assessmentId: string;
@@ -38,10 +45,12 @@ export interface ReportTargetRow {
 export interface ReportDomainSection {
     profile: DomainProfile;
     targets: ReportTargetRow[];
+    targetSections?: ReportTargetSection[];
 }
 
 export interface ReportProfile {
     metadata: ReportProfileMetadata;
+    structureLabels: StructureLabels;
     rollup: AssessmentLandscapeRollup;
     assessmentBandDistribution: StateDistribution;
     domains: ReportDomainSection[];
@@ -138,20 +147,34 @@ function buildReportTargetRows(
  */
 export function buildReportProfile(input: BuildReportProfileInput): ReportProfile {
     const generatedAt = input.generatedAt ?? new Date();
+    const structureLabels = getPackStructureLabels(input.assessment.pack_snapshot);
     const domainProfiles = buildDomainProfiles(
         input.assessment.pack_snapshot,
         input.scores,
         input.previousScores
     );
     const rollup = buildAssessmentLandscapeRollup(domainProfiles);
+    const packDomainsById = new Map(
+        input.assessment.pack_snapshot.domains.map((domain) => [domain.domain_id, domain])
+    );
 
     return {
         metadata: buildMetadata(input, generatedAt),
+        structureLabels,
         rollup,
         assessmentBandDistribution: aggregateAssessmentBandDistribution(domainProfiles),
-        domains: domainProfiles.map((profile) => ({
-            profile,
-            targets: buildReportTargetRows(profile, input.scores),
-        })),
+        domains: domainProfiles.map((profile) => {
+            const targets = buildReportTargetRows(profile, input.scores);
+            const packDomain = packDomainsById.get(profile.domainId);
+            const targetsById = new Map(targets.map((row) => [row.targetId, row]));
+
+            return {
+                profile,
+                targets,
+                targetSections: packDomain
+                    ? buildReadSurfaceTargetSections(packDomain, targetsById)
+                    : undefined,
+            };
+        }),
     };
 }
