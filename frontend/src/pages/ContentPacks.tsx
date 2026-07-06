@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { packService } from '../services/packs';
 import { ContentPack } from '../types';
-import { Upload, Plus, RefreshCcw, Trash2 } from 'lucide-react';
+import { Upload, Plus, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { AssessmentBuilder } from '../components/AssessmentBuilder';
+import {
+    collectPackOversizedWarnings,
+    OVERSIZED_WARNING_ADVICE,
+    PackGroupWarning,
+} from '../utils/assessmentPackAuthoring';
 
 export function ContentPacks() {
   const { user, profile } = useAuth();
@@ -22,6 +27,7 @@ export function ContentPacks() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
+  const [importWarnings, setImportWarnings] = useState<PackGroupWarning[]>([]);
 
   const loadPacks = () => {
     if (profile?.org_id) {
@@ -43,6 +49,7 @@ export function ContentPacks() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setImportWarnings([]);
     if (!profile?.org_id || !user?.id || !form.file) return;
 
     try {
@@ -53,6 +60,7 @@ export function ContentPacks() {
         packData = JSON.parse(text);
       } else if (form.file.name.endsWith('.csv')) {
         packData = packService.parseCSV(text, form.title, form.description);
+        setImportWarnings(collectPackOversizedWarnings(packData));
       } else {
         setError('File must be JSON or CSV');
         return;
@@ -183,6 +191,24 @@ export function ContentPacks() {
       {showForm && isAdmin && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
           {error && <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">{error}</div>}
+          {importWarnings.length > 0 && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <div>
+                  <p className="font-semibold">Oversized group warning (non-blocking)</p>
+                  <p className="mt-1">{OVERSIZED_WARNING_ADVICE}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {importWarnings.map((warning, index) => (
+                      <li key={`${warning.domainId}-${warning.tier}-${index}`}>
+                        {warning.domainTitle}: {warning.targetCount} targets ({warning.level})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Pack Title</label>
             <input
