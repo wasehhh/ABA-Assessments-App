@@ -1,5 +1,7 @@
 # Database Schema Design
 
+> **Note:** Conceptual schema for onboarding. **Operational truth** for apply order and RPCs: [`supabase_setup.md`](./supabase_setup.md). As-built behavior: [`../audits/complete_codebase_audit_2026_06_10.md`](../audits/complete_codebase_audit_2026_06_10.md).
+
 ## Overview
 The database uses PostgreSQL hosted on Supabase.
 **Critical Rule:** All tables containing tenant-specific data MUST have an `org_id` column and RLS policies enabled.

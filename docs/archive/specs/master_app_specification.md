@@ -1,5 +1,7 @@
 # ABA Skills Assessment Platform – Master Specification Document (For All Agents)
 
+> **Historical — partially superseded (2026-06-10).** Do not use as as-built truth. See [`../audits/complete_codebase_audit_2026_06_10.md`](../audits/complete_codebase_audit_2026_06_10.md), [`../../README.md`](../../README.md), and `product/` for current specs. Pre–Learner Map; describes removed Next.js/FastAPI stack in places.
+
 This document is the primary source of truth for all autonomous agents collaborating on the ABA Skills Assessment Platform.
 Every agent must read, understand, and follow the specifications, constraints, and goals described here.
 

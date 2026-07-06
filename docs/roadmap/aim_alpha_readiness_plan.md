@@ -163,4 +163,5 @@ Alpha is not ready if:
 - The app crashes or blocks assessment completion
 
 ## Immediate Next Step
-Convert each P0 item into a focused implementation task before doing any new feature work.
+
+Phase 0 implementation tasks are complete. For current priorities see [`roadmap/README.md`](./README.md) and Learner Map export PR10 ([`../product/learner_map/export_production_ux.md`](../product/learner_map/export_production_ux.md)).
