@@ -1,14 +1,17 @@
 
 import { useEffect, useState } from 'react';
 import { X, Clock, FileText, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Target, AssessmentScore } from '../../types';
+import { Target, AssessmentScore, ContentPackData, StructureLabels } from '../../types';
 import { interpretTargetScore } from '../../utils/scoreInterpretation';
 import { TargetScoreControls } from './TargetScoreControls';
 
 interface Props {
     target: Target;
+    pack: ContentPackData;
+    structureLabels: StructureLabels;
     currentScore: AssessmentScore | null;
     targetPositionLabel: string;
+    secondaryGroupTitle?: string;
     canNavigatePrev: boolean;
     canNavigateNext: boolean;
     scoresEditable: boolean;
@@ -21,8 +24,11 @@ interface Props {
 
 export function TargetDetailModal({
     target,
+    pack,
+    structureLabels,
     currentScore,
     targetPositionLabel,
+    secondaryGroupTitle,
     canNavigatePrev,
     canNavigateNext,
     scoresEditable,
@@ -46,6 +52,7 @@ export function TargetDetailModal({
     const showTargetNotes = targetNotesText.length > 0;
     const scoreInterpretation = interpretTargetScore(target, currentScore);
     const currentScoreValue = scoreInterpretation.rawScore;
+    const targetLabel = structureLabels.target;
     const statusLabel =
         scoreInterpretation.competencyState === 'unscored'
             ? 'Not Scored'
@@ -85,6 +92,9 @@ export function TargetDetailModal({
                         <div className="min-w-0">
                             <h2 className="text-xl font-bold text-gray-900 truncate">{target.title}</h2>
                             <p className="text-xs text-gray-500 mt-0.5">{targetPositionLabel}</p>
+                            {secondaryGroupTitle ? (
+                                <p className="text-xs text-gray-400 mt-0.5">{secondaryGroupTitle}</p>
+                            ) : null}
                         </div>
                     </div>
                     <button
@@ -131,7 +141,9 @@ export function TargetDetailModal({
 
                     {showTargetNotes && (
                         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Target Notes</h4>
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                                {targetLabel} Notes
+                            </h4>
                             <p className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">{targetNotesText}</p>
                         </div>
                     )}
@@ -158,6 +170,7 @@ export function TargetDetailModal({
                             <p className="text-xs font-semibold text-emerald-800 uppercase mb-2 tracking-wide">Score</p>
                             <TargetScoreControls
                                 target={target}
+                                pack={pack}
                                 current={currentScoreValue}
                                 scoresEditable={scoresEditable}
                                 onScoreUpdate={onScoreUpdate}
@@ -206,7 +219,7 @@ export function TargetDetailModal({
                         }`}
                     >
                         <ChevronLeft className="w-4 h-4" />
-                        Previous Target
+                        Previous {targetLabel}
                     </button>
                     <button
                         type="button"
@@ -218,7 +231,7 @@ export function TargetDetailModal({
                                 : 'text-gray-300 cursor-not-allowed'
                         }`}
                     >
-                        Next Target
+                        Next {targetLabel}
                         <ChevronRight className="w-4 h-4" />
                     </button>
                 </div>

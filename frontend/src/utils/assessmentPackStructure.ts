@@ -141,6 +141,11 @@ function isFlatDomain(domain: Domain): boolean {
     return domain.targets.every((target) => !target.secondary_group_id);
 }
 
+/** True when Matrix should render secondary group section headers. */
+export function domainHasSecondaryGroupDisplay(domain: Domain): boolean {
+    return !isFlatDomain(domain);
+}
+
 /**
  * Groups domain targets for secondary-aware display.
  *

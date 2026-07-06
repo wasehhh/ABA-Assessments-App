@@ -18,6 +18,11 @@ import {
 import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
 import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
+import { getStructureLabels } from '../utils/assessmentPackStructure';
+import {
+    findMatrixSecondaryGroupTitle,
+    flattenMatrixDisplayTargets,
+} from '../utils/matrixDisplayHelpers';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -89,6 +94,29 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     if (!assessment?.pack_snapshot) return [];
     return buildDomainProfiles(assessment.pack_snapshot, scores, previousScores);
   }, [assessment?.pack_snapshot, scores, previousScores]);
+
+  const structureLabels = useMemo(() => {
+    if (!assessment?.pack_snapshot) {
+      return getStructureLabels({
+        pack_id: '',
+        org_id: '',
+        title: '',
+        description: '',
+        version: '',
+        domains: [],
+      });
+    }
+    return getStructureLabels(assessment.pack_snapshot);
+  }, [assessment?.pack_snapshot]);
+
+  const activeDomain = useMemo(() => {
+    if (!assessment?.pack_snapshot?.domains || !activeDomainId) return null;
+    return (
+      assessment.pack_snapshot.domains.find(
+        (domain: { domain_id: string }) => domain.domain_id === activeDomainId
+      ) ?? null
+    );
+  }, [assessment?.pack_snapshot?.domains, activeDomainId]);
 
   const hasExplicitComparison = Boolean(compareCycleId);
 
@@ -277,9 +305,10 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   };
 
   const handleViewDetail = (targetId: string) => {
-    if (!assessment || !activeDomainId) return;
-    const domain = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId);
-    const index = domain.targets.findIndex((t: any) => t.target_id === targetId);
+    if (!activeDomain) return;
+    const index = flattenMatrixDisplayTargets(activeDomain).findIndex(
+      (target) => target.target_id === targetId
+    );
     if (index >= 0) {
       setActiveTargetIndex(index);
       setShowTargetInfo(true);
@@ -287,10 +316,17 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   };
 
   const activeDomainTargets = useMemo(() => {
-    if (!assessment?.pack_snapshot?.domains || !activeDomainId) return [];
-    const domain = assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId);
-    return domain?.targets ?? [];
-  }, [assessment?.pack_snapshot?.domains, activeDomainId]);
+    if (!activeDomain) return [];
+    return flattenMatrixDisplayTargets(activeDomain);
+  }, [activeDomain]);
+
+  const activeTargetSecondaryGroupTitle = useMemo(() => {
+    if (!activeDomain || !activeDomainTargets[activeTargetIndex]) return undefined;
+    return findMatrixSecondaryGroupTitle(
+      activeDomain,
+      activeDomainTargets[activeTargetIndex].target_id
+    );
+  }, [activeDomain, activeDomainTargets, activeTargetIndex]);
 
   const handleNavigateTarget = (direction: 'prev' | 'next') => {
     const maxIndex = activeDomainTargets.length - 1;
@@ -682,6 +718,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             {overviewMode === 'domains' ? (
               <AssessmentOverview
                 domainProfiles={domainProfiles}
+                structureLabels={structureLabels}
                 onSelectDomain={(domainId) => handleSelectDomain(domainId, 'domains')}
               />
             ) : (
@@ -698,10 +735,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
           </div>
         ) : (
           /* LAYER 2: SCOREBOARD */
+          activeDomain && assessment?.pack_snapshot ? (
           <DomainScoreboard
-            domainId={activeDomainId}
-            domainTitle={domainStats.find(d => d.domainId === activeDomainId)?.title || ''}
-            targets={assessment.pack_snapshot.domains.find((d: any) => d.domain_id === activeDomainId)?.targets || []}
+            domain={activeDomain}
+            pack={assessment.pack_snapshot}
+            structureLabels={structureLabels}
             scores={scores}
             previousScores={previousScores}
             onScoreUpdate={handleScoreUpdate}
@@ -716,17 +754,21 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             scoresEditable={scoresEditable}
             showFooterSubmit={showSubmitAssessmentButton}
           />
+          ) : null
         )}
       </main>
 
       {/* LAYER 3: DETAIL MODAL */}
-      {showTargetInfo && activeDomainId && activeDomainTargets[activeTargetIndex] && (
+      {showTargetInfo && activeDomainTargets[activeTargetIndex] && assessment?.pack_snapshot && (
         <TargetDetailModal
           target={activeDomainTargets[activeTargetIndex]}
+          pack={assessment.pack_snapshot}
+          structureLabels={structureLabels}
           currentScore={
             scores.find((s) => s.target_id === activeDomainTargets[activeTargetIndex].target_id) || null
           }
-          targetPositionLabel={`Target ${activeTargetIndex + 1} of ${activeDomainTargets.length}`}
+          targetPositionLabel={`${structureLabels.target} ${activeTargetIndex + 1} of ${activeDomainTargets.length}`}
+          secondaryGroupTitle={activeTargetSecondaryGroupTitle}
           canNavigatePrev={activeTargetIndex > 0}
           canNavigateNext={activeTargetIndex < activeDomainTargets.length - 1}
           scoresEditable={scoresEditable}
@@ -756,7 +798,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         isOpen={showSubmitConfirm}
         title="Submit Assessment"
         message={unscoredCount > 0
-          ? `Warning: You have ${unscoredCount} unscored targets. Submitting will lock this cycle. Are you sure you want to proceed?`
+          ? `Warning: You have ${unscoredCount} unscored ${structureLabels.target.toLowerCase()}s. Submitting will lock this cycle. Are you sure you want to proceed?`
           : "Are you sure you want to submit this assessment? This will lock the cycle for review."}
         confirmText={unscoredCount > 0 ? 'Submit with Unscored Targets' : 'Submit'}
         onConfirm={async () => {
