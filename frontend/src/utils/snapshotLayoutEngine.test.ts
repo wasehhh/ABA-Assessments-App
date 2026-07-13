@@ -5,13 +5,15 @@ import { buildLearnerMapProfile } from '../services/learnerMapProfile';
 import {
     buildSnapshotRenderPlan,
     findDomainZonePlan,
-    flattenRenderPlanSecondarySectionTitles,
+    findPrimaryChapter,
     flattenRenderPlanTargetIds,
+    flattenRenderPlanZoneTitles,
     packDomainZonesIntoRows,
+    resolveArrowToMaxGapRem,
     resolveDomainColumnWidthRem,
     shouldApplyPresentationFactoring,
     SNAPSHOT_FACTORING_PART_SIZE,
-    type DomainZonePlan,
+    type ChildZonePlan,
 } from './snapshotLayoutEngine';
 
 const generatedAt = new Date('2026-07-06T12:00:00.000Z');
@@ -56,7 +58,7 @@ function makeTargetList(prefix: string, count: number): Target[] {
 }
 
 describe('snapshotLayoutEngine', () => {
-    it('plans a flat Alpha pack without presentation factoring', () => {
+    it('plans a flat Alpha pack without presentation factoring or chapter headers', () => {
         const pack: ContentPackData = {
             pack_id: 'alpha',
             org_id: 'org-1',
@@ -64,37 +66,27 @@ describe('snapshotLayoutEngine', () => {
             description: '',
             version: '1.0',
             domains: [
-                {
-                    domain_id: 'DOM_A',
-                    title: 'Domain A',
-                    targets: makeTargetList('A', 12),
-                },
-                {
-                    domain_id: 'DOM_B',
-                    title: 'Domain B',
-                    targets: makeTargetList('B', 10),
-                },
-                {
-                    domain_id: 'DOM_C',
-                    title: 'Domain C',
-                    targets: makeTargetList('C', 8),
-                },
+                { domain_id: 'DOM_A', title: 'Domain A', targets: makeTargetList('A', 12) },
+                { domain_id: 'DOM_B', title: 'Domain B', targets: makeTargetList('B', 10) },
+                { domain_id: 'DOM_C', title: 'Domain C', targets: makeTargetList('C', 8) },
             ],
         };
 
         const profile = makeProfile(pack);
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
 
+        expect(plan.topology).toBe('flat');
+        expect(plan.chapters).toHaveLength(1);
+        expect(plan.chapters[0].chapterKind).toBe('flat');
         expect(plan.totalDomains).toBe(3);
         expect(plan.totalTargets).toBe(30);
         expect(plan.cycles.map((cycle) => cycle.cycleNumber)).toEqual([1, 2, 3]);
-        expect(plan.rows.length).toBeGreaterThanOrEqual(1);
 
-        for (const row of plan.rows) {
+        for (const row of plan.chapters[0].rows) {
             for (const zone of row.zones) {
+                expect(zone.zoneKind).toBe('flat-primary');
                 expect(zone.parts).toHaveLength(1);
                 expect(zone.parts[0].isFactored).toBe(false);
-                expect(zone.parts[0].title).toBe(zone.domainTitle);
             }
         }
 
@@ -103,7 +95,7 @@ describe('snapshotLayoutEngine', () => {
         );
     });
 
-    it('preserves authored secondary groups for a grouped VB-MAPP-like pack', () => {
+    it('builds one chapter per Level with secondary domains as child zones', () => {
         const pack: ContentPackData = {
             pack_id: 'vb',
             org_id: 'org-1',
@@ -129,26 +121,87 @@ describe('snapshotLayoutEngine', () => {
                         makeTarget({ target_id: 'M3' }),
                     ],
                 },
+                {
+                    domain_id: 'L2',
+                    title: 'Level 2',
+                    secondary_groups: [
+                        { secondary_group_id: 'sg_play', title: 'Play' },
+                    ],
+                    targets: [makeTarget({ target_id: 'M4', secondary_group_id: 'sg_play' })],
+                },
             ],
         };
 
         const profile = makeProfile(pack);
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const zone = findDomainZonePlan(plan, 'L1');
 
-        expect(zone).toBeDefined();
-        expect(zone!.parts).toHaveLength(1);
-        expect(zone!.parts[0].secondarySections.map((section) => section.title)).toEqual([
+        expect(plan.topology).toBe('grouped');
+        expect(plan.chapters).toHaveLength(2);
+        expect(plan.chapters.map((chapter) => chapter.primaryTitle)).toEqual([
+            'Level 1',
+            'Level 2',
+        ]);
+        expect(plan.chapters.every((chapter) => chapter.chapterKind === 'grouped')).toBe(true);
+
+        const level1 = findPrimaryChapter(plan, 'L1')!;
+        const level1Zones = level1.rows.flatMap((row) => row.zones);
+        expect(level1Zones.map((zone) => zone.zoneTitle)).toEqual([
             'Listening',
             'Motor',
             'Ungrouped',
         ]);
-        expect(flattenRenderPlanSecondarySectionTitles(plan)).toEqual([
+        expect(level1Zones.every((zone) => zone.primaryId === 'L1')).toBe(true);
+        expect(level1Zones.every((zone) => zone.zoneKind === 'secondary')).toBe(true);
+
+        expect(flattenRenderPlanZoneTitles(plan)).toEqual([
             'Listening',
             'Motor',
             'Ungrouped',
+            'Play',
         ]);
-        expect(flattenRenderPlanTargetIds(plan)).toEqual(['M1', 'M2', 'M3']);
+        expect(flattenRenderPlanTargetIds(plan)).toEqual(['M1', 'M2', 'M3', 'M4']);
+    });
+
+    it('never packs Level chapters side-by-side', () => {
+        const pack: ContentPackData = {
+            pack_id: 'vb-wide',
+            org_id: 'org-1',
+            title: 'VB',
+            description: '',
+            version: '1.0',
+            domains: [
+                {
+                    domain_id: 'L1',
+                    title: 'Level 1',
+                    secondary_groups: [
+                        { secondary_group_id: 'a', title: 'A' },
+                        { secondary_group_id: 'b', title: 'B' },
+                    ],
+                    targets: [
+                        makeTarget({ target_id: 'T1', secondary_group_id: 'a' }),
+                        makeTarget({ target_id: 'T2', secondary_group_id: 'b' }),
+                    ],
+                },
+                {
+                    domain_id: 'L2',
+                    title: 'Level 2',
+                    secondary_groups: [{ secondary_group_id: 'c', title: 'C' }],
+                    targets: [makeTarget({ target_id: 'T3', secondary_group_id: 'c' })],
+                },
+            ],
+        };
+
+        const plan = buildSnapshotRenderPlan(makeProfile(pack), {
+            mode: 'screen',
+            viewportWidthRem: 200,
+        });
+
+        expect(plan.chapters).toHaveLength(2);
+        for (const chapter of plan.chapters) {
+            for (const row of chapter.rows) {
+                expect(row.zones.every((zone) => zone.primaryId === chapter.primaryId)).toBe(true);
+            }
+        }
     });
 
     it('factors a PEAK 184-target module in print mode', () => {
@@ -172,7 +225,8 @@ describe('snapshotLayoutEngine', () => {
         const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
         const zone = findDomainZonePlan(printPlan, 'PEAK_DT');
 
-        expect(screenPlan.rows[0].zones[0].parts.length).toBeGreaterThan(1);
+        expect(screenPlan.topology).toBe('flat');
+        expect(screenPlan.chapters[0].rows[0].zones[0].parts.length).toBeGreaterThan(1);
         expect(zone).toBeDefined();
         expect(zone!.parts.length).toBe(Math.ceil(184 / SNAPSHOT_FACTORING_PART_SIZE));
         expect(zone!.parts.every((part) => part.isFactored)).toBe(true);
@@ -206,9 +260,7 @@ describe('snapshotLayoutEngine', () => {
         expect(flattenRenderPlanTargetIds(plan)).toHaveLength(250);
 
         const ordinals = zone!.parts.flatMap((part) =>
-            part.secondarySections.flatMap((section) =>
-                section.threads.map((thread) => thread.domainTargetOrdinal)
-            )
+            part.threads.map((thread) => thread.domainTargetOrdinal)
         );
         expect(ordinals).toEqual(Array.from({ length: 250 }, (_, index) => index + 1));
     });
@@ -255,7 +307,7 @@ describe('snapshotLayoutEngine', () => {
 
         const profile = makeProfile(pack);
         const plan = buildSnapshotRenderPlan(profile);
-        const thread = plan.rows[0].zones[0].parts[0].secondarySections[0].threads[0];
+        const thread = plan.chapters[0].rows[0].zones[0].parts[0].threads[0];
 
         expect(thread.marks.map((mark) => mark.cycleNumber)).toEqual([1, 2, 3]);
         expect(thread.marks.map((mark) => mark.cycleIndex)).toEqual([0, 1, 2]);
@@ -306,10 +358,12 @@ describe('snapshotLayoutEngine', () => {
 
         const profile = makeProfile(pack);
         const columnWidth = resolveDomainColumnWidthRem(profile.cycles.length, 'standard');
-        const zones: DomainZonePlan[] = profile.domains.map((domain, domainIndex) => ({
-            domainId: domain.domainId,
-            domainTitle: domain.title,
-            domainIndex,
+        const zones: ChildZonePlan[] = profile.domains.map((domain, domainIndex) => ({
+            zoneId: domain.domainId,
+            zoneTitle: domain.title,
+            zoneKind: 'flat-primary',
+            primaryId: domain.domainId,
+            zoneIndex: domainIndex,
             columnWidthRem: columnWidth,
             parts: [],
         }));
@@ -362,9 +416,9 @@ describe('snapshotLayoutEngine', () => {
         );
     });
 
-    it('keeps secondary group sections when a factored part spans only part of a group', () => {
-        const listeningTargets = makeTargetList('L', 70);
-        const motorTargets = makeTargetList('M', 70);
+    it('keeps secondary child zones when factoring a large secondary group', () => {
+        const listeningTargets = makeTargetList('L', 90);
+        const motorTargets = makeTargetList('M', 90);
 
         const pack: ContentPackData = {
             pack_id: 'grouped-large',
@@ -396,19 +450,19 @@ describe('snapshotLayoutEngine', () => {
 
         const profile = makeProfile(pack);
         const plan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-        const zone = findDomainZonePlan(plan, 'L1');
+        const chapter = findPrimaryChapter(plan, 'L1')!;
+        const zones = chapter.rows.flatMap((row) => row.zones);
 
-        expect(zone!.parts.length).toBeGreaterThan(1);
-        expect(
-            zone!.parts.some((part) =>
-                part.secondarySections.some((section) => section.title === 'Listening')
-            )
-        ).toBe(true);
-        expect(
-            zone!.parts.some((part) =>
-                part.secondarySections.some((section) => section.title === 'Motor')
-            )
-        ).toBe(true);
-        expect(flattenRenderPlanTargetIds(plan)).toHaveLength(140);
+        expect(zones.map((zone) => zone.zoneTitle)).toEqual(['Listening', 'Motor']);
+        expect(zones.find((zone) => zone.zoneTitle === 'Listening')!.parts.length).toBeGreaterThan(
+            1
+        );
+        expect(flattenRenderPlanTargetIds(plan)).toHaveLength(180);
+    });
+
+    it('includes positive arrow-to-max gap in column width budget', () => {
+        expect(resolveArrowToMaxGapRem()).toBeGreaterThanOrEqual(0.25);
+        const width = resolveDomainColumnWidthRem(3, 'dense');
+        expect(width).toBeGreaterThan(8);
     });
 });

@@ -33,8 +33,8 @@ function makeTarget(overrides: Partial<LearnerMapTarget> = {}): LearnerMapTarget
 }
 
 describe('targetThreadsShared', () => {
-    it('formats bead score text from raw score', () => {
-        expect(beadScoreText(makeCell({ rawScore: 4 }))).toBe('4');
+    it('formats bead score text from display score', () => {
+        expect(beadScoreText(makeCell({ rawScore: 4, displayScoreWithMax: '4/4' }))).toBe('4');
         expect(beadScoreText(makeCell({ rawScore: null, isUnscored: true }))).toBe('—');
     });
 

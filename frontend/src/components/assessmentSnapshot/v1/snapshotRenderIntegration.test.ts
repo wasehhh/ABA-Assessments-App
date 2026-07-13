@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { ContentPackData, Target } from '../../../types';
 import { buildAssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { buildLearnerMapProfile } from '../../../services/learnerMapProfile';
-import { buildSnapshotRenderPlan, findDomainZonePlan } from '../../../utils/snapshotLayoutEngine';
+import {
+    buildSnapshotRenderPlan,
+    findDomainZonePlan,
+    findPrimaryChapter,
+    flattenRenderPlanZoneTitles,
+} from '../../../utils/snapshotLayoutEngine';
 import {
     buildTargetByIdMap,
-    shouldRenderSecondaryHeader,
     zoneTargetCount,
 } from './snapshotRenderHelpers';
 import { resolveThreadsLayoutFromPlan } from './threadsLayout';
@@ -49,7 +53,7 @@ function makeTargetList(prefix: string, count: number): Target[] {
 }
 
 describe('snapshot render integration', () => {
-    it('plans a flat Alpha profile as one row with one part per domain', () => {
+    it('plans a flat Alpha profile as one flat chapter with peer domain zones', () => {
         const profile = makeProfile({
             pack_id: 'alpha',
             org_id: 'org-1',
@@ -64,18 +68,18 @@ describe('snapshot render integration', () => {
 
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
 
-        expect(plan.rows).toHaveLength(1);
-        expect(plan.rows[0].zones).toHaveLength(2);
-        for (const zone of plan.rows[0].zones) {
+        expect(plan.topology).toBe('flat');
+        expect(plan.chapters).toHaveLength(1);
+        expect(plan.chapters[0].rows[0].zones).toHaveLength(2);
+        for (const zone of plan.chapters[0].rows[0].zones) {
             expect(zone.parts).toHaveLength(1);
             expect(zone.parts[0].partNumber).toBe(1);
             expect(zone.parts[0].isFactored).toBe(false);
-            expect(zone.parts[0].secondarySections).toHaveLength(1);
-            expect(zone.parts[0].secondarySections[0].title).toBe('');
+            expect(zone.zoneKind).toBe('flat-primary');
         }
     });
 
-    it('preserves grouped secondary headers in the render plan', () => {
+    it('plans grouped secondary domains as child zones under Level chapters', () => {
         const profile = makeProfile({
             pack_id: 'vb',
             org_id: 'org-1',
@@ -100,13 +104,11 @@ describe('snapshot render integration', () => {
         });
 
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const zone = findDomainZonePlan(plan, 'L1')!;
+        const chapter = findPrimaryChapter(plan, 'L1')!;
 
-        expect(
-            zone.parts[0].secondarySections.map((section) => section.title)
-        ).toEqual(['Listening', 'Motor', 'Ungrouped']);
-        expect(shouldRenderSecondaryHeader('Listening')).toBe(true);
-        expect(shouldRenderSecondaryHeader('')).toBe(false);
+        expect(plan.topology).toBe('grouped');
+        expect(chapter.primaryTitle).toBe('Level 1');
+        expect(flattenRenderPlanZoneTitles(plan)).toEqual(['Listening', 'Motor', 'Ungrouped']);
     });
 
     it('plans multiple presentation parts for PEAK-scale domains in print mode', () => {
@@ -145,7 +147,7 @@ describe('snapshot render integration', () => {
 
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
         const layout = resolveThreadsLayoutFromPlan(plan);
-        const zone = plan.rows[0].zones[0];
+        const zone = plan.chapters[0].rows[0].zones[0];
 
         expect(zone.columnWidthRem).toBe(plan.domainColumnWidthRem);
         expect(layout.domainColumnWidthRem).toBe(plan.domainColumnWidthRem);
@@ -185,7 +187,7 @@ describe('snapshot render integration', () => {
 
         const targetsById = buildTargetByIdMap(profile);
         const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const zone = plan.rows[0].zones[0];
+        const zone = plan.chapters[0].rows[0].zones[0];
 
         expect(targetsById.size).toBe(2);
         expect(zoneTargetCount(zone)).toBe(2);

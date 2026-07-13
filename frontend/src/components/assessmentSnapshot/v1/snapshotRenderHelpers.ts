@@ -1,8 +1,9 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { LearnerMapCell, LearnerMapTarget } from '../../../services/learnerMapProfile';
 import {
-    DomainZonePlan,
+    ChildZonePlan,
     EvidenceMarkPlan,
+    zoneTargetCount as engineZoneTargetCount,
 } from '../../../utils/snapshotLayoutEngine';
 
 export function buildTargetByIdMap(
@@ -40,16 +41,8 @@ export function resolveBeadCell(
     };
 }
 
-export function zoneTargetCount(zone: DomainZonePlan): number {
-    return zone.parts.reduce(
-        (partSum, part) =>
-            partSum +
-            part.secondarySections.reduce(
-                (sectionSum, section) => sectionSum + section.threads.length,
-                0
-            ),
-        0
-    );
+export function zoneTargetCount(zone: ChildZonePlan): number {
+    return engineZoneTargetCount(zone);
 }
 
 export function shouldRenderSecondaryHeader(title: string): boolean {

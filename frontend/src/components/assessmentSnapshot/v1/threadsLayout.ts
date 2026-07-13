@@ -18,7 +18,6 @@ export interface ThreadsLayoutTokens {
     domainTitleClass: string;
     domainMetaClass: string;
     threadLabelClass: string;
-    connectorInsetRight: string;
     labelOffsetClass: string;
     domainColumnWidthRem: number;
 }
@@ -50,7 +49,6 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         domainTitleClass: 'text-[10px]',
         domainMetaClass: 'text-[9px]',
         threadLabelClass: 'text-[10px]',
-        connectorInsetRight: 'right-6',
         labelOffsetClass: 'pl-[calc(2.25rem+0.25rem)]',
     },
     standard: {
@@ -67,7 +65,6 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         domainTitleClass: 'text-[10px]',
         domainMetaClass: 'text-[9px]',
         threadLabelClass: 'text-[10px]',
-        connectorInsetRight: 'right-6',
         labelOffsetClass: 'pl-[calc(2.5rem+0.25rem)]',
     },
     dense: {
@@ -84,7 +81,6 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         domainTitleClass: 'text-[9px]',
         domainMetaClass: 'text-[8px]',
         threadLabelClass: 'text-[9px]',
-        connectorInsetRight: 'right-5',
         labelOffsetClass: 'pl-[calc(2rem+0.25rem)]',
     },
 };
@@ -188,9 +184,11 @@ export function domainColumnWidthRemForCycles(
 ): number {
     const labelRem = labelWidthRem(tier);
     const beadSlotRem = BEAD_SLOT_REM[tier];
-    const trailingRem = tier === 'dense' ? 1.75 : 2;
+    const arrowSlotRem = tier === 'dense' ? 0.75 : 0.85;
+    const arrowGapRem = 0.375;
+    const maxRingRem = tier === 'dense' ? 1.25 : 1.35;
 
-    return labelRem + cycleCount * beadSlotRem + trailingRem;
+    return labelRem + cycleCount * beadSlotRem + arrowSlotRem + arrowGapRem + maxRingRem;
 }
 
 export function domainColumnStyle(layout: ThreadsLayoutTokens): { width: string } {

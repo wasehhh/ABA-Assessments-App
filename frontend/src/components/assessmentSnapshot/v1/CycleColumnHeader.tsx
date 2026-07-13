@@ -17,7 +17,7 @@ export function CycleColumnHeader({
 }: Props) {
     return (
         <div
-            className={`mb-1.5 flex items-end ${layout.beadGapClass} ${labelOffsetClass} font-medium uppercase tracking-wide text-gray-600 ${layout.cycleHeaderClass}`}
+            className={`flex items-end ${layout.beadGapClass} ${labelOffsetClass} font-medium uppercase tracking-wide text-gray-600 ${layout.cycleHeaderClass}`}
             data-assessment-snapshot-cycle-header
         >
             {cycles.map((cycle) => {

@@ -1,13 +1,10 @@
 import { LearnerMapCell, LearnerMapCycleSummary } from '../../../services/learnerMapProfile';
 import { formatCycleLabel } from '../record/recordShared';
 import { snapshotCellClass, snapshotCellLabel } from '../snapshotCellDisplay';
+import { resolveBeadSurfaceText } from './snapshotThreadDisplay';
 
 export function beadScoreText(cell: LearnerMapCell): string {
-    if (cell.isUnscored || cell.rawScore === null) {
-        return '—';
-    }
-
-    return String(cell.rawScore);
+    return resolveBeadSurfaceText(cell);
 }
 
 export function evidenceBeadTitle(

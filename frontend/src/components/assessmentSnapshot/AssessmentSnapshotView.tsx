@@ -41,31 +41,47 @@ export function AssessmentSnapshotView({
     });
     const isV1 = isSnapshotV1(concept);
     const isCandidate = isSnapshotCandidate(concept);
-    // RenderPlan is the single layout authority for Target Threads V1 (row packing,
-    // domain widths, presentation factoring, secondary placement). This view intentionally
-    // builds a screen-mode plan only; print layout and print-mode factoring land in PR13.3.
-    const renderPlan = useMemo(
+    const screenRenderPlan = useMemo(
+        // Screen planning uses SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM (not live ResizeObserver width).
+        // Live container-width integration is deferred to avoid fragile render loops; print still uses print viewport.
         () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'screen' }) : null),
         [isV1, profile]
+    );
+    const printRenderPlan = useMemo(
+        () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'print' }) : null),
+        [isV1, profile]
+    );
+
+    const snapshotV1Body = (plan: NonNullable<typeof screenRenderPlan>) => (
+        <>
+            <AssessmentSnapshotThreadsLegend structureLabels={profile.structureLabels} />
+            <AssessmentSnapshotTargetThreads
+                profile={profile}
+                renderPlan={plan}
+                cycleDateLabels={cycleDateLabels}
+            />
+            <AssessmentSnapshotThreadsFooter profile={profile} generatedAtLabel={generatedAt} />
+        </>
     );
 
     return (
         <article
-            className={`mx-auto max-w-none space-y-3 bg-white px-4 py-5 text-gray-900 sm:px-6 print:space-y-2 print:px-4 print:py-3 ${
-                isV1 ? 'assessment-snapshot-print' : ''
+            className={`mx-auto max-w-none bg-white px-4 py-5 text-gray-900 sm:px-6 print:px-4 print:py-3 ${
+                isV1 ? 'assessment-snapshot-print' : 'space-y-3 print:space-y-2'
             }`}
             data-assessment-snapshot
             data-assessment-snapshot-document
             data-assessment-snapshot-concept={concept}
             data-assessment-snapshot-variant={isV1 ? 'target-threads-v1' : concept}
         >
-            <AssessmentSnapshotHeader
-                profile={profile}
-                generatedAtLabel={generatedAt}
-                displayContext={displayContext}
-                variant={isV1 ? 'compact' : 'default'}
-            />
-            {!isV1 ? (
+            <div className={isV1 ? 'assessment-snapshot-screen-only space-y-3 print:hidden' : 'space-y-3'}>
+                <AssessmentSnapshotHeader
+                    profile={profile}
+                    generatedAtLabel={generatedAt}
+                    displayContext={displayContext}
+                    variant={isV1 ? 'compact' : 'default'}
+                />
+                {!isV1 ? (
                 <div
                     className="space-y-2 border-l-2 border-gray-300 pl-3 text-sm text-gray-600"
                     data-assessment-snapshot-concept-description
@@ -152,32 +168,38 @@ export function AssessmentSnapshotView({
                         </>
                     )}
                 </div>
-            ) : null}
-            {isV1 ? <AssessmentSnapshotThreadsLegend structureLabels={profile.structureLabels} /> : <AssessmentSnapshotLegend />}
-            {isV1 && renderPlan ? (
-                <AssessmentSnapshotTargetThreads
-                    profile={profile}
-                    renderPlan={renderPlan}
-                    cycleDateLabels={cycleDateLabels}
-                />
-            ) : isCandidate ? (
-                <AssessmentSnapshotCandidateView
-                    candidate={concept}
-                    profile={profile}
-                    cycleDateLabels={cycleDateLabels}
-                />
-            ) : (
-                <AssessmentSnapshotConceptView
-                    concept={concept}
-                    profile={profile}
-                    cycleDateLabels={cycleDateLabels}
-                />
-            )}
-            {isV1 ? (
-                <AssessmentSnapshotThreadsFooter
-                    profile={profile}
-                    generatedAtLabel={generatedAt}
-                />
+                ) : null}
+                {!isV1 ? <AssessmentSnapshotLegend /> : null}
+                {isV1 && screenRenderPlan ? (
+                    snapshotV1Body(screenRenderPlan)
+                ) : isCandidate ? (
+                    <AssessmentSnapshotCandidateView
+                        candidate={concept}
+                        profile={profile}
+                        cycleDateLabels={cycleDateLabels}
+                    />
+                ) : (
+                    <AssessmentSnapshotConceptView
+                        concept={concept}
+                        profile={profile}
+                        cycleDateLabels={cycleDateLabels}
+                    />
+                )}
+            </div>
+            {isV1 && printRenderPlan ? (
+                <div
+                    className="assessment-snapshot-print-only hidden space-y-2 print:block"
+                    aria-hidden="true"
+                    data-assessment-snapshot-print-surface
+                >
+                    <AssessmentSnapshotHeader
+                        profile={profile}
+                        generatedAtLabel={generatedAt}
+                        displayContext={displayContext}
+                        variant="compact"
+                    />
+                    {snapshotV1Body(printRenderPlan)}
+                </div>
             ) : null}
         </article>
     );

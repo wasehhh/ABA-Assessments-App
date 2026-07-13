@@ -55,6 +55,11 @@
     display: grid !important;
   }
 
+  /* Keep snapshopt zone header bands as CSS grid in print */
+  .assessment-snapshot-print [data-assessment-snapshot-domain-zone] {
+    display: grid !important;
+  }
+
   /* Cards become simple blocks */
   .bg-white {
     box-shadow: none !important;
@@ -104,27 +109,88 @@
     print-color-adjust: exact !important;
   }
 
-  .assessment-snapshot-print .assessment-snapshot-domain-grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
+  .assessment-snapshot-screen-only {
+    display: none !important;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-domain-column] {
+  .assessment-snapshot-print-only {
+    display: block !important;
+  }
+
+  .assessment-snapshot-print .assessment-snapshot-domain-grid {
+    display: block !important;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter] {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter] + [data-assessment-snapshot-primary-chapter] {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter-header] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-domain-row] {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-domain-column],
+  .assessment-snapshot-print [data-assessment-snapshot-domain-zone] {
     margin-bottom: 0 !important;
     break-inside: auto;
     page-break-inside: auto;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-target-thread] {
+  .assessment-snapshot-print [data-assessment-snapshot-presentation-part] {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-presentation-part] + [data-assessment-snapshot-presentation-part] {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-part-continuation-header],
+  .assessment-snapshot-print [data-assessment-snapshot-domain-zone-header] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-cycle-header] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-target-thread],
+  .assessment-snapshot-print [data-assessment-snapshot-thread] {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
   .assessment-snapshot-print [data-assessment-snapshot-evidence-bead],
-  .assessment-snapshot-print [data-assessment-snapshot-target-max-ring] {
+  .assessment-snapshot-print [data-assessment-snapshot-target-max-ring],
+  .assessment-snapshot-print [data-assessment-snapshot-thread-connector],
+  .assessment-snapshot-print [data-assessment-snapshot-thread-line] {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  .assessment-snapshot-print .assessment-snapshot-title-band {
+    overflow: visible !important;
+  }
+
+  .assessment-snapshot-print .assessment-snapshot-title-band .line-clamp-3 {
+    -webkit-line-clamp: unset !important;
+    display: block !important;
+    overflow: visible !important;
   }
 
   /* Typography */

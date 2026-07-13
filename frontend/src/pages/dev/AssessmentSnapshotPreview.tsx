@@ -14,10 +14,10 @@ import {
 import { buildMockDisplayContext } from '../../components/learnerMap/learnerMapDisplayContext';
 import { buildAssessmentSnapshotProfile } from '../../services/assessmentSnapshotProfile';
 import {
-    getLearnerMapMockScenario,
-    LEARNER_MAP_MOCK_SCENARIOS,
-    LearnerMapMockScenarioId,
-} from './learnerMapMockData';
+    ASSESSMENT_SNAPSHOT_STRESS_SCENARIOS,
+    AssessmentSnapshotStressScenarioId,
+    getAssessmentSnapshotStressScenario,
+} from './assessmentSnapshotMockData';
 
 function SelectButton({
     id,
@@ -63,7 +63,7 @@ function SelectButton({
 }
 
 export function AssessmentSnapshotPreview() {
-    const [scenarioId, setScenarioId] = useState<LearnerMapMockScenarioId>('small');
+    const [scenarioId, setScenarioId] = useState<AssessmentSnapshotStressScenarioId>('alpha-small');
     const [conceptId, setConceptId] = useState<AssessmentSnapshotConceptId>(SNAPSHOT_V1_ID);
     const [showArchive, setShowArchive] = useState(false);
 
@@ -71,7 +71,7 @@ export function AssessmentSnapshotPreview() {
         return null;
     }
 
-    const scenario = getLearnerMapMockScenario(scenarioId);
+    const scenario = getAssessmentSnapshotStressScenario(scenarioId);
     const snapshotProfile = buildAssessmentSnapshotProfile(scenario.profile);
     const displayContext = buildMockDisplayContext(scenario.profile, scenario.label);
 
@@ -92,7 +92,7 @@ export function AssessmentSnapshotPreview() {
                                     Assessment Snapshot · Target Threads V1
                                 </h1>
                                 <p className="mt-1 text-sm text-amber-900/90">
-                                    Production refinement · density, print, and real target identity
+                                    Print and scale hardening · stress fixtures for pagination QA
                                 </p>
                             </div>
                         </div>
@@ -102,7 +102,7 @@ export function AssessmentSnapshotPreview() {
                             role="group"
                             aria-label="Mock assessment scenarios"
                         >
-                            {LEARNER_MAP_MOCK_SCENARIOS.map((entry) => {
+                            {ASSESSMENT_SNAPSHOT_STRESS_SCENARIOS.map((entry) => {
                                 const isActive = entry.id === scenarioId;
                                 return (
                                     <button
@@ -125,7 +125,7 @@ export function AssessmentSnapshotPreview() {
                     <div className="mt-4 space-y-3">
                         <div>
                             <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-800">
-                                Active implementation (PR11.5)
+                                Active implementation (PR13.3)
                             </p>
                             <div
                                 className="flex flex-wrap gap-2"
