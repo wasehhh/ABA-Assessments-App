@@ -23,9 +23,9 @@ export interface ThreadsLayoutTokens {
 }
 
 const BEAD_DEFAULT = 'h-[1.125rem] w-[1.125rem] min-h-[1.125rem] min-w-[1.125rem] text-[9px]';
-const BEAD_LATEST = 'h-[1.375rem] w-[1.375rem] min-h-[1.375rem] min-w-[1.375rem] text-[10px]';
+const BEAD_LATEST = 'h-[1.2rem] w-[1.2rem] min-h-[1.2rem] min-w-[1.2rem] text-[9px]';
 const BEAD_STANDARD = 'h-5 w-5 min-h-[1.25rem] min-w-[1.25rem] text-[10px]';
-const BEAD_LATEST_STANDARD = 'h-6 w-6 min-h-[1.5rem] min-w-[1.5rem] text-[11px]';
+const BEAD_LATEST_STANDARD = 'h-[1.35rem] w-[1.35rem] min-h-[1.35rem] min-w-[1.35rem] text-[10px]';
 
 /** Horizontal space per bead slot including inter-bead gap. */
 const BEAD_SLOT_REM = {
@@ -36,52 +36,52 @@ const BEAD_SLOT_REM = {
 
 const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier' | 'domainColumnWidthRem'>> = {
     compact: {
-        labelWidthClass: 'w-9',
+        labelWidthClass: 'w-12',
         beadSlotWidthClass: 'w-5',
         beadGapClass: 'gap-1.5',
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
-        maxRingSize: 'h-5 w-5 text-[10px]',
-        threadRowGapClass: 'space-y-1',
+        maxRingSize: 'h-5 w-5 text-[9px]',
+        threadRowGapClass: 'space-y-1.5',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
-        cycleHeaderClass: 'text-[9px]',
-        domainTitleClass: 'text-[10px]',
+        cycleHeaderClass: 'text-[8px]',
+        domainTitleClass: 'text-[11px]',
         domainMetaClass: 'text-[9px]',
         threadLabelClass: 'text-[10px]',
-        labelOffsetClass: 'pl-[calc(2.25rem+0.25rem)]',
+        labelOffsetClass: 'pl-[calc(3rem+0.25rem)]',
     },
     standard: {
-        labelWidthClass: 'w-10',
+        labelWidthClass: 'w-14',
         beadSlotWidthClass: 'w-5',
         beadGapClass: 'gap-1.5',
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
-        maxRingSize: 'h-5 w-5 text-[10px]',
-        threadRowGapClass: 'space-y-1',
+        maxRingSize: 'h-5 w-5 text-[9px]',
+        threadRowGapClass: 'space-y-1.5',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
-        cycleHeaderClass: 'text-[9px]',
-        domainTitleClass: 'text-[10px]',
+        cycleHeaderClass: 'text-[8px]',
+        domainTitleClass: 'text-[11px]',
         domainMetaClass: 'text-[9px]',
         threadLabelClass: 'text-[10px]',
-        labelOffsetClass: 'pl-[calc(2.5rem+0.25rem)]',
+        labelOffsetClass: 'pl-[calc(3.5rem+0.25rem)]',
     },
     dense: {
-        labelWidthClass: 'w-8',
+        labelWidthClass: 'w-11',
         beadSlotWidthClass: 'w-[1.125rem]',
         beadGapClass: 'gap-1',
         beadSizeDefault: BEAD_DEFAULT,
         beadSizeLatest: BEAD_LATEST,
-        maxRingSize: 'h-[1.125rem] w-[1.125rem] text-[9px]',
-        threadRowGapClass: 'space-y-0.5',
+        maxRingSize: 'h-[1.125rem] w-[1.125rem] text-[8px]',
+        threadRowGapClass: 'space-y-1',
         domainGapClass: 'gap-x-4 gap-y-3',
         domainZoneClass: 'py-0.5',
-        cycleHeaderClass: 'text-[8px]',
-        domainTitleClass: 'text-[9px]',
+        cycleHeaderClass: 'text-[7px]',
+        domainTitleClass: 'text-[10px]',
         domainMetaClass: 'text-[8px]',
         threadLabelClass: 'text-[9px]',
-        labelOffsetClass: 'pl-[calc(2rem+0.25rem)]',
+        labelOffsetClass: 'pl-[calc(2.75rem+0.25rem)]',
     },
 };
 
@@ -172,9 +172,9 @@ export function resolveThreadDisplayLabel(
 }
 
 function labelWidthRem(tier: ThreadsLayoutTier): number {
-    if (tier === 'dense') return 2;
-    if (tier === 'compact') return 2.25;
-    return 2.5;
+    if (tier === 'dense') return 2.75;
+    if (tier === 'compact') return 3;
+    return 3.5;
 }
 
 /** Fixed column width shared by every domain in one assessment. */

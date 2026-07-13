@@ -7,6 +7,7 @@ import {
     scoredBeadClass,
     unscoredBeadClass,
 } from './targetThreadsShared';
+import { beadNumeralClass } from './snapshotVisualSystem';
 import { ThreadsLayoutTokens } from './threadsLayout';
 
 interface Props {
@@ -29,8 +30,10 @@ export function EvidenceBead({
     layout,
 }: Props) {
     const sizeClass = isLatestCycle ? layout.beadSizeLatest : layout.beadSizeDefault;
-    const emphasisClass = isLatestCycle ? 'ring-1 ring-gray-600/35' : '';
+    const emphasisClass = isLatestCycle ? 'ring-1 ring-gray-500/25' : '';
     const isUnscored = !cell || cell.isUnscored;
+    const competencyState = cell?.competencyState ?? 'unscored';
+    const numeralClass = beadNumeralClass(competencyState);
 
     const title = isUnscored
         ? `${targetTitle} · ${formatCycleLabel(cycle, cycleDateLabels)} · Unscored · —`
@@ -38,14 +41,14 @@ export function EvidenceBead({
 
     return (
         <div
-            className={`relative z-10 flex shrink-0 items-center justify-center font-mono font-semibold tabular-nums leading-none ${isUnscored ? unscoredBeadClass() : `${scoredBeadClass(cell!.competencyState)} text-gray-900`} ${sizeClass} ${emphasisClass} ${beadFocusClass()}`}
+            className={`relative z-10 flex shrink-0 items-center justify-center font-mono font-semibold tabular-nums leading-none ${isUnscored ? unscoredBeadClass() : scoredBeadClass(competencyState)} ${numeralClass} ${sizeClass} ${emphasisClass} ${beadFocusClass()}`}
             data-assessment-snapshot-evidence-bead
             data-target-id={targetId}
             data-cycle-id={cycle.cycleId}
             data-cycle-number={cycle.cycleNumber}
             data-latest-cycle={isLatestCycle ? 'true' : undefined}
             data-is-unscored={isUnscored ? 'true' : 'false'}
-            data-competency-state={cell?.competencyState ?? 'unscored'}
+            data-competency-state={competencyState}
             data-raw-score={cell?.rawScore ?? undefined}
             title={title}
             aria-label={title}

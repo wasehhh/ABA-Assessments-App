@@ -5,7 +5,7 @@ interface Props {
     };
 }
 
-/** Filled chevron in a dedicated arrow slot — scale direction toward max only. */
+/** Quiet filled chevron — scale direction toward maximum only. */
 export function ThreadConnector({ geometry }: Props) {
     return (
         <div
@@ -16,10 +16,10 @@ export function ThreadConnector({ geometry }: Props) {
             aria-hidden
         >
             <svg
-                className="shrink-0 text-gray-800"
+                className="shrink-0 text-gray-400"
                 style={{
-                    width: `${geometry.arrowWidthRem}rem`,
-                    height: `${geometry.arrowWidthRem * 0.9}rem`,
+                    width: `${geometry.arrowWidthRem * 0.85}rem`,
+                    height: `${geometry.arrowWidthRem * 0.75}rem`,
                 }}
                 viewBox="0 0 10 8"
                 fill="currentColor"
@@ -31,10 +31,7 @@ export function ThreadConnector({ geometry }: Props) {
     );
 }
 
-/**
- * Continuous progression line under bead slots only.
- * Separate from the arrow slot so the chevron never overlaps the max ring.
- */
+/** Hairline progression under bead slots. */
 export function ThreadProgressionLine() {
     return (
         <div
@@ -42,7 +39,7 @@ export function ThreadProgressionLine() {
             data-assessment-snapshot-thread-line
             aria-hidden
         >
-            <div className="h-0.5 w-full rounded-full bg-gray-500" />
+            <div className="h-px w-full bg-gray-300" />
         </div>
     );
 }

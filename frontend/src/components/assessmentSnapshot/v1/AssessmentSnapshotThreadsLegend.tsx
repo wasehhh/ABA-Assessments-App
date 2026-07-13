@@ -1,46 +1,49 @@
-import { STATE_BUCKET_DISPLAY } from '../../assessment/domainProfile/stateDisplay';
-import { StructureLabels } from '../../../types';
+import {
+    maxRingLegendSwatchClass,
+    resolveSnapshotLegendCopy,
+} from './snapshotVisualSystem';
 import { scoredBeadClass, unscoredBeadClass } from './targetThreadsShared';
 
-interface Props {
-    structureLabels: StructureLabels;
-}
-
-export function AssessmentSnapshotThreadsLegend({ structureLabels }: Props) {
-    const targetLabel = structureLabels.target;
+export function AssessmentSnapshotThreadsLegend() {
+    const legend = resolveSnapshotLegendCopy();
 
     return (
         <div
-            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-gray-200 pb-2 print:border-gray-400 print:pb-1.5"
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 pb-2.5 text-[10px] leading-snug text-gray-700 print:border-gray-400 print:pb-2 print:text-[9px] print:text-black"
             data-assessment-snapshot-legend
         >
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-gray-800 print:text-[9px] print:text-black">
-                {STATE_BUCKET_DISPLAY.filter((bucket) => bucket.key !== 'unscored').map((bucket) => (
-                    <span key={bucket.key} className="inline-flex items-center gap-1">
-                        <span
-                            className={`inline-flex h-3 w-3 items-center justify-center rounded-full print:border print:border-gray-600 ${scoredBeadClass(bucket.key)}`}
-                            aria-hidden
-                        />
-                        <span>{bucket.label}</span>
-                    </span>
-                ))}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                {legend.states.map((state) => {
+                    const swatchClass =
+                        state.key === 'unscored'
+                            ? unscoredBeadClass()
+                            : scoredBeadClass(state.key);
+
+                    return (
+                        <span key={state.key} className="inline-flex items-center gap-1">
+                            <span
+                                className={`inline-flex h-2.5 w-2.5 items-center justify-center rounded-full print:border print:border-gray-600 ${swatchClass}`}
+                                aria-hidden
+                            />
+                            <span>{state.label}</span>
+                        </span>
+                    );
+                })}
                 <span className="inline-flex items-center gap-1">
                     <span
-                        className={`inline-flex h-3 w-3 items-center justify-center rounded-full print:border print:border-gray-600 ${unscoredBeadClass()}`}
+                        className={`inline-flex h-2.5 w-2.5 items-center justify-center ${maxRingLegendSwatchClass()}`}
                         aria-hidden
+                        data-assessment-snapshot-legend-max
                     />
-                    <span>Unscored</span>
-                </span>
-                <span className="inline-flex items-center gap-1">
-                    <span
-                        className="inline-flex h-3 w-3 items-center justify-center rounded-full border-2 border-green-800 bg-white print:border-gray-800"
-                        aria-hidden
-                    />
-                    <span>{targetLabel} max</span>
+                    <span>Maximum</span>
                 </span>
             </div>
-            <p className="text-[9px] text-gray-600 print:text-[8px] print:text-black">
-                bead number = exact score that cycle · colour = competency state
+            <p className="text-[9px] text-gray-500 print:text-[8px] print:text-black">
+                {legend.scoreHint}
+                <span className="mx-1.5 text-gray-300" aria-hidden>
+                    ·
+                </span>
+                {legend.maxHint}
             </p>
         </div>
     );

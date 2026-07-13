@@ -1,3 +1,8 @@
+import {
+    maxRingAccessibleLabel,
+    maxRingSurfaceClass,
+} from './snapshotVisualSystem';
+
 interface Props {
     maxDisplay: string;
     targetTitle: string;
@@ -6,11 +11,11 @@ interface Props {
 }
 
 export function TargetMaxRing({ maxDisplay, targetTitle, targetId, sizeClass }: Props) {
-    const title = `${targetTitle} · Target max · ${maxDisplay}`;
+    const title = maxRingAccessibleLabel(targetTitle, maxDisplay);
 
     return (
         <div
-            className={`relative z-10 flex shrink-0 items-center justify-center rounded-full border-2 border-green-800 bg-white font-mono font-semibold tabular-nums text-green-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-800 focus-visible:ring-offset-1 ${sizeClass}`}
+            className={`relative z-10 flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-green-800 focus-visible:ring-offset-1 ${maxRingSurfaceClass()} ${sizeClass}`}
             data-assessment-snapshot-target-max-ring
             data-target-id={targetId}
             data-target-max={maxDisplay}

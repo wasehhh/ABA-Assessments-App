@@ -67,5 +67,6 @@ Manual checks for Chrome Print Preview on the dev preview route (`/dev/assessmen
 - Pagination is CSS-only; exact page breaks vary by browser, margins, and paper size.
 - Screen packing still uses a fixed planning viewport width (not measured container width).
 - Print factoring thresholds differ from screen (80+ targets factor on print; 120+ on screen).
+- Single-zone flat composition is optically centered; thread column width remains plan-driven (beads are not stretched).
 - No standalone HTML export or download in this PR.
 - Component/DOM smoke tests for the production route are not yet in place.

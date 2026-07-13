@@ -40,17 +40,7 @@ export function latestCycleId(cycles: LearnerMapCycleSummary[]): string | null {
     return cycles[cycles.length - 1].cycleId;
 }
 
-const DOMAIN_ACCENT_CLASSES = [
-    'bg-orange-200',
-    'bg-sky-200',
-    'bg-emerald-200',
-    'bg-violet-200',
-    'bg-rose-200',
-    'bg-amber-200',
-    'bg-cyan-200',
-    'bg-fuchsia-200',
-] as const;
-
-export function domainAccentClass(domainIndex: number): string {
-    return DOMAIN_ACCENT_CLASSES[domainIndex % DOMAIN_ACCENT_CLASSES.length];
+/** @deprecated Decorative domain rainbow removed in PR13.4B; returns quiet neutral if still referenced. */
+export function domainAccentClass(_domainIndex: number): string {
+    return 'bg-gray-300';
 }

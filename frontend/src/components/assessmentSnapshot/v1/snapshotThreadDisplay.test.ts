@@ -45,15 +45,23 @@ describe('snapshotThreadDisplay', () => {
         expect(print.accessibleLabel).toContain('Echoic imitation');
     });
 
-    it('provides print-accessible labels without hover', () => {
-        const label = resolveThreadLabelDisplay(
-            { targetId: 'D1T3', title: 'Target 1.3' },
-            2,
-            'print'
+    it('preserves AFLS identity when codes are long', () => {
+        const a = resolveThreadLabelDisplay(
+            { targetId: 'AFLS_1', title: 'Grooming skill 1' },
+            0,
+            'screen'
+        );
+        const b = resolveThreadLabelDisplay(
+            { targetId: 'AFLS_205', title: 'Grooming skill 205' },
+            204,
+            'screen'
         );
 
-        expect(label.accessibleLabel).toContain('A3');
-        expect(label.accessibleLabel).toContain('Target 1.3');
+        expect(a.visibleCode).not.toBe(b.visibleCode);
+        expect(a.visibleCode).toContain('1');
+        expect(b.visibleCode).toContain('205');
+        expect(a.accessibleLabel).toContain('AFLS_1');
+        expect(b.accessibleLabel).toContain('AFLS_205');
     });
 
     it('renders numeric bead text from raw scores', () => {

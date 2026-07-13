@@ -35,7 +35,6 @@ export function TargetThread({
     const labelDisplay = resolveThreadLabelDisplay(displayTarget, thread.targetIndex, layoutMode);
     const latestId = latestCycleId(cycles);
     const cyclesById = new Map(cycles.map((cycle) => [cycle.cycleId, cycle]));
-    const isPrint = layoutMode === 'print';
     const connectorGeometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
 
     return (
@@ -47,21 +46,19 @@ export function TargetThread({
             data-target-index={thread.targetIndex}
         >
             <span
-                className={`shrink-0 text-left font-mono font-semibold tabular-nums leading-tight text-gray-900 ${layout.labelWidthClass} ${layout.threadLabelClass} ${
-                    isPrint ? 'whitespace-normal break-words' : 'truncate'
-                }`}
-                title={isPrint ? undefined : labelDisplay.accessibleLabel}
+                className={`shrink-0 text-left font-mono font-semibold tabular-nums leading-tight text-gray-900 ${layout.labelWidthClass} ${layout.threadLabelClass}`}
+                title={labelDisplay.accessibleLabel}
                 aria-label={labelDisplay.accessibleLabel}
             >
-                {labelDisplay.subtitle && isPrint ? (
+                {labelDisplay.showSubtitle && labelDisplay.subtitle ? (
                     <span className="flex flex-col gap-0.5">
-                        <span className="leading-none">{labelDisplay.code}</span>
-                        <span className="font-sans text-[7px] font-medium normal-case leading-tight text-gray-600">
+                        <span className="leading-none">{labelDisplay.visibleCode}</span>
+                        <span className="font-sans text-[7px] font-normal normal-case leading-tight text-gray-500">
                             {labelDisplay.subtitle}
                         </span>
                     </span>
                 ) : (
-                    labelDisplay.code
+                    labelDisplay.visibleCode
                 )}
             </span>
             <div className="relative flex min-w-0 flex-1 items-center">

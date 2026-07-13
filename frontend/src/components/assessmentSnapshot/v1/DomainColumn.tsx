@@ -4,7 +4,12 @@ import { ChildZonePlan, SnapshotLayoutMode } from '../../../utils/snapshotLayout
 import { CycleColumnHeader } from './CycleColumnHeader';
 import { DomainZoneHeaderBands } from './domainZoneLayout';
 import { zoneTargetCount } from './snapshotRenderHelpers';
-import { domainAccentClass } from './targetThreadsShared';
+import {
+    formatPresentationPartHeading,
+    formatPresentationTargetRange,
+    formatStructureCount,
+    toDisplayTitleCase,
+} from './snapshotVisualSystem';
 import { ThreadsLayoutTokens } from './threadsLayout';
 import { TargetThread } from './TargetThread';
 
@@ -17,8 +22,9 @@ interface Props {
     structureLabels: StructureLabels;
     layoutMode: SnapshotLayoutMode;
     headerBands: DomainZoneHeaderBands;
-    /** When true, zone is a secondary group under a chapter (show domain label lightly). */
     isSecondaryZone: boolean;
+    /** Lone zone in the row — optically center within the document measure. */
+    composeCentered?: boolean;
 }
 
 export function DomainColumn({
@@ -31,12 +37,13 @@ export function DomainColumn({
     layoutMode,
     headerBands,
     isSecondaryZone,
+    composeCentered = false,
 }: Props) {
-    const targetLabel = structureLabels.target;
     const targetCount = zoneTargetCount(zone);
-    const targetCountLabel = `${targetCount} ${targetLabel.toLowerCase()}${targetCount === 1 ? '' : 's'}`;
+    const targetCountLabel = formatStructureCount(targetCount, structureLabels.target);
     const hasMultipleParts = zone.parts.some((part) => part.partNumber > 1);
     const repeatCycleHeaderPerPart = layoutMode === 'print' && hasMultipleParts;
+    const displayTitle = toDisplayTitleCase(zone.zoneTitle);
 
     return (
         <section
@@ -51,6 +58,7 @@ export function DomainColumn({
             data-zone-id={zone.zoneId}
             data-zone-kind={zone.zoneKind}
             data-is-secondary-zone={isSecondaryZone ? 'true' : undefined}
+            data-compose-centered={composeCentered ? 'true' : undefined}
             data-primary-id={zone.primaryId}
             data-domain-id={zone.primaryId}
             data-domain-index={zone.zoneIndex}
@@ -61,28 +69,26 @@ export function DomainColumn({
                 data-assessment-snapshot-domain-zone-header
                 data-assessment-snapshot-primary-title-band
             >
-                <span
-                    className={`mb-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-sm ${domainAccentClass(zone.zoneIndex)}`}
-                    aria-hidden
-                />
                 <h2
-                    className={`max-w-full hyphens-auto break-words font-bold uppercase leading-snug tracking-wide text-gray-900 line-clamp-3 ${layout.domainTitleClass}`}
+                    className={`max-w-full hyphens-auto break-words font-semibold leading-snug tracking-tight text-gray-900 line-clamp-3 ${layout.domainTitleClass}`}
                     title={zone.zoneTitle}
                 >
-                    {zone.zoneTitle}
+                    {displayTitle}
                 </h2>
             </header>
 
             <div
-                className={`flex items-end justify-center px-0.5 text-center ${headerBands.countBandClass}`}
+                className={`flex items-end justify-center overflow-hidden px-0.5 text-center ${headerBands.countBandClass}`}
                 data-assessment-snapshot-target-count-band
             >
-                <p className={`text-gray-500 ${layout.domainMetaClass}`}>{targetCountLabel}</p>
+                <p className={`leading-none text-gray-400 ${layout.domainMetaClass}`}>
+                    {targetCountLabel}
+                </p>
             </div>
 
             {!repeatCycleHeaderPerPart ? (
                 <div
-                    className={`flex items-end ${headerBands.cycleBandClass}`}
+                    className={`flex items-end overflow-hidden ${headerBands.cycleBandClass}`}
                     data-assessment-snapshot-cycle-axis-band
                 >
                     <CycleColumnHeader
@@ -94,7 +100,7 @@ export function DomainColumn({
                 </div>
             ) : (
                 <div
-                    className={headerBands.cycleBandClass}
+                    className={`overflow-hidden ${headerBands.cycleBandClass}`}
                     data-assessment-snapshot-cycle-axis-band
                     aria-hidden
                 />
@@ -104,7 +110,7 @@ export function DomainColumn({
                 {zone.parts.map((part) => (
                     <div
                         key={`${zone.zoneId}-part-${part.partIndex}`}
-                        className={part.partNumber > 1 ? 'mt-2 space-y-1' : 'space-y-1'}
+                        className={part.partNumber > 1 ? 'mt-3 space-y-1' : 'space-y-1'}
                         data-assessment-snapshot-presentation-part
                         data-part-number={part.partNumber}
                         data-part-total={part.totalParts}
@@ -112,17 +118,22 @@ export function DomainColumn({
                     >
                         {part.partNumber > 1 ? (
                             <header
-                                className="space-y-0.5 rounded border border-dashed border-gray-300 bg-gray-50 px-1 py-1 text-center assessment-snapshot-part-continuation-header"
+                                className="mb-1 space-y-0.5 px-0.5 text-center assessment-snapshot-part-continuation-header"
                                 data-assessment-snapshot-part-continuation-header
                             >
                                 <p
-                                    className={`font-semibold uppercase tracking-wide text-gray-500 ${layout.domainMetaClass}`}
+                                    className={`font-medium tracking-tight text-gray-500 ${layout.domainMetaClass}`}
                                 >
-                                    Presentation · Part {part.partNumber}
-                                    {part.totalParts > 1 ? ' (continued)' : ''}
+                                    {formatPresentationPartHeading(part.partNumber, {
+                                        continued: true,
+                                    })}
                                 </p>
-                                <p className={`text-gray-500 ${layout.domainMetaClass}`}>
-                                    {targetLabel}s {part.targetRange.start}–{part.targetRange.end}
+                                <p className={`text-gray-400 ${layout.domainMetaClass}`}>
+                                    {formatPresentationTargetRange(
+                                        part.targetRange.start,
+                                        part.targetRange.end,
+                                        structureLabels.target
+                                    )}
                                 </p>
                             </header>
                         ) : null}

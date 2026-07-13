@@ -185,9 +185,9 @@ export function resolveSnapshotLayoutTier(profile: AssessmentSnapshotProfile): S
 }
 
 function labelWidthRem(tier: SnapshotLayoutTier): number {
-    if (tier === 'dense') return 2;
-    if (tier === 'compact') return 2.25;
-    return 2.5;
+    if (tier === 'dense') return 2.75;
+    if (tier === 'compact') return 3;
+    return 3.5;
 }
 
 export function resolveDomainColumnWidthRem(

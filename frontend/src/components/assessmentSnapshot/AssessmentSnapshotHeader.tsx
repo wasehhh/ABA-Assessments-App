@@ -22,41 +22,41 @@ export function AssessmentSnapshotHeader({
     if (variant === 'compact') {
         return (
             <header
-                className="space-y-1.5 border-b border-gray-300 pb-2 print:border-gray-400 print:pb-1.5"
+                className="space-y-2 border-b border-gray-200 pb-3 print:border-gray-400 print:pb-2"
                 data-assessment-snapshot-header
             >
-                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <div className="min-w-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-gray-500 print:text-[8px] print:text-black">
+                        <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-gray-400 print:text-[8px] print:text-black">
                             Assessment Snapshot
                         </p>
                         <h1
-                            className="truncate text-sm font-semibold leading-tight text-gray-900 print:text-xs print:text-black"
+                            className="mt-0.5 text-lg font-semibold leading-snug tracking-tight text-gray-900 print:text-base print:text-black"
                             title={assessmentName}
                         >
                             {assessmentName}
                         </h1>
                     </div>
-                    <p className="shrink-0 text-[9px] tabular-nums text-gray-500 print:text-[8px] print:text-black">
+                    <p className="shrink-0 text-[9px] tabular-nums text-gray-400 print:text-[8px] print:text-black">
                         Generated {generatedAtLabel}
                     </p>
                 </div>
-                <dl className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-gray-800 print:text-[9px] print:text-black">
-                    <div className="inline-flex min-w-0 gap-1">
-                        <dt className="shrink-0 font-semibold text-gray-500">Learner</dt>
-                        <dd className="truncate" title={learnerName}>
+                <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-gray-600 print:text-[9px] print:text-black">
+                    <div className="inline-flex min-w-0 gap-1.5">
+                        <dt className="shrink-0 text-gray-400">Learner</dt>
+                        <dd className="truncate text-gray-800" title={learnerName}>
                             {learnerName}
                         </dd>
                     </div>
-                    <div className="inline-flex min-w-0 gap-1">
-                        <dt className="shrink-0 font-semibold text-gray-500">Pack</dt>
-                        <dd className="truncate" title={packLabel}>
+                    <div className="inline-flex min-w-0 gap-1.5">
+                        <dt className="shrink-0 text-gray-400">Pack</dt>
+                        <dd className="truncate text-gray-800" title={packLabel}>
                             {packLabel}
                         </dd>
                     </div>
-                    <div className="inline-flex gap-1 tabular-nums">
-                        <dt className="font-semibold text-gray-500">Cycles</dt>
-                        <dd>{profile.cycles.length}</dd>
+                    <div className="inline-flex gap-1.5 tabular-nums">
+                        <dt className="text-gray-400">Cycles</dt>
+                        <dd className="text-gray-800">{profile.cycles.length}</dd>
                     </div>
                 </dl>
                 {displayContext?.isMockData ? (

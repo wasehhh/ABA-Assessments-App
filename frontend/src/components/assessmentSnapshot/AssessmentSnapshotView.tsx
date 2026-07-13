@@ -54,7 +54,7 @@ export function AssessmentSnapshotView({
 
     const snapshotV1Body = (plan: NonNullable<typeof screenRenderPlan>) => (
         <>
-            <AssessmentSnapshotThreadsLegend structureLabels={profile.structureLabels} />
+            <AssessmentSnapshotThreadsLegend />
             <AssessmentSnapshotTargetThreads
                 profile={profile}
                 renderPlan={plan}
@@ -74,7 +74,7 @@ export function AssessmentSnapshotView({
             data-assessment-snapshot-concept={concept}
             data-assessment-snapshot-variant={isV1 ? 'target-threads-v1' : concept}
         >
-            <div className={isV1 ? 'assessment-snapshot-screen-only space-y-3 print:hidden' : 'space-y-3'}>
+            <div className={isV1 ? 'assessment-snapshot-screen-only space-y-5 print:hidden' : 'space-y-3'}>
                 <AssessmentSnapshotHeader
                     profile={profile}
                     generatedAtLabel={generatedAt}
@@ -188,7 +188,7 @@ export function AssessmentSnapshotView({
             </div>
             {isV1 && printRenderPlan ? (
                 <div
-                    className="assessment-snapshot-print-only hidden space-y-2 print:block"
+                    className="assessment-snapshot-print-only hidden space-y-4 print:block"
                     aria-hidden="true"
                     data-assessment-snapshot-print-surface
                 >

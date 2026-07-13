@@ -1,5 +1,6 @@
 import { LearnerMapCycleSummary } from '../../../services/learnerMapProfile';
 import { formatCycleLabel } from '../record/recordShared';
+import { resolveThreadConnectorGeometry } from './domainZoneLayout';
 import { ThreadsLayoutTokens } from './threadsLayout';
 
 interface Props {
@@ -15,9 +16,11 @@ export function CycleColumnHeader({
     layout,
     labelOffsetClass,
 }: Props) {
+    const geometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
+
     return (
         <div
-            className={`flex items-end ${layout.beadGapClass} ${labelOffsetClass} font-medium uppercase tracking-wide text-gray-600 ${layout.cycleHeaderClass}`}
+            className={`flex w-full items-end ${layout.beadGapClass} ${labelOffsetClass} font-medium text-gray-500 ${layout.cycleHeaderClass}`}
             data-assessment-snapshot-cycle-header
         >
             {cycles.map((cycle) => {
@@ -26,13 +29,13 @@ export function CycleColumnHeader({
                 return (
                     <div
                         key={cycle.cycleId}
-                        className={`${layout.beadSlotWidthClass} text-center leading-none`}
+                        className={`${layout.beadSlotWidthClass} shrink-0 text-center leading-tight`}
                         data-cycle-id={cycle.cycleId}
                     >
-                        <div className="tabular-nums text-gray-700">C{cycle.cycleNumber}</div>
+                        <div className="tabular-nums text-gray-600">C{cycle.cycleNumber}</div>
                         {dateLabel ? (
                             <div
-                                className="mt-0.5 text-[8px] font-normal normal-case tracking-normal text-gray-500"
+                                className="mt-0.5 truncate text-[7px] font-normal normal-case tracking-normal text-gray-400"
                                 title={formatCycleLabel(cycle, cycleDateLabels)}
                             >
                                 {dateLabel}
@@ -41,7 +44,21 @@ export function CycleColumnHeader({
                     </div>
                 );
             })}
-            <div className="ml-0.5 w-5 shrink-0 text-center normal-case tracking-normal">max</div>
+            <div
+                className="shrink-0"
+                style={{ width: `${geometry.arrowSlotRem}rem` }}
+                aria-hidden
+            />
+            <div
+                className="shrink-0 text-center font-normal normal-case tracking-normal text-gray-400"
+                style={{
+                    marginLeft: `${geometry.arrowToMaxGapRem}rem`,
+                    width: `${geometry.maxRingSlotRem}rem`,
+                }}
+                data-assessment-snapshot-max-axis-label
+            >
+                max
+            </div>
         </div>
     );
 }
