@@ -8,5 +8,5 @@ export { EvidenceBead } from './EvidenceBead';
 export { TargetMaxRing } from './TargetMaxRing';
 export { CycleColumnHeader } from './CycleColumnHeader';
 export { ThreadConnector } from './ThreadConnector';
-export { resolveThreadsLayout, resolveThreadsLayoutTier } from './threadsLayout';
+export { resolveThreadsLayout, resolveThreadsLayoutFromPlan, resolveThreadsLayoutTier } from './threadsLayout';
 export type { ThreadsLayoutTier, ThreadsLayoutTokens } from './threadsLayout';

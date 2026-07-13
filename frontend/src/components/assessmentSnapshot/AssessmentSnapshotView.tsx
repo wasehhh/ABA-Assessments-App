@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { AssessmentSnapshotProfile } from '../../services/assessmentSnapshotProfile';
+import { buildSnapshotRenderPlan } from '../../utils/snapshotLayoutEngine';
 import { LearnerMapDisplayContext } from '../learnerMap/learnerMapDisplayContext';
 import {
     AssessmentSnapshotCandidateView,
@@ -39,6 +41,13 @@ export function AssessmentSnapshotView({
     });
     const isV1 = isSnapshotV1(concept);
     const isCandidate = isSnapshotCandidate(concept);
+    // RenderPlan is the single layout authority for Target Threads V1 (row packing,
+    // domain widths, presentation factoring, secondary placement). This view intentionally
+    // builds a screen-mode plan only; print layout and print-mode factoring land in PR13.3.
+    const renderPlan = useMemo(
+        () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'screen' }) : null),
+        [isV1, profile]
+    );
 
     return (
         <article
@@ -145,9 +154,10 @@ export function AssessmentSnapshotView({
                 </div>
             ) : null}
             {isV1 ? <AssessmentSnapshotThreadsLegend structureLabels={profile.structureLabels} /> : <AssessmentSnapshotLegend />}
-            {isV1 ? (
+            {isV1 && renderPlan ? (
                 <AssessmentSnapshotTargetThreads
                     profile={profile}
+                    renderPlan={renderPlan}
                     cycleDateLabels={cycleDateLabels}
                 />
             ) : isCandidate ? (

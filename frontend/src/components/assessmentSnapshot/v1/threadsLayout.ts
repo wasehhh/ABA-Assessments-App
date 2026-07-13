@@ -105,12 +105,24 @@ export function resolveThreadsLayoutTier(profile: AssessmentSnapshotProfile): Th
     return 'standard';
 }
 
+/** @deprecated RenderPlan is now authoritative. Remove after remaining preview consumers migrate to resolveThreadsLayoutFromPlan. */
 export function resolveThreadsLayout(profile: AssessmentSnapshotProfile): ThreadsLayoutTokens {
     const tier = resolveThreadsLayoutTier(profile);
     const cycleCount = profile.cycles.length;
     const domainColumnWidthRem = domainColumnWidthRemForCycles(cycleCount, tier);
 
     return { tier, domainColumnWidthRem, ...LAYOUT_BY_TIER[tier] };
+}
+
+export function resolveThreadsLayoutFromPlan(plan: {
+    tier: ThreadsLayoutTier;
+    domainColumnWidthRem: number;
+}): ThreadsLayoutTokens {
+    return {
+        tier: plan.tier,
+        domainColumnWidthRem: plan.domainColumnWidthRem,
+        ...LAYOUT_BY_TIER[plan.tier],
+    };
 }
 
 export interface ThreadDisplayLabel {
