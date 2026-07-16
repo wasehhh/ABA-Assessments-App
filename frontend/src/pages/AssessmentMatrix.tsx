@@ -2,19 +2,12 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
-import { analyticsService } from '../services/analytics';
 import { buildDomainProfiles } from '../services/domainProfile';
-import { formatComparisonContext } from '../services/assessmentLandscape';
 import { clientService } from '../services/clients';
-import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2, Map, ListOrdered } from 'lucide-react';
+import { Save, ArrowLeft, Calendar, Download, CheckCircle, Activity, Map, ListOrdered } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
-import {
-  AssessmentLandscape,
-  AssessmentViewMode,
-  AssessmentViewToggle,
-} from '../components/assessment/landscape';
 import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
 import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
@@ -55,10 +48,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  // View State (Replaces Legacy Grid Mode)
+  // View State
   const [activeDomainId, setActiveDomainId] = useState<string | null>(null);
-  const [overviewMode, setOverviewMode] = useState<AssessmentViewMode>('domains');
-  const [overviewEntryPoint, setOverviewEntryPoint] = useState<AssessmentViewMode>('domains');
   const [activeTargetIndex, setActiveTargetIndex] = useState(0); // Kept for modal navigation if needed
   const [showTargetInfo, setShowTargetInfo] = useState(false);
   const [showConfirmCycle, setShowConfirmCycle] = useState(false);
@@ -73,26 +64,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Tab State (likely deprecated in new design but kept for header)
-  const [activeTab, setActiveTab] = useState<'scoring' | 'analysis'>('scoring');
-
   const loadDataRequestRef = useRef(0);
   const loadCycleScoresRequestRef = useRef(0);
-
-  // Computed Stats
-  const domainStats = useMemo(() => {
-    if (!assessment?.pack_snapshot) return [];
-    return analyticsService.calculateDomainStats(assessment.pack_snapshot, scores);
-  }, [assessment?.pack_snapshot, scores]);
-
-  const cycleStats = useMemo(() => {
-    return analyticsService.calculateCycleStats(domainStats);
-  }, [domainStats]);
-
-  const acquisitionList = useMemo(() => {
-    if (!assessment?.pack_snapshot) return [];
-    return analyticsService.calculateAcquisition(assessment.pack_snapshot, scores, previousScores);
-  }, [assessment?.pack_snapshot, scores, previousScores]);
 
   const domainProfiles = useMemo(() => {
     if (!assessment?.pack_snapshot) return [];
@@ -122,35 +95,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     );
   }, [assessment?.pack_snapshot?.domains, activeDomainId]);
 
-  const hasExplicitComparison = Boolean(compareCycleId);
-
-  const landscapeComparisonContext = useMemo(() => {
-    const viewingCycle = cycles.find((cycle) => cycle.id === selectedCycleId);
-    const currentCycleNumber = viewingCycle?.cycle_number ?? null;
-
-    if (currentCycleNumber == null) {
-      return formatComparisonContext({ currentCycleNumber: null });
-    }
-
-    if (!hasExplicitComparison) {
-      const currentCycleLabel = `Cycle ${currentCycleNumber}`;
-      return {
-        currentCycleLabel,
-        baselineCycleLabel: null,
-        hasBaseline: false,
-        isExplicitComparison: false,
-        displayText: currentCycleLabel,
-      };
-    }
-
-    const compareCycle = cycles.find((cycle) => cycle.id === compareCycleId);
-    return formatComparisonContext({
-      currentCycleNumber,
-      baselineCycleNumber: compareCycle?.cycle_number ?? null,
-      isExplicitComparison: false,
-    });
-  }, [cycles, selectedCycleId, compareCycleId, hasExplicitComparison]);
-
   // --- Effects ---
 
   useEffect(() => {
@@ -174,8 +118,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   useEffect(() => {
     loadData();
-    setOverviewMode('domains');
-    setOverviewEntryPoint('domains');
     setActiveDomainId(null);
   }, [assessmentId]);
 
@@ -282,19 +224,13 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     }
   };
 
-  const handleSelectDomain = (
-    domainId: string,
-    entryPoint?: AssessmentViewMode
-  ) => {
-    const resolvedEntryPoint = entryPoint ?? overviewMode;
-    setOverviewEntryPoint(resolvedEntryPoint);
+  const handleSelectDomain = (domainId: string) => {
     setActiveDomainId(domainId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBackToOverview = () => {
     setActiveDomainId(null);
-    setOverviewMode(overviewEntryPoint);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -737,26 +673,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         )}
 
         {!activeDomainId ? (
-          <div className="space-y-6">
-            <AssessmentViewToggle value={overviewMode} onChange={setOverviewMode} />
-            {overviewMode === 'domains' ? (
-              <AssessmentOverview
-                domainProfiles={domainProfiles}
-                structureLabels={structureLabels}
-                onSelectDomain={(domainId) => handleSelectDomain(domainId, 'domains')}
-              />
-            ) : (
-              <AssessmentLandscape
-                profiles={domainProfiles}
-                domainStats={domainStats}
-                cycleStats={cycleStats}
-                acquisitionCount={acquisitionList.length}
-                hasComparisonBaseline={hasExplicitComparison}
-                comparisonContext={landscapeComparisonContext}
-                onSelectDomain={(domainId) => handleSelectDomain(domainId, 'landscape')}
-              />
-            )}
-          </div>
+          <AssessmentOverview
+            domainProfiles={domainProfiles}
+            structureLabels={structureLabels}
+            onSelectDomain={handleSelectDomain}
+          />
         ) : (
           /* LAYER 2: SCOREBOARD */
           activeDomain && assessment?.pack_snapshot ? (
