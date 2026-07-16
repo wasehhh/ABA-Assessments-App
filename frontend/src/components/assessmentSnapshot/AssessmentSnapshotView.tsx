@@ -1,6 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useContainerWidthRem } from '../../hooks/useContainerWidthRem';
+import { buildSnapshotScreenPlanConfig } from '../../hooks/snapshotViewport';
 import { AssessmentSnapshotProfile } from '../../services/assessmentSnapshotProfile';
-import { buildSnapshotRenderPlan } from '../../utils/snapshotLayoutEngine';
+import {
+    buildSnapshotRenderPlan,
+    SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
+} from '../../utils/snapshotLayoutEngine';
 import { LearnerMapDisplayContext } from '../learnerMap/learnerMapDisplayContext';
 import {
     AssessmentSnapshotCandidateView,
@@ -21,12 +26,15 @@ import {
     AssessmentSnapshotThreadsFooter,
     AssessmentSnapshotThreadsLegend,
 } from './v1';
+import { AssessmentSnapshotCycleReference } from './v1/AssessmentSnapshotCycleReference';
 
 interface Props {
     profile: AssessmentSnapshotProfile;
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
     concept?: AssessmentSnapshotConceptId;
+    /** When true (default for V1), screen packing uses measured container width. */
+    measureScreenViewport?: boolean;
 }
 
 export function AssessmentSnapshotView({
@@ -34,6 +42,7 @@ export function AssessmentSnapshotView({
     displayContext,
     cycleDateLabels,
     concept = SNAPSHOT_V1_ID,
+    measureScreenViewport = true,
 }: Props) {
     const generatedAt = new Date(profile.metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -41,11 +50,25 @@ export function AssessmentSnapshotView({
     });
     const isV1 = isSnapshotV1(concept);
     const isCandidate = isSnapshotCandidate(concept);
+    const measureRef = useRef<HTMLDivElement>(null);
+    const measuredViewportRem = useContainerWidthRem(measureRef, {
+        fallbackRem: SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
+        thresholdRem: 0.5,
+    });
+    const screenViewportRem =
+        isV1 && measureScreenViewport
+            ? measuredViewportRem
+            : SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM;
+
     const screenRenderPlan = useMemo(
-        // Screen planning uses SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM (not live ResizeObserver width).
-        // Live container-width integration is deferred to avoid fragile render loops; print still uses print viewport.
-        () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'screen' }) : null),
-        [isV1, profile]
+        () =>
+            isV1
+                ? buildSnapshotRenderPlan(
+                      profile,
+                      buildSnapshotScreenPlanConfig(screenViewportRem)
+                  )
+                : null,
+        [isV1, profile, screenViewportRem]
     );
     const printRenderPlan = useMemo(
         () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'print' }) : null),
@@ -54,6 +77,10 @@ export function AssessmentSnapshotView({
 
     const snapshotV1Body = (plan: NonNullable<typeof screenRenderPlan>) => (
         <>
+            <AssessmentSnapshotCycleReference
+                cycles={profile.cycles}
+                cycleDateLabels={cycleDateLabels}
+            />
             <AssessmentSnapshotThreadsLegend />
             <AssessmentSnapshotTargetThreads
                 profile={profile}
@@ -73,8 +100,15 @@ export function AssessmentSnapshotView({
             data-assessment-snapshot-document
             data-assessment-snapshot-concept={concept}
             data-assessment-snapshot-variant={isV1 ? 'target-threads-v1' : concept}
+            data-assessment-snapshot-screen-viewport-rem={
+                isV1 ? String(screenViewportRem) : undefined
+            }
         >
-            <div className={isV1 ? 'assessment-snapshot-screen-only space-y-5 print:hidden' : 'space-y-3'}>
+            <div
+                ref={isV1 && measureScreenViewport ? measureRef : undefined}
+                className={isV1 ? 'assessment-snapshot-screen-only space-y-5 print:hidden' : 'space-y-3'}
+                data-assessment-snapshot-measure={isV1 ? 'true' : undefined}
+            >
                 <AssessmentSnapshotHeader
                     profile={profile}
                     generatedAtLabel={generatedAt}

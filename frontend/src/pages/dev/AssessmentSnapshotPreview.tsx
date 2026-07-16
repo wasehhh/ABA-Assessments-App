@@ -125,7 +125,7 @@ export function AssessmentSnapshotPreview() {
                     <div className="mt-4 space-y-3">
                         <div>
                             <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-800">
-                                Active implementation (PR13.3)
+                                Active implementation (PR13.5)
                             </p>
                             <div
                                 className="flex flex-wrap gap-2"

@@ -1,53 +1,47 @@
 import { LearnerMapCell, LearnerMapTarget } from '../../../services/learnerMapProfile';
 import { SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
-import { resolveThreadDisplayLabel } from './threadsLayout';
 import {
-    shouldShowThreadSubtitle,
-    truncatePreservingDistinction,
-} from './snapshotVisualSystem';
+    disambiguateVisibleCodes,
+    resolveThreadDisplayLabel,
+} from './snapshotTargetIdentity';
+import { truncatePreservingDistinction } from './snapshotVisualSystem';
 
 export interface ThreadLabelDisplay {
     code: string;
     /** Visible code after length-aware distinction-preserving truncation. */
     visibleCode: string;
+    /** Always null — titles are tooltip/aria only (PR13.5A). */
     subtitle: string | null;
     fullTitle: string;
     accessibleLabel: string;
+    /** Always false — code-only visible rows. */
     showSubtitle: boolean;
 }
 
-const DEFAULT_TITLE_MAX = 20;
-const PRINT_TITLE_MAX = 16;
 const CODE_MAX_BY_MODE: Record<SnapshotLayoutMode, number> = {
-    screen: 8,
+    screen: 10,
     print: 10,
 };
 
-export function shortenThreadTitle(title: string, maxLength: number): string {
-    const trimmed = title.trim();
-    if (trimmed.length <= maxLength) {
-        return trimmed;
+function buildAccessibleLabel(accessibilityIdentity: string, fullTitle: string): string {
+    if (fullTitle && fullTitle.toLowerCase() !== accessibilityIdentity.toLowerCase()) {
+        return `${accessibilityIdentity} — ${fullTitle}`;
     }
-
-    return `${trimmed.slice(0, Math.max(1, maxLength - 1))}…`;
+    return accessibilityIdentity;
 }
 
 /**
  * Deterministic target identity for Snapshot rows.
  * Prefer full short codes; never collapse a zone of siblings into one shared truncated prefix.
+ * Visible label is code only — full authored ID + title remain on tooltip / aria-label.
  */
 export function resolveThreadLabelDisplay(
     target: Pick<LearnerMapTarget, 'targetId' | 'title'>,
     targetIndex: number,
     mode: SnapshotLayoutMode
 ): ThreadLabelDisplay {
-    const { primary, fullTitle } = resolveThreadDisplayLabel(
-        {
-            targetId: target.targetId,
-            title: target.title,
-            displayTargetMax: '4',
-            cells: [],
-        },
+    const { primary, fullTitle, accessibilityIdentity } = resolveThreadDisplayLabel(
+        target,
         targetIndex
     );
 
@@ -57,27 +51,40 @@ export function resolveThreadLabelDisplay(
             ? primary
             : truncatePreservingDistinction(primary, codeMax);
 
-    const strippedTitle = fullTitle.replace(/^Target\s+/i, '').trim();
-    const titleMax = mode === 'print' ? PRINT_TITLE_MAX : DEFAULT_TITLE_MAX;
-    const subtitleSource =
-        strippedTitle && strippedTitle.toLowerCase() !== primary.toLowerCase()
-            ? strippedTitle
-            : fullTitle !== primary
-              ? fullTitle
-              : null;
-    const subtitle = subtitleSource
-        ? shortenThreadTitle(subtitleSource, titleMax)
-        : null;
-    const showSubtitle = shouldShowThreadSubtitle(mode, primary, subtitle, codeMax);
-
     return {
         code: primary,
         visibleCode,
-        subtitle: showSubtitle ? subtitle : null,
+        subtitle: null,
         fullTitle,
-        accessibleLabel: `${primary} · ${fullTitle} (${target.targetId})`,
-        showSubtitle,
+        accessibleLabel: buildAccessibleLabel(accessibilityIdentity, fullTitle),
+        showSubtitle: false,
     };
+}
+
+/**
+ * Resolve labels for every thread in a child zone, then disambiguate colliding visible codes.
+ */
+export function resolveZoneThreadLabelDisplays(
+    targets: Array<Pick<LearnerMapTarget, 'targetId' | 'title'>>,
+    mode: SnapshotLayoutMode
+): ThreadLabelDisplay[] {
+    const resolved = targets.map((target, index) =>
+        resolveThreadLabelDisplay(target, index, mode)
+    );
+    const disambiguated = disambiguateVisibleCodes(
+        resolved.map((label) => label.visibleCode)
+    );
+
+    return resolved.map((label, index) => {
+        const visibleCode = disambiguated[index] ?? label.visibleCode;
+        if (visibleCode === label.visibleCode) {
+            return label;
+        }
+        return {
+            ...label,
+            visibleCode,
+        };
+    });
 }
 
 /** Compact bead surface text — numeric when possible; falls back to short labels without overflow. */

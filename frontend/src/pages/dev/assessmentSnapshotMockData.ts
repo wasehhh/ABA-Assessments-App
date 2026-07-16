@@ -1,5 +1,5 @@
 import { AssessmentScore, ContentPackData, Target } from '../../types';
-import { buildCycleDateLabels } from '../../components/learnerMap/cycleDateDisplay';
+import { buildSnapshotCycleDateLabels } from '../../components/assessmentSnapshot/v1/snapshotCycleReference';
 import {
     buildLearnerMapProfile,
     LearnerMapProfile,
@@ -264,7 +264,7 @@ function buildScenarioProfile(options: {
 }): { profile: LearnerMapProfile; cycleDateLabels: Record<string, string> } {
     const cycles = makeCycles(options.cycleCount);
     const scoresByCycle = buildScoresForPack(options.pack, cycles, options.assessmentId);
-    const cycleDateLabels = buildCycleDateLabels(cycles);
+    const cycleDateLabels = buildSnapshotCycleDateLabels(cycles);
 
     return {
         profile: buildLearnerMapProfile({

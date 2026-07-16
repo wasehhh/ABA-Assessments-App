@@ -20,7 +20,7 @@ const HEADER_BANDS: Record<ThreadsLayoutTier, DomainZoneHeaderBands> = {
     compact: {
         primaryTitleBandRem: 2.7,
         targetCountBandRem: 0.85,
-        cycleAxisBandRem: 1.65,
+        cycleAxisBandRem: 1.05,
         maxTitleLines: 3,
         titleBandClass: 'assessment-snapshot-title-band assessment-snapshot-title-band--compact',
         countBandClass: 'assessment-snapshot-count-band assessment-snapshot-count-band--compact',
@@ -29,7 +29,7 @@ const HEADER_BANDS: Record<ThreadsLayoutTier, DomainZoneHeaderBands> = {
     standard: {
         primaryTitleBandRem: 2.85,
         targetCountBandRem: 0.9,
-        cycleAxisBandRem: 1.75,
+        cycleAxisBandRem: 1.1,
         maxTitleLines: 3,
         titleBandClass: 'assessment-snapshot-title-band assessment-snapshot-title-band--standard',
         countBandClass: 'assessment-snapshot-count-band assessment-snapshot-count-band--standard',
@@ -38,7 +38,7 @@ const HEADER_BANDS: Record<ThreadsLayoutTier, DomainZoneHeaderBands> = {
     dense: {
         primaryTitleBandRem: 2.45,
         targetCountBandRem: 0.75,
-        cycleAxisBandRem: 1.55,
+        cycleAxisBandRem: 0.95,
         maxTitleLines: 3,
         titleBandClass: 'assessment-snapshot-title-band assessment-snapshot-title-band--dense',
         countBandClass: 'assessment-snapshot-count-band assessment-snapshot-count-band--dense',

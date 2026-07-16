@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LearnerMapCell } from '../../../services/learnerMapProfile';
-import {
-    resolveBeadSurfaceText,
-    resolveThreadLabelDisplay,
-    shortenThreadTitle,
-} from './snapshotThreadDisplay';
+import { resolveBeadSurfaceText, resolveThreadLabelDisplay } from './snapshotThreadDisplay';
+import { resolveThreadDisplayLabel } from './threadsLayout';
 
 function makeCell(overrides: Partial<LearnerMapCell> = {}): LearnerMapCell {
     return {
@@ -21,13 +18,7 @@ function makeCell(overrides: Partial<LearnerMapCell> = {}): LearnerMapCell {
 }
 
 describe('snapshotThreadDisplay', () => {
-    it('shortens long titles for compact display', () => {
-        expect(shortenThreadTitle('Echoic imitation with long descriptor', 18)).toBe(
-            'Echoic imitation …'
-        );
-    });
-
-    it('resolves short codes for screen and print modes', () => {
+    it('shows code only — never a visible subtitle', () => {
         const screen = resolveThreadLabelDisplay(
             { targetId: 'ECHO_12', title: 'Echoic imitation' },
             0,
@@ -39,10 +30,24 @@ describe('snapshotThreadDisplay', () => {
             'print'
         );
 
-        expect(screen.code).toBe('ECHO_12');
-        expect(print.code).toBe('ECHO_12');
-        expect(print.accessibleLabel).toContain('ECHO_12');
-        expect(print.accessibleLabel).toContain('Echoic imitation');
+        expect(screen.visibleCode).toBe('ECHO_12');
+        expect(screen.showSubtitle).toBe(false);
+        expect(screen.subtitle).toBeNull();
+        expect(print.showSubtitle).toBe(false);
+        expect(print.subtitle).toBeNull();
+        expect(print.visibleCode).toBe('ECHO_12');
+    });
+
+    it('keeps the full title in tooltip / accessibility copy', () => {
+        const label = resolveThreadLabelDisplay(
+            { targetId: 'A1', title: 'Take a reinforcer when offered' },
+            0,
+            'screen'
+        );
+
+        expect(label.accessibleLabel).toBe('A1 — Take a reinforcer when offered');
+        expect(label.fullTitle).toBe('Take a reinforcer when offered');
+        expect(label.accessibleLabel).toContain('Take a reinforcer when offered');
     });
 
     it('preserves AFLS identity when codes are long', () => {
@@ -62,6 +67,37 @@ describe('snapshotThreadDisplay', () => {
         expect(b.visibleCode).toContain('205');
         expect(a.accessibleLabel).toContain('AFLS_1');
         expect(b.accessibleLabel).toContain('AFLS_205');
+    });
+
+    it('uses positional fallback instead of a long description as the visible code', () => {
+        const label = resolveThreadLabelDisplay(
+            {
+                targetId: 'a1b2c3d4-e5f6-4789-a012-3456789abcde',
+                title: 'A very long clinical description that must never become the row label',
+            },
+            4,
+            'screen'
+        );
+
+        expect(label.visibleCode).not.toMatch(/very long clinical/i);
+        expect(label.visibleCode).not.toMatch(/a1b2c3d4/i);
+        expect(label.visibleCode.length).toBeLessThanOrEqual(10);
+        expect(label.accessibleLabel).toContain(
+            'A very long clinical description that must never become the row label'
+        );
+    });
+
+    it('keeps unique visible codes for peers in a domain', () => {
+        const targets = [
+            { targetId: 'D1T1', title: 'Target 1.1' },
+            { targetId: 'D1T2', title: 'Target 1.2' },
+            { targetId: 'D1T3', title: 'Target 1.3' },
+        ];
+        const codes = targets.map((target, index) =>
+            resolveThreadLabelDisplay(target, index, 'screen').visibleCode
+        );
+        expect(new Set(codes).size).toBe(codes.length);
+        expect(codes).toEqual(['A1', 'A2', 'A3']);
     });
 
     it('renders numeric bead text from raw scores', () => {
@@ -92,5 +128,16 @@ describe('snapshotThreadDisplay', () => {
                 })
             )
         ).toBe('—');
+    });
+
+    it('does not mutate target identity input when resolving labels', () => {
+        const target = { targetId: 'M3', title: 'Mand 3' };
+        const frozen = JSON.stringify(target);
+        resolveThreadLabelDisplay(target, 2, 'screen');
+        resolveThreadDisplayLabel(
+            { ...target, displayTargetMax: '4', cells: [] },
+            2
+        );
+        expect(JSON.stringify(target)).toBe(frozen);
     });
 });

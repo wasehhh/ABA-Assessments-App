@@ -1,21 +1,18 @@
 import { LearnerMapCycleSummary } from '../../../services/learnerMapProfile';
-import { formatCycleLabel } from '../record/recordShared';
 import { resolveThreadConnectorGeometry } from './domainZoneLayout';
 import { ThreadsLayoutTokens } from './threadsLayout';
 
 interface Props {
     cycles: LearnerMapCycleSummary[];
-    cycleDateLabels?: Record<string, string>;
     layout: ThreadsLayoutTokens;
     labelOffsetClass: string;
 }
 
-export function CycleColumnHeader({
-    cycles,
-    cycleDateLabels,
-    layout,
-    labelOffsetClass,
-}: Props) {
+/**
+ * Domain cycle axis — C1 / C2 / … / max only.
+ * Dates live once in the document Cycle Reference.
+ */
+export function CycleColumnHeader({ cycles, layout, labelOffsetClass }: Props) {
     const geometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
 
     return (
@@ -23,27 +20,15 @@ export function CycleColumnHeader({
             className={`flex w-full items-end ${layout.beadGapClass} ${labelOffsetClass} font-medium text-gray-500 ${layout.cycleHeaderClass}`}
             data-assessment-snapshot-cycle-header
         >
-            {cycles.map((cycle) => {
-                const dateLabel = cycleDateLabels?.[cycle.cycleId];
-
-                return (
-                    <div
-                        key={cycle.cycleId}
-                        className={`${layout.beadSlotWidthClass} shrink-0 text-center leading-tight`}
-                        data-cycle-id={cycle.cycleId}
-                    >
-                        <div className="tabular-nums text-gray-600">C{cycle.cycleNumber}</div>
-                        {dateLabel ? (
-                            <div
-                                className="mt-0.5 truncate text-[7px] font-normal normal-case tracking-normal text-gray-400"
-                                title={formatCycleLabel(cycle, cycleDateLabels)}
-                            >
-                                {dateLabel}
-                            </div>
-                        ) : null}
-                    </div>
-                );
-            })}
+            {cycles.map((cycle) => (
+                <div
+                    key={cycle.cycleId}
+                    className={`${layout.beadSlotWidthClass} shrink-0 text-center leading-none`}
+                    data-cycle-id={cycle.cycleId}
+                >
+                    <div className="tabular-nums text-gray-600">C{cycle.cycleNumber}</div>
+                </div>
+            ))}
             <div
                 className="shrink-0"
                 style={{ width: `${geometry.arrowSlotRem}rem` }}

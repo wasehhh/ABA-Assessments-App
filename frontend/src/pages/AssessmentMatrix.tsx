@@ -6,7 +6,7 @@ import { analyticsService } from '../services/analytics';
 import { buildDomainProfiles } from '../services/domainProfile';
 import { formatComparisonContext } from '../services/assessmentLandscape';
 import { clientService } from '../services/clients';
-import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2, Map } from 'lucide-react';
+import { Save, ArrowLeft, Calendar, FileText, Download, CheckCircle, Activity, BarChart2, Map, ListOrdered } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
@@ -23,6 +23,10 @@ import {
     findMatrixSecondaryGroupTitle,
     flattenMatrixDisplayTargets,
 } from '../utils/matrixDisplayHelpers';
+import {
+  buildAssessmentSnapshotRouteHash,
+  getAssessmentSnapshotAvailability,
+} from '../services/assessmentSnapshotAvailability';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -532,6 +536,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     !cannotSubmitAssessment &&
     (assessment.status === 'in_progress' || assessment.status === 'draft') &&
     profile?.role !== 'viewer';
+  const snapshotAvailability = getAssessmentSnapshotAvailability({
+    assessment,
+    cycleCount: cycles.length,
+  });
+  const showAssessmentSnapshotEntry = snapshotAvailability.available;
 
   const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
   let matrixWorkflowLabel: string;
@@ -650,6 +659,21 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 <Map className="w-4 h-4" />
                 Learner Map
               </button>
+
+              {showAssessmentSnapshotEntry ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = buildAssessmentSnapshotRouteHash(assessmentId);
+                  }}
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+                  data-assessment-snapshot-entry
+                  aria-label="View Assessment Snapshot"
+                >
+                  <ListOrdered className="w-4 h-4" aria-hidden />
+                  View Assessment Snapshot
+                </button>
+              ) : null}
 
               <div className="relative">
                 <button

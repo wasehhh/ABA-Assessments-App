@@ -157,19 +157,12 @@ export function maxRingAccessibleLabel(targetTitle: string, maxDisplay: string):
     return `${targetTitle} · Maximum ${maxDisplay}`;
 }
 
+/** Visible thread subtitles are retired (PR13.5A). Titles remain on tooltip / aria-label. */
 export function shouldShowThreadSubtitle(
-    mode: SnapshotLayoutMode,
-    code: string,
-    subtitle: string | null,
-    codeMaxChars: number
+    _mode: SnapshotLayoutMode,
+    _code: string,
+    _subtitle: string | null,
+    _codeMaxChars: number
 ): boolean {
-    if (!subtitle) {
-        return false;
-    }
-
-    if (mode === 'print') {
-        return true;
-    }
-
-    return code.length > codeMaxChars || subtitle.toLowerCase() !== code.toLowerCase();
+    return false;
 }

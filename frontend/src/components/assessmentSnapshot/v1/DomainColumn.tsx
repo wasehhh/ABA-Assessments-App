@@ -4,6 +4,7 @@ import { ChildZonePlan, SnapshotLayoutMode } from '../../../utils/snapshotLayout
 import { CycleColumnHeader } from './CycleColumnHeader';
 import { DomainZoneHeaderBands } from './domainZoneLayout';
 import { zoneTargetCount } from './snapshotRenderHelpers';
+import { resolveZoneThreadLabelDisplays } from './snapshotThreadDisplay';
 import {
     formatPresentationPartHeading,
     formatPresentationTargetRange,
@@ -44,6 +45,19 @@ export function DomainColumn({
     const hasMultipleParts = zone.parts.some((part) => part.partNumber > 1);
     const repeatCycleHeaderPerPart = layoutMode === 'print' && hasMultipleParts;
     const displayTitle = toDisplayTitleCase(zone.zoneTitle);
+
+    const zoneThreads = zone.parts.flatMap((part) => part.threads);
+    const zoneLabelTargets = zoneThreads.map((thread) => {
+        const target = targetsById.get(thread.targetId);
+        return {
+            targetId: target?.targetId ?? thread.targetId,
+            title: target?.title ?? thread.title,
+        };
+    });
+    const zoneLabels = resolveZoneThreadLabelDisplays(zoneLabelTargets, layoutMode);
+    const labelByTargetId = new Map(
+        zoneThreads.map((thread, index) => [thread.targetId, zoneLabels[index]!])
+    );
 
     return (
         <section
@@ -93,7 +107,6 @@ export function DomainColumn({
                 >
                     <CycleColumnHeader
                         cycles={cycles}
-                        cycleDateLabels={cycleDateLabels}
                         layout={layout}
                         labelOffsetClass={layout.labelOffsetClass}
                     />
@@ -141,7 +154,6 @@ export function DomainColumn({
                         {repeatCycleHeaderPerPart ? (
                             <CycleColumnHeader
                                 cycles={cycles}
-                                cycleDateLabels={cycleDateLabels}
                                 layout={layout}
                                 labelOffsetClass={layout.labelOffsetClass}
                             />
@@ -157,6 +169,7 @@ export function DomainColumn({
                                     cycleDateLabels={cycleDateLabels}
                                     layout={layout}
                                     layoutMode={layoutMode}
+                                    labelDisplay={labelByTargetId.get(thread.targetId)}
                                 />
                             ))}
                         </div>

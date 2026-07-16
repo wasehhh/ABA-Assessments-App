@@ -12,6 +12,7 @@ import { Users } from './pages/Users';
 import { AssessmentReport } from './pages/AssessmentReport';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
 import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
+import { AssessmentSnapshot } from './pages/AssessmentSnapshot';
 import { Settings } from './pages/Settings';
 import { AuditLog } from './pages/AuditLog';
 import { OrgSettings } from './pages/OrgSettings';
@@ -169,6 +170,15 @@ function AppRouter() {
     return (
       <Layout>
         <AssessmentLearnerMap assessmentId={learnerMapMatch[1]} />
+      </Layout>
+    );
+  }
+
+  const snapshotMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/snapshot$/);
+  if (snapshotMatch) {
+    return (
+      <Layout>
+        <AssessmentSnapshot assessmentId={snapshotMatch[1]} />
       </Layout>
     );
   }

@@ -53,6 +53,7 @@ describe('threadsLayout', () => {
         expect(resolveThreadDisplayLabel(makeTarget({ targetId: 'D1T3', title: 'Target 1.3' }), 2)).toEqual({
             primary: 'A3',
             fullTitle: 'Target 1.3',
+            accessibilityIdentity: 'A3',
         });
 
         expect(
@@ -63,6 +64,7 @@ describe('threadsLayout', () => {
         ).toEqual({
             primary: 'ECHO_12',
             fullTitle: 'Echoic imitation',
+            accessibilityIdentity: 'ECHO_12',
         });
 
         expect(
@@ -70,6 +72,23 @@ describe('threadsLayout', () => {
         ).toEqual({
             primary: 'A4',
             fullTitle: 'Cooperation A4',
+            accessibilityIdentity: 'A4',
+        });
+    });
+
+    it('does not collapse long structured IDs to a bare title number', () => {
+        expect(
+            resolveThreadDisplayLabel(
+                makeTarget({
+                    targetId: 'L1_LISTENER_RESPONDING_1',
+                    title: 'Listener Responding milestone 1',
+                }),
+                0
+            )
+        ).toEqual({
+            primary: 'L1-LR-1',
+            fullTitle: 'Listener Responding milestone 1',
+            accessibilityIdentity: 'L1_LISTENER_RESPONDING_1',
         });
     });
 

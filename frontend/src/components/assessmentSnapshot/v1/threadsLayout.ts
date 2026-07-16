@@ -1,5 +1,11 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
-import { LearnerMapTarget } from '../../../services/learnerMapProfile';
+export type { ThreadDisplayLabel } from './snapshotTargetIdentity';
+export {
+    compactStructuredTargetId,
+    disambiguateVisibleCodes,
+    isUnusableAuthoredTargetId,
+    resolveThreadDisplayLabel,
+} from './snapshotTargetIdentity';
 
 export type ThreadsLayoutTier = 'compact' | 'standard' | 'dense';
 
@@ -42,7 +48,7 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
         maxRingSize: 'h-5 w-5 text-[9px]',
-        threadRowGapClass: 'space-y-1.5',
+        threadRowGapClass: 'space-y-1',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
         cycleHeaderClass: 'text-[8px]',
@@ -52,36 +58,36 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         labelOffsetClass: 'pl-[calc(3rem+0.25rem)]',
     },
     standard: {
-        labelWidthClass: 'w-14',
+        labelWidthClass: 'w-12',
         beadSlotWidthClass: 'w-5',
         beadGapClass: 'gap-1.5',
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
         maxRingSize: 'h-5 w-5 text-[9px]',
-        threadRowGapClass: 'space-y-1.5',
+        threadRowGapClass: 'space-y-1',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
         cycleHeaderClass: 'text-[8px]',
         domainTitleClass: 'text-[11px]',
         domainMetaClass: 'text-[9px]',
         threadLabelClass: 'text-[10px]',
-        labelOffsetClass: 'pl-[calc(3.5rem+0.25rem)]',
+        labelOffsetClass: 'pl-[calc(3rem+0.25rem)]',
     },
     dense: {
-        labelWidthClass: 'w-11',
+        labelWidthClass: 'w-12',
         beadSlotWidthClass: 'w-[1.125rem]',
         beadGapClass: 'gap-1',
         beadSizeDefault: BEAD_DEFAULT,
         beadSizeLatest: BEAD_LATEST,
         maxRingSize: 'h-[1.125rem] w-[1.125rem] text-[8px]',
-        threadRowGapClass: 'space-y-1',
+        threadRowGapClass: 'space-y-0.5',
         domainGapClass: 'gap-x-4 gap-y-3',
         domainZoneClass: 'py-0.5',
         cycleHeaderClass: 'text-[7px]',
         domainTitleClass: 'text-[10px]',
         domainMetaClass: 'text-[8px]',
         threadLabelClass: 'text-[9px]',
-        labelOffsetClass: 'pl-[calc(2.75rem+0.25rem)]',
+        labelOffsetClass: 'pl-[calc(3rem+0.25rem)]',
     },
 };
 
@@ -121,60 +127,10 @@ export function resolveThreadsLayoutFromPlan(plan: {
     };
 }
 
-export interface ThreadDisplayLabel {
-    primary: string;
-    fullTitle: string;
-}
-
-/**
- * Resolves the compact thread label from real target identity — not mock A/B lettering.
- */
-export function resolveThreadDisplayLabel(
-    target: LearnerMapTarget,
-    targetIndex: number
-): ThreadDisplayLabel {
-    const fullTitle = target.title.trim() || target.targetId;
-
-    const domainTargetMatch = target.targetId.match(/^D(\d+)T(\d+)$/i);
-    if (domainTargetMatch) {
-        const domainNumber = Number(domainTargetMatch[1]);
-        const letter =
-            domainNumber >= 1 && domainNumber <= 26
-                ? String.fromCharCode(64 + domainNumber)
-                : String(domainNumber);
-        return {
-            primary: `${letter}${domainTargetMatch[2]}`,
-            fullTitle,
-        };
-    }
-
-    const abllsStyleCode = fullTitle.match(/\b([A-Z]\d{1,3})\b/);
-    if (abllsStyleCode) {
-        return { primary: abllsStyleCode[1].toUpperCase(), fullTitle };
-    }
-
-    const normalizedId = target.targetId.replace(/^DOM_[A-Z0-9]+_/i, '').trim();
-    if (normalizedId.length > 0 && normalizedId.length <= 12 && !/^T\d+$/i.test(normalizedId)) {
-        return { primary: normalizedId, fullTitle };
-    }
-
-    const numericSuffix = fullTitle.match(/(\d+(?:\.\d+)?)\s*$/);
-    if (numericSuffix) {
-        return { primary: numericSuffix[1], fullTitle };
-    }
-
-    const idSuffix = target.targetId.match(/T(\d+)$/i);
-    if (idSuffix) {
-        return { primary: `T${idSuffix[1]}`, fullTitle };
-    }
-
-    return { primary: String(targetIndex + 1), fullTitle };
-}
-
 function labelWidthRem(tier: ThreadsLayoutTier): number {
-    if (tier === 'dense') return 2.75;
-    if (tier === 'compact') return 3;
-    return 3.5;
+    // Code-only rows — keep a consistent 3rem label column across tiers for AFLS_205 / ECHO_12.
+    void tier;
+    return 3;
 }
 
 /** Fixed column width shared by every domain in one assessment. */

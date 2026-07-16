@@ -30,12 +30,12 @@ export function AssessmentSnapshotHeader({
                         <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-gray-400 print:text-[8px] print:text-black">
                             Assessment Snapshot
                         </p>
-                        <h1
+                        <h2
                             className="mt-0.5 text-lg font-semibold leading-snug tracking-tight text-gray-900 print:text-base print:text-black"
                             title={assessmentName}
                         >
                             {assessmentName}
-                        </h1>
+                        </h2>
                     </div>
                     <p className="shrink-0 text-[9px] tabular-nums text-gray-400 print:text-[8px] print:text-black">
                         Generated {generatedAtLabel}

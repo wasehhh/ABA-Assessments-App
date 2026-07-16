@@ -3,7 +3,10 @@ import { SnapshotLayoutMode, TargetThreadPlan } from '../../../utils/snapshotLay
 import { EvidenceBead } from './EvidenceBead';
 import { resolveThreadConnectorGeometry } from './domainZoneLayout';
 import { resolveBeadCell } from './snapshotRenderHelpers';
-import { resolveThreadLabelDisplay } from './snapshotThreadDisplay';
+import {
+    resolveThreadLabelDisplay,
+    ThreadLabelDisplay,
+} from './snapshotThreadDisplay';
 import { latestCycleId } from './targetThreadsShared';
 import { ThreadsLayoutTokens } from './threadsLayout';
 import { TargetMaxRing } from './TargetMaxRing';
@@ -16,6 +19,8 @@ interface Props {
     cycleDateLabels?: Record<string, string>;
     layout: ThreadsLayoutTokens;
     layoutMode: SnapshotLayoutMode;
+    /** Zone-resolved label (includes collision disambiguation). */
+    labelDisplay?: ThreadLabelDisplay;
 }
 
 export function TargetThread({
@@ -25,6 +30,7 @@ export function TargetThread({
     cycleDateLabels,
     layout,
     layoutMode,
+    labelDisplay: labelDisplayProp,
 }: Props) {
     const displayTarget = target ?? {
         targetId: thread.targetId,
@@ -32,7 +38,9 @@ export function TargetThread({
         displayTargetMax: '—',
         cells: [],
     };
-    const labelDisplay = resolveThreadLabelDisplay(displayTarget, thread.targetIndex, layoutMode);
+    const labelDisplay =
+        labelDisplayProp ??
+        resolveThreadLabelDisplay(displayTarget, thread.targetIndex, layoutMode);
     const latestId = latestCycleId(cycles);
     const cyclesById = new Map(cycles.map((cycle) => [cycle.cycleId, cycle]));
     const connectorGeometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
@@ -46,20 +54,12 @@ export function TargetThread({
             data-target-index={thread.targetIndex}
         >
             <span
-                className={`shrink-0 text-left font-mono font-semibold tabular-nums leading-tight text-gray-900 ${layout.labelWidthClass} ${layout.threadLabelClass}`}
+                className={`shrink-0 truncate text-left font-mono font-semibold tabular-nums leading-none text-gray-900 ${layout.labelWidthClass} ${layout.threadLabelClass}`}
                 title={labelDisplay.accessibleLabel}
                 aria-label={labelDisplay.accessibleLabel}
+                data-assessment-snapshot-thread-code
             >
-                {labelDisplay.showSubtitle && labelDisplay.subtitle ? (
-                    <span className="flex flex-col gap-0.5">
-                        <span className="leading-none">{labelDisplay.visibleCode}</span>
-                        <span className="font-sans text-[7px] font-normal normal-case leading-tight text-gray-500">
-                            {labelDisplay.subtitle}
-                        </span>
-                    </span>
-                ) : (
-                    labelDisplay.visibleCode
-                )}
+                {labelDisplay.visibleCode}
             </span>
             <div className="relative flex min-w-0 flex-1 items-center">
                 <div className="relative z-10 flex min-w-0 items-center">

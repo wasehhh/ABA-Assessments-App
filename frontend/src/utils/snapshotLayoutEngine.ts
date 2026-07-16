@@ -184,10 +184,9 @@ export function resolveSnapshotLayoutTier(profile: AssessmentSnapshotProfile): S
     return 'standard';
 }
 
-function labelWidthRem(tier: SnapshotLayoutTier): number {
-    if (tier === 'dense') return 2.75;
-    if (tier === 'compact') return 3;
-    return 3.5;
+function labelWidthRem(_tier: SnapshotLayoutTier): number {
+    // Keep in sync with threadsLayout code-only label column (3rem).
+    return 3;
 }
 
 export function resolveDomainColumnWidthRem(
