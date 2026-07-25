@@ -44,7 +44,3 @@ export function resolveBeadCell(
 export function zoneTargetCount(zone: ChildZonePlan): number {
     return engineZoneTargetCount(zone);
 }
-
-export function shouldRenderSecondaryHeader(title: string): boolean {
-    return title.length > 0;
-}

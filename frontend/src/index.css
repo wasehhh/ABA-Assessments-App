@@ -55,7 +55,8 @@
     display: grid !important;
   }
 
-  /* Keep snapshopt zone header bands as CSS grid in print */
+  /* Keep Snapshot segment / zone header bands as CSS grid in print */
+  .assessment-snapshot-print [data-assessment-snapshot-domain-segment],
   .assessment-snapshot-print [data-assessment-snapshot-domain-zone] {
     display: grid !important;
   }
@@ -105,6 +106,10 @@
   .assessment-snapshot-print {
     color: #000 !important;
     background: #fff !important;
+    border: none !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    page-break-inside: auto !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -117,56 +122,77 @@
     display: block !important;
   }
 
-  .assessment-snapshot-print .assessment-snapshot-domain-grid {
-    display: block !important;
+  /*
+   * Global print `.bg-white { border: 1px solid #eee }` washes out the hollow
+   * green maximum outline (max ring uses bg-white + border-green-700).
+   * Restore an explicit green ring for Snapshot print/PDF.
+   */
+  .assessment-snapshot-print [data-assessment-snapshot-target-max-ring],
+  .assessment-snapshot-print [data-assessment-snapshot-legend-max],
+  .assessment-snapshot-print .assessment-snapshot-max-ring {
+    border: 2px solid #15803d !important; /* green-700 */
+    background-color: #ffffff !important;
+    color: #14532d !important; /* green-900 */
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter] {
+  .assessment-snapshot-print [data-assessment-snapshot-thread-code] {
+    text-align: right !important;
+  }
+
+  /*
+   * PR13.6B — Explicit print page composition.
+   * The PrintRenderPlan decides pages/columns; CSS only ENFORCES that plan.
+   * Each planned page wrapper begins a new printed sheet; segments stay inside
+   * their assigned column; target rows never split.
+   */
+  .assessment-snapshot-print .assessment-snapshot-print-page {
     break-inside: auto;
     page-break-inside: auto;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter] + [data-assessment-snapshot-primary-chapter] {
+  .assessment-snapshot-print .assessment-snapshot-print-page + .assessment-snapshot-print-page {
     break-before: page;
     page-break-before: always;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-primary-chapter-header] {
-    break-after: avoid;
-    page-break-after: avoid;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-domain-row] {
+  /* Segment header bands stay a CSS grid (defeats the global print `.grid { display:block }`). */
+  .assessment-snapshot-print [data-assessment-snapshot-domain-segment] {
     break-inside: auto;
     page-break-inside: auto;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-domain-column],
-  .assessment-snapshot-print [data-assessment-snapshot-domain-zone] {
+  .assessment-snapshot-print [data-assessment-snapshot-print-column] {
     margin-bottom: 0 !important;
     break-inside: auto;
     page-break-inside: auto;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-presentation-part] {
-    break-inside: auto;
-    page-break-inside: auto;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-presentation-part] + [data-assessment-snapshot-presentation-part] {
-    break-before: page;
-    page-break-before: always;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-part-continuation-header],
-  .assessment-snapshot-print [data-assessment-snapshot-domain-zone-header] {
-    break-after: avoid;
-    page-break-after: avoid;
-  }
-
+  /* Keep a segment's header attached to its first target rows. */
+  .assessment-snapshot-print [data-assessment-snapshot-domain-zone-header],
+  .assessment-snapshot-print [data-assessment-snapshot-print-chapter-band],
   .assessment-snapshot-print [data-assessment-snapshot-cycle-header] {
     break-after: avoid;
     page-break-after: avoid;
+  }
+
+  /*
+   * Optional adjacent-column connector — hairline between same-domain segments
+   * in one row. Darker than slate-300 so it survives grayscale / B&W printers.
+   * Decorative only; repeated segment headers carry durable identity.
+   */
+  .assessment-snapshot-print .assessment-snapshot-print-connector {
+    position: absolute;
+    top: 0;
+    left: calc(-0.625rem - 1px);
+    width: 1px;
+    height: 3.25rem;
+    background-color: #64748b; /* slate-500 — readable without color */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .assessment-snapshot-print [data-assessment-snapshot-target-thread],
@@ -181,6 +207,49 @@
   .assessment-snapshot-print [data-assessment-snapshot-thread-line] {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /*
+   * PR13.6C — Grayscale / B&W resilience: strengthen bead outlines so fill color
+   * is supplementary. Score numerals remain the primary clinical signal.
+   */
+  .assessment-snapshot-print [data-assessment-snapshot-evidence-bead] {
+    border-width: 1.5px !important;
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-evidence-bead][data-is-unscored='true'] {
+    border-style: dashed !important;
+    border-color: #4b5563 !important; /* gray-600 */
+    background-color: #e5e7eb !important; /* gray-200 — visible without chroma */
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-legend] span[aria-hidden] {
+    border: 1px solid #4b5563 !important;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-print-running-header],
+  .assessment-snapshot-print [data-assessment-snapshot-print-document-header] {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-cycle-reference],
+  .assessment-snapshot-print [data-assessment-snapshot-legend] {
+    color: #111827 !important; /* gray-900 */
+    border-color: #9ca3af !important; /* gray-400 */
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-footer] {
+    margin-top: 0.5rem !important;
+    padding-top: 0.25rem !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Domain segment top rule — quiet shared identity across columns. */
+  .assessment-snapshot-print [data-assessment-snapshot-segment-title] {
+    border-top-color: #6b7280 !important; /* gray-500 */
   }
 
   .assessment-snapshot-print .assessment-snapshot-title-band {

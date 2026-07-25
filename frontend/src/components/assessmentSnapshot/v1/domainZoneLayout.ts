@@ -1,4 +1,5 @@
-import { ChildZonePlan } from '../../../utils/snapshotLayoutEngine';
+import { ChildZonePlan, SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
+import { SNAPSHOT_PRINT_ARROW_TO_MAX_GAP_REM } from './snapshotPrintDensity';
 import { ThreadsLayoutTier } from './threadsLayout';
 
 /**
@@ -77,11 +78,13 @@ export const ARROW_TO_MAX_GAP_REM = 0.375;
 
 export function resolveThreadConnectorGeometry(
     tier: ThreadsLayoutTier,
-    _cycleCount: number
+    _cycleCount: number,
+    mode: SnapshotLayoutMode = 'screen'
 ): ThreadConnectorGeometry {
     return {
         arrowSlotRem: ARROW_SLOT_REM[tier],
-        arrowToMaxGapRem: ARROW_TO_MAX_GAP_REM,
+        arrowToMaxGapRem:
+            mode === 'print' ? SNAPSHOT_PRINT_ARROW_TO_MAX_GAP_REM : ARROW_TO_MAX_GAP_REM,
         maxRingSlotRem: MAX_RING_SLOT_REM[tier],
         arrowWidthRem: tier === 'dense' ? 0.65 : 0.75,
     };

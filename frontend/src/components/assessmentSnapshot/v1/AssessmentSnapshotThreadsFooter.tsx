@@ -12,7 +12,7 @@ export function AssessmentSnapshotThreadsFooter({ profile, generatedAtLabel }: P
 
     return (
         <footer
-            className="mt-8 border-t border-gray-200 pt-3 text-center text-[9px] leading-relaxed text-gray-500 print:mt-6 print:border-gray-400 print:pt-2 print:text-[8px] print:text-black"
+            className="mt-8 border-t border-gray-200 pt-3 text-center text-[9px] leading-relaxed text-gray-500 print:mt-3 print:border-gray-400 print:pt-1.5 print:text-[8px] print:text-black"
             data-assessment-snapshot-footer
         >
             Evalis

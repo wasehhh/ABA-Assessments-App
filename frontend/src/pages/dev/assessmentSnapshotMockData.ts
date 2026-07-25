@@ -7,6 +7,7 @@ import {
 
 export type AssessmentSnapshotStressScenarioId =
     | 'alpha-small'
+    | 'production-acg'
     | 'ablls-like'
     | 'vb-mapp-like'
     | 'peak-184'
@@ -321,6 +322,27 @@ const alphaSmallPack: ContentPackData = {
     })),
 };
 
+/** Production-shaped A-C, G case for PR13.6B capacity-informed factoring QA. */
+const productionAcgPack: ContentPackData = {
+    pack_id: 'pack-production-acg',
+    org_id: 'org-dev-stress',
+    title: 'Production A-C, G',
+    description: 'Stress fixture — A19 / B27 / C57 / G47 for capacity-informed print factoring.',
+    version: 'dev-stress',
+    domains: [
+        { id: 'A', title: 'Domain A', count: 19 },
+        { id: 'B', title: 'Domain B', count: 27 },
+        { id: 'C', title: 'Domain C', count: 57 },
+        { id: 'G', title: 'Domain G', count: 47 },
+    ].map((domain, domainIndex) => ({
+        domain_id: `DOM_${domain.id}`,
+        title: domain.title,
+        targets: Array.from({ length: domain.count }, (_, targetIndex) =>
+            makeTarget(domainIndex, targetIndex, { idPrefix: `${domain.id}` })
+        ),
+    })),
+};
+
 const abllsLikePack: ContentPackData = {
     pack_id: 'pack-ablls-like',
     org_id: 'org-dev-stress',
@@ -405,6 +427,16 @@ export const ASSESSMENT_SNAPSHOT_STRESS_SCENARIOS: AssessmentSnapshotStressScena
         ...buildScenarioProfile({
             assessmentId: 'assess-alpha-small',
             pack: alphaSmallPack,
+            cycleCount: 2,
+        }),
+    },
+    {
+        id: 'production-acg',
+        label: 'Production A-C, G',
+        description: 'A19 · B27 · C57 · G47 · 2 cycles (capacity-informed factoring)',
+        ...buildScenarioProfile({
+            assessmentId: 'assess-production-acg',
+            pack: productionAcgPack,
             cycleCount: 2,
         }),
     },

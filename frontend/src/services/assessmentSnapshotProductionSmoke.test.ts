@@ -18,6 +18,7 @@ import {
     flattenRenderPlanTargetIds,
     SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
 } from '../utils/snapshotLayoutEngine';
+import { buildPrintRenderPlan } from '../utils/snapshotPrintRenderPlan';
 import { getAssessmentSnapshotStressScenario } from '../pages/dev/assessmentSnapshotMockData';
 import { ContentPackData } from '../types';
 
@@ -224,12 +225,13 @@ describe('Assessment Snapshot production smoke (PR13.5)', () => {
         }
     });
 
-    it('keeps print RenderPlan on print defaults independent of screen measure', () => {
+    it('keeps print composition independent of screen measured viewport', () => {
         const scenario = getAssessmentSnapshotStressScenario('vb-mapp-like');
         const profile = buildAssessmentSnapshotProfile(scenario.profile);
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        const printPlan = buildPrintRenderPlan(profile, { paper: 'letter' });
         expect(printPlan.mode).toBe('print');
-        expect(printPlan.viewportWidthRem).not.toBe(48);
+        expect(printPlan.profileId).toBe('letter');
+        expect(printPlan.totalPages).toBeGreaterThan(0);
     });
 
     it('preserves distinct target labels in the profile used by production', () => {

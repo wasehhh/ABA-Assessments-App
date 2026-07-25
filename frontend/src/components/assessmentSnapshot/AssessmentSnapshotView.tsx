@@ -6,6 +6,8 @@ import {
     buildSnapshotRenderPlan,
     SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
 } from '../../utils/snapshotLayoutEngine';
+import { buildPrintRenderPlan } from '../../utils/snapshotPrintRenderPlan';
+import { AssessmentSnapshotPrintDocument } from './print/AssessmentSnapshotPrintDocument';
 import { LearnerMapDisplayContext } from '../learnerMap/learnerMapDisplayContext';
 import {
     AssessmentSnapshotCandidateView,
@@ -28,6 +30,13 @@ import {
 } from './v1';
 import { AssessmentSnapshotCycleReference } from './v1/AssessmentSnapshotCycleReference';
 
+/**
+ * Assessment Snapshot V1 — dual render surface.
+ *
+ * Screen: measured-width {@link buildSnapshotRenderPlan} → Target Threads.
+ * Print: {@link buildPrintRenderPlan} → {@link AssessmentSnapshotPrintDocument}
+ * (explicit pages / columns / domain segments). Pipelines are intentionally separate.
+ */
 interface Props {
     profile: AssessmentSnapshotProfile;
     displayContext?: LearnerMapDisplayContext;
@@ -71,7 +80,7 @@ export function AssessmentSnapshotView({
         [isV1, profile, screenViewportRem]
     );
     const printRenderPlan = useMemo(
-        () => (isV1 ? buildSnapshotRenderPlan(profile, { mode: 'print' }) : null),
+        () => (isV1 ? buildPrintRenderPlan(profile, { paper: 'letter' }) : null),
         [isV1, profile]
     );
 
@@ -93,7 +102,7 @@ export function AssessmentSnapshotView({
 
     return (
         <article
-            className={`mx-auto max-w-none bg-white px-4 py-5 text-gray-900 sm:px-6 print:px-4 print:py-3 ${
+            className={`mx-auto max-w-none bg-white px-4 py-5 text-gray-900 sm:px-6 print:px-3 print:py-2 ${
                 isV1 ? 'assessment-snapshot-print' : 'space-y-3 print:space-y-2'
             }`}
             data-assessment-snapshot
@@ -222,17 +231,17 @@ export function AssessmentSnapshotView({
             </div>
             {isV1 && printRenderPlan ? (
                 <div
-                    className="assessment-snapshot-print-only hidden space-y-4 print:block"
+                    className="assessment-snapshot-print-only hidden print:block"
                     aria-hidden="true"
                     data-assessment-snapshot-print-surface
                 >
-                    <AssessmentSnapshotHeader
+                    <AssessmentSnapshotPrintDocument
                         profile={profile}
+                        plan={printRenderPlan}
                         generatedAtLabel={generatedAt}
                         displayContext={displayContext}
-                        variant="compact"
+                        cycleDateLabels={cycleDateLabels}
                     />
-                    {snapshotV1Body(printRenderPlan)}
                 </div>
             ) : null}
         </article>

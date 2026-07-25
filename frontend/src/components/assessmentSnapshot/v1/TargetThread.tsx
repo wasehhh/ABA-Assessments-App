@@ -43,11 +43,15 @@ export function TargetThread({
         resolveThreadLabelDisplay(displayTarget, thread.targetIndex, layoutMode);
     const latestId = latestCycleId(cycles);
     const cyclesById = new Map(cycles.map((cycle) => [cycle.cycleId, cycle]));
-    const connectorGeometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
+    const connectorGeometry = resolveThreadConnectorGeometry(
+        layout.tier,
+        cycles.length,
+        layoutMode
+    );
 
     return (
         <div
-            className="relative flex min-w-0 items-center gap-1"
+            className={`relative flex min-w-0 items-center ${layout.threadGapClass}`}
             data-assessment-snapshot-target-thread
             data-assessment-snapshot-thread
             data-target-id={thread.targetId}

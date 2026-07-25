@@ -39,8 +39,3 @@ export function latestCycleId(cycles: LearnerMapCycleSummary[]): string | null {
 
     return cycles[cycles.length - 1].cycleId;
 }
-
-/** @deprecated Decorative domain rainbow removed in PR13.4B; returns quiet neutral if still referenced. */
-export function domainAccentClass(_domainIndex: number): string {
-    return 'bg-gray-300';
-}

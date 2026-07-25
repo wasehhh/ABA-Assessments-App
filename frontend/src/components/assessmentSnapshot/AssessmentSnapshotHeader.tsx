@@ -22,7 +22,7 @@ export function AssessmentSnapshotHeader({
     if (variant === 'compact') {
         return (
             <header
-                className="space-y-2 border-b border-gray-200 pb-3 print:border-gray-400 print:pb-2"
+                className="space-y-2 border-b border-gray-200 pb-3 print:space-y-1 print:border-gray-400 print:pb-1.5"
                 data-assessment-snapshot-header
             >
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

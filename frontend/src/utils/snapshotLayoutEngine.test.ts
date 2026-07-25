@@ -204,7 +204,7 @@ describe('snapshotLayoutEngine', () => {
         }
     });
 
-    it('factors a PEAK 184-target module in print mode', () => {
+    it('factors a PEAK 184-target module on screen (extreme threshold)', () => {
         const pack: ContentPackData = {
             pack_id: 'peak',
             org_id: 'org-1',
@@ -222,21 +222,18 @@ describe('snapshotLayoutEngine', () => {
 
         const profile = makeProfile(pack);
         const screenPlan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-        const zone = findDomainZonePlan(printPlan, 'PEAK_DT');
+        const zone = findDomainZonePlan(screenPlan, 'PEAK_DT');
 
         expect(screenPlan.topology).toBe('flat');
-        expect(screenPlan.chapters[0].rows[0].zones[0].parts.length).toBeGreaterThan(1);
-        expect(zone).toBeDefined();
-        expect(zone!.parts.length).toBe(Math.ceil(184 / SNAPSHOT_FACTORING_PART_SIZE));
+        expect(zone!.parts.map((part) => part.threads.length)).toEqual([46, 46, 46, 46]);
         expect(zone!.parts.every((part) => part.isFactored)).toBe(true);
         expect(zone!.parts[0].title).toMatch(/^PEAK DT Module · Part 1 · Targets 1–/);
-        expect(flattenRenderPlanTargetIds(printPlan)).toHaveLength(184);
-        expect(flattenRenderPlanTargetIds(printPlan)[0]).toBe('P1');
-        expect(flattenRenderPlanTargetIds(printPlan).at(-1)).toBe('P184');
+        expect(flattenRenderPlanTargetIds(screenPlan)).toHaveLength(184);
+        expect(flattenRenderPlanTargetIds(screenPlan)[0]).toBe('P1');
+        expect(flattenRenderPlanTargetIds(screenPlan).at(-1)).toBe('P184');
     });
 
-    it('factors a 250-target custom group in print mode', () => {
+    it('factors a 250-target custom group with fixed Part size', () => {
         const pack: ContentPackData = {
             pack_id: 'custom',
             org_id: 'org-1',
@@ -253,7 +250,7 @@ describe('snapshotLayoutEngine', () => {
         };
 
         const profile = makeProfile(pack);
-        const plan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
         const zone = findDomainZonePlan(plan, 'FLAT');
 
         expect(zone!.parts.length).toBe(Math.ceil(250 / SNAPSHOT_FACTORING_PART_SIZE));
@@ -282,7 +279,7 @@ describe('snapshotLayoutEngine', () => {
         };
 
         const profile = makeProfile(pack);
-        const plan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
 
         expect(flattenRenderPlanTargetIds(plan)).toEqual(
             profile.domains[0].targets.map((target) => target.targetId)
@@ -334,7 +331,7 @@ describe('snapshotLayoutEngine', () => {
         const profile = makeProfile(pack);
         const profileSnapshot = JSON.stringify(profile);
 
-        buildSnapshotRenderPlan(profile, { mode: 'print' });
+        buildSnapshotRenderPlan(profile, { mode: 'screen' });
 
         expect(JSON.stringify(profile)).toBe(profileSnapshot);
         expect(profile.domains[0].targets).toHaveLength(184);
@@ -372,7 +369,6 @@ describe('snapshotLayoutEngine', () => {
             mode: 'screen',
             viewportWidthRem: columnWidth + 0.5,
             factoringNoneMax: 60,
-            factoringLargeMin: 80,
             factoringExtremeMin: 120,
             factoringPartSize: 46,
             domainGapRem: 1.25,
@@ -383,7 +379,6 @@ describe('snapshotLayoutEngine', () => {
             mode: 'screen',
             viewportWidthRem: wideViewportRem,
             factoringNoneMax: 60,
-            factoringLargeMin: 80,
             factoringExtremeMin: 120,
             factoringPartSize: 46,
             domainGapRem: 1.25,
@@ -394,12 +389,11 @@ describe('snapshotLayoutEngine', () => {
         expect(wideRows[0].zones).toHaveLength(4);
     });
 
-    it('applies presentation factoring thresholds by mode', () => {
+    it('applies screen presentation factoring thresholds', () => {
         const config = {
             mode: 'screen' as const,
             viewportWidthRem: 96,
             factoringNoneMax: 60,
-            factoringLargeMin: 80,
             factoringExtremeMin: 120,
             factoringPartSize: 46,
             domainGapRem: 1.25,
@@ -408,7 +402,7 @@ describe('snapshotLayoutEngine', () => {
         expect(shouldApplyPresentationFactoring(60, 'screen', config)).toBe(false);
         expect(shouldApplyPresentationFactoring(90, 'screen', config)).toBe(false);
         expect(shouldApplyPresentationFactoring(90, 'print', { ...config, mode: 'print' })).toBe(
-            true
+            false
         );
         expect(shouldApplyPresentationFactoring(130, 'screen', config)).toBe(true);
         expect(shouldApplyPresentationFactoring(130, 'print', { ...config, mode: 'print' })).toBe(
@@ -449,14 +443,13 @@ describe('snapshotLayoutEngine', () => {
         };
 
         const profile = makeProfile(pack);
-        const plan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        // 90 is below extreme threshold — secondary zones stay whole on screen.
+        const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
         const chapter = findPrimaryChapter(plan, 'L1')!;
         const zones = chapter.rows.flatMap((row) => row.zones);
 
         expect(zones.map((zone) => zone.zoneTitle)).toEqual(['Listening', 'Motor']);
-        expect(zones.find((zone) => zone.zoneTitle === 'Listening')!.parts.length).toBeGreaterThan(
-            1
-        );
+        expect(zones.find((zone) => zone.zoneTitle === 'Listening')!.parts).toHaveLength(1);
         expect(flattenRenderPlanTargetIds(plan)).toHaveLength(180);
     });
 
@@ -464,5 +457,107 @@ describe('snapshotLayoutEngine', () => {
         expect(resolveArrowToMaxGapRem()).toBeGreaterThanOrEqual(0.25);
         const width = resolveDomainColumnWidthRem(3, 'dense');
         expect(width).toBeGreaterThan(8);
+    });
+
+    it('does not factor mid-size domains below the extreme screen threshold', () => {
+        const pack: ContentPackData = {
+            pack_id: 'mid',
+            org_id: 'org-1',
+            title: 'Mid Domain',
+            description: '',
+            version: '1.0',
+            domains: [
+                { domain_id: 'DOM_C', title: 'Domain C', targets: makeTargetList('C', 70) },
+            ],
+        };
+
+        const profile = makeProfile(pack);
+        const screenZone = findDomainZonePlan(
+            buildSnapshotRenderPlan(profile, { mode: 'screen' }),
+            'DOM_C'
+        )!;
+
+        expect(screenZone.parts).toHaveLength(1);
+        expect(screenZone.parts[0].isFactored).toBe(false);
+    });
+
+    it('leaves screen factoring distribution unchanged for extreme groups', () => {
+        const pack: ContentPackData = {
+            pack_id: 'extreme-screen',
+            org_id: 'org-1',
+            title: 'Extreme Screen',
+            description: '',
+            version: '1.0',
+            domains: [
+                { domain_id: 'FLAT', title: 'Flat', targets: makeTargetList('T', 250) },
+            ],
+        };
+
+        const profile = makeProfile(pack);
+        const screenZone = findDomainZonePlan(
+            buildSnapshotRenderPlan(profile, { mode: 'screen' }),
+            'FLAT'
+        )!;
+
+        const sizes = screenZone.parts.map((part) => part.threads.length);
+        expect(sizes).toEqual([46, 46, 46, 46, 46, 20]);
+    });
+
+    it('produces a deterministic, order-preserving screen plan', () => {
+        const pack: ContentPackData = {
+            pack_id: 'determinism',
+            org_id: 'org-1',
+            title: 'Determinism',
+            description: '',
+            version: '1.0',
+            domains: [
+                { domain_id: 'BIG', title: 'Big', targets: makeTargetList('D', 184) },
+            ],
+        };
+
+        const profile = makeProfile(pack);
+        const first = buildSnapshotRenderPlan(profile, { mode: 'screen' });
+        const second = buildSnapshotRenderPlan(profile, { mode: 'screen' });
+
+        expect(JSON.stringify(first.chapters)).toBe(JSON.stringify(second.chapters));
+        expect(flattenRenderPlanTargetIds(first)).toEqual(
+            profile.domains[0].targets.map((target) => target.targetId)
+        );
+    });
+
+    it('keeps production A-C, G whole on the screen RenderPlan', () => {
+        const pack: ContentPackData = {
+            pack_id: 'prod-acg',
+            org_id: 'org-1',
+            title: 'Production A-C, G',
+            description: '',
+            version: '1.0',
+            domains: [
+                { domain_id: 'A', title: 'Domain A', targets: makeTargetList('A', 19) },
+                { domain_id: 'B', title: 'Domain B', targets: makeTargetList('B', 27) },
+                { domain_id: 'C', title: 'Domain C', targets: makeTargetList('C', 57) },
+                { domain_id: 'G', title: 'Domain G', targets: makeTargetList('G', 47) },
+            ],
+        };
+
+        const profile = buildAssessmentSnapshotProfile(
+            buildLearnerMapProfile({
+                assessment: { id: 'assess-acg', pack_snapshot: pack },
+                cycles: [
+                    { cycle: cycle1, scores: [] },
+                    { cycle: cycle2, scores: [] },
+                ],
+                generatedAt,
+            })
+        );
+
+        const screenPlan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
+        expect(screenPlan.tier).toBe('dense');
+
+        for (const zone of screenPlan.chapters[0].rows.flatMap((row) => row.zones)) {
+            expect(zone.parts).toHaveLength(1);
+            expect(zone.parts[0].isFactored).toBe(false);
+        }
+        expect(flattenRenderPlanTargetIds(screenPlan)).toHaveLength(150);
     });
 });

@@ -141,7 +141,6 @@ describe('snapshot structural fidelity (PR13.3B chapter topology)', () => {
         const snapshot = JSON.stringify(profile);
 
         buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        buildSnapshotRenderPlan(profile, { mode: 'print' });
 
         expect(JSON.stringify(profile)).toBe(snapshot);
     });

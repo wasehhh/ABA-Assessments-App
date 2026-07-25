@@ -1,4 +1,9 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
+import { SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
+import {
+    applySnapshotPrintDensity,
+    screenThreadGapClass,
+} from './snapshotPrintDensity';
 export type { ThreadDisplayLabel } from './snapshotTargetIdentity';
 export {
     compactStructuredTargetId,
@@ -14,6 +19,8 @@ export interface ThreadsLayoutTokens {
     labelWidthClass: string;
     beadSlotWidthClass: string;
     beadGapClass: string;
+    /** Gap between target code and bead sequence. */
+    threadGapClass: string;
     beadSizeDefault: string;
     beadSizeLatest: string;
     maxRingSize: string;
@@ -40,14 +47,17 @@ const BEAD_SLOT_REM = {
     dense: 1.5,
 } as const;
 
-const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier' | 'domainColumnWidthRem'>> = {
+const LAYOUT_BY_TIER: Record<
+    ThreadsLayoutTier,
+    Omit<ThreadsLayoutTokens, 'tier' | 'domainColumnWidthRem' | 'threadGapClass'>
+> = {
     compact: {
         labelWidthClass: 'w-12',
         beadSlotWidthClass: 'w-5',
         beadGapClass: 'gap-1.5',
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
-        maxRingSize: 'h-5 w-5 text-[9px]',
+        maxRingSize: 'h-5 w-5 min-h-[1.25rem] min-w-[1.25rem] text-[9px]',
         threadRowGapClass: 'space-y-1',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
@@ -63,7 +73,7 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         beadGapClass: 'gap-1.5',
         beadSizeDefault: BEAD_STANDARD,
         beadSizeLatest: BEAD_LATEST_STANDARD,
-        maxRingSize: 'h-5 w-5 text-[9px]',
+        maxRingSize: 'h-5 w-5 min-h-[1.25rem] min-w-[1.25rem] text-[9px]',
         threadRowGapClass: 'space-y-1',
         domainGapClass: 'gap-x-5 gap-y-4',
         domainZoneClass: 'py-1',
@@ -79,7 +89,7 @@ const LAYOUT_BY_TIER: Record<ThreadsLayoutTier, Omit<ThreadsLayoutTokens, 'tier'
         beadGapClass: 'gap-1',
         beadSizeDefault: BEAD_DEFAULT,
         beadSizeLatest: BEAD_LATEST,
-        maxRingSize: 'h-[1.125rem] w-[1.125rem] text-[8px]',
+        maxRingSize: 'h-[1.125rem] w-[1.125rem] min-h-[1.125rem] min-w-[1.125rem] text-[8px]',
         threadRowGapClass: 'space-y-0.5',
         domainGapClass: 'gap-x-4 gap-y-3',
         domainZoneClass: 'py-0.5',
@@ -107,24 +117,20 @@ export function resolveThreadsLayoutTier(profile: AssessmentSnapshotProfile): Th
     return 'standard';
 }
 
-/** @deprecated RenderPlan is now authoritative. Remove after remaining preview consumers migrate to resolveThreadsLayoutFromPlan. */
-export function resolveThreadsLayout(profile: AssessmentSnapshotProfile): ThreadsLayoutTokens {
-    const tier = resolveThreadsLayoutTier(profile);
-    const cycleCount = profile.cycles.length;
-    const domainColumnWidthRem = domainColumnWidthRemForCycles(cycleCount, tier);
-
-    return { tier, domainColumnWidthRem, ...LAYOUT_BY_TIER[tier] };
-}
-
 export function resolveThreadsLayoutFromPlan(plan: {
     tier: ThreadsLayoutTier;
     domainColumnWidthRem: number;
+    mode?: SnapshotLayoutMode;
 }): ThreadsLayoutTokens {
-    return {
-        tier: plan.tier,
-        domainColumnWidthRem: plan.domainColumnWidthRem,
-        ...LAYOUT_BY_TIER[plan.tier],
-    };
+    return applySnapshotPrintDensity(
+        {
+            tier: plan.tier,
+            domainColumnWidthRem: plan.domainColumnWidthRem,
+            threadGapClass: screenThreadGapClass(),
+            ...LAYOUT_BY_TIER[plan.tier],
+        },
+        plan.mode ?? 'screen'
+    );
 }
 
 function labelWidthRem(tier: ThreadsLayoutTier): number {

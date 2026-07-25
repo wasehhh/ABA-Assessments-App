@@ -1,19 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { ContentPackData, Target } from '../../../types';
 import { buildAssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
-import { buildLearnerMapProfile } from '../../../services/learnerMapProfile';
+import { buildLearnerMapProfile, LearnerMapCell } from '../../../services/learnerMapProfile';
 import {
     buildSnapshotRenderPlan,
-    flattenRenderPlanTargetIds,
-    SNAPSHOT_DEFAULT_VIEWPORT_PRINT_REM,
     SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
 } from '../../../utils/snapshotLayoutEngine';
+import {
+    buildPrintRenderPlan,
+    flattenPrintPlanTargetIds,
+} from '../../../utils/snapshotPrintRenderPlan';
 import {
     assertPositiveArrowToMaxGap,
     resolveThreadConnectorGeometry,
 } from './domainZoneLayout';
 import { beadScoreText } from './targetThreadsShared';
-import { LearnerMapCell } from '../../../services/learnerMapProfile';
 
 const generatedAt = new Date('2026-07-06T12:00:00.000Z');
 const cycle1 = { id: 'c1', cycle_number: 1, status: 'closed' as const };
@@ -55,16 +56,8 @@ function makeTargetList(prefix: string, count: number): Target[] {
     );
 }
 
-function collectThreadMarks(plan: ReturnType<typeof buildSnapshotRenderPlan>) {
-    return plan.chapters.flatMap((chapter) =>
-        chapter.rows.flatMap((row) =>
-            row.zones.flatMap((zone) => zone.parts.flatMap((part) => part.threads))
-        )
-    );
-}
-
-describe('snapshot print hardening', () => {
-    it('uses print mode RenderPlan with print viewport width', () => {
+describe('snapshot print hardening (PR13.6D)', () => {
+    it('keeps screen RenderPlan on the screen viewport default', () => {
         const profile = makeProfile({
             pack_id: 'print',
             org_id: 'org-1',
@@ -75,15 +68,11 @@ describe('snapshot print hardening', () => {
         });
 
         const screenPlan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-
         expect(screenPlan.mode).toBe('screen');
-        expect(printPlan.mode).toBe('print');
         expect(screenPlan.viewportWidthRem).toBe(SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM);
-        expect(printPlan.viewportWidthRem).toBe(SNAPSHOT_DEFAULT_VIEWPORT_PRINT_REM);
     });
 
-    it('keeps screen mode unchanged below print factoring threshold', () => {
+    it('segments overflowing domains via PrintRenderPlan, not screen Parts', () => {
         const profile = makeProfile({
             pack_id: 'screen',
             org_id: 'org-1',
@@ -94,30 +83,14 @@ describe('snapshot print hardening', () => {
         });
 
         const screenPlan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        const printPlan = buildPrintRenderPlan(profile);
 
         expect(screenPlan.chapters[0].rows[0].zones[0].parts).toHaveLength(1);
-        expect(printPlan.chapters[0].rows[0].zones[0].parts).toHaveLength(1);
+        expect(printPlan.pages.some((page) => page.rows[0].columns.length > 0)).toBe(true);
+        expect(flattenPrintPlanTargetIds(printPlan)).toHaveLength(60);
     });
 
-    it('factors print groups in the 80–119 target range', () => {
-        const profile = makeProfile({
-            pack_id: 'large-print',
-            org_id: 'org-1',
-            title: 'Large Print',
-            description: '',
-            version: '1.0',
-            domains: [{ domain_id: 'D1', title: 'Domain', targets: makeTargetList('T', 95) }],
-        });
-
-        const screenPlan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-
-        expect(screenPlan.chapters[0].rows[0].zones[0].parts).toHaveLength(1);
-        expect(printPlan.chapters[0].rows[0].zones[0].parts.length).toBeGreaterThan(1);
-    });
-
-    it('ensures every target appears exactly once in print factoring', () => {
+    it('ensures every target appears exactly once in the PrintRenderPlan', () => {
         const profile = makeProfile({
             pack_id: 'extreme',
             org_id: 'org-1',
@@ -127,35 +100,14 @@ describe('snapshot print hardening', () => {
             domains: [{ domain_id: 'D1', title: 'Domain', targets: makeTargetList('T', 250) }],
         });
 
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-        const ids = flattenRenderPlanTargetIds(printPlan);
-        const uniqueIds = new Set(ids);
-
+        const printPlan = buildPrintRenderPlan(profile);
+        const ids = flattenPrintPlanTargetIds(printPlan);
         expect(ids).toHaveLength(250);
-        expect(uniqueIds.size).toBe(250);
+        expect(new Set(ids).size).toBe(250);
         expect(ids).toEqual(profile.domains[0].targets.map((target) => target.targetId));
     });
 
-    it('gives every thread one mark per cycle', () => {
-        const profile = makeProfile({
-            pack_id: 'marks',
-            org_id: 'org-1',
-            title: 'Marks',
-            description: '',
-            version: '1.0',
-            domains: [{ domain_id: 'D1', title: 'Domain', targets: makeTargetList('T', 130) }],
-        });
-
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-        const threads = collectThreadMarks(printPlan);
-
-        for (const thread of threads) {
-            expect(thread.marks).toHaveLength(profile.cycles.length);
-            expect(thread.marks.map((mark) => mark.cycleNumber)).toEqual([1, 2, 3]);
-        }
-    });
-
-    it('preserves secondary groups through print factoring', () => {
+    it('preserves secondary groups through print composition', () => {
         const profile = makeProfile({
             pack_id: 'grouped',
             org_id: 'org-1',
@@ -184,18 +136,19 @@ describe('snapshot print hardening', () => {
             ],
         });
 
-        const printPlan = buildSnapshotRenderPlan(profile, { mode: 'print' });
-        const zoneTitles = printPlan.chapters[0].rows.flatMap((row) =>
-            row.zones.map((zone) => zone.zoneTitle)
+        const printPlan = buildPrintRenderPlan(profile);
+        const titles = printPlan.pages.flatMap((page) =>
+            page.rows.flatMap((row) =>
+                row.columns.map((column) => column.segment.domainTitle)
+            )
         );
 
-        expect(zoneTitles).toContain('Listening');
-        expect(zoneTitles).toContain('Motor');
+        expect(titles).toContain('Listening');
+        expect(titles).toContain('Motor');
         expect(printPlan.topology).toBe('grouped');
-        expect(printPlan.chapters).toHaveLength(1);
     });
 
-    it('does not mutate the profile when building print and screen plans', () => {
+    it('does not mutate the profile when building screen and print plans', () => {
         const profile = makeProfile({
             pack_id: 'immutable',
             org_id: 'org-1',
@@ -207,7 +160,7 @@ describe('snapshot print hardening', () => {
         const snapshot = JSON.stringify(profile);
 
         buildSnapshotRenderPlan(profile, { mode: 'screen' });
-        buildSnapshotRenderPlan(profile, { mode: 'print' });
+        buildPrintRenderPlan(profile);
 
         expect(JSON.stringify(profile)).toBe(snapshot);
     });

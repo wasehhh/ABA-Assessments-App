@@ -42,8 +42,6 @@ export function DomainColumn({
 }: Props) {
     const targetCount = zoneTargetCount(zone);
     const targetCountLabel = formatStructureCount(targetCount, structureLabels.target);
-    const hasMultipleParts = zone.parts.some((part) => part.partNumber > 1);
-    const repeatCycleHeaderPerPart = layoutMode === 'print' && hasMultipleParts;
     const displayTitle = toDisplayTitleCase(zone.zoneTitle);
 
     const zoneThreads = zone.parts.flatMap((part) => part.threads);
@@ -100,30 +98,27 @@ export function DomainColumn({
                 </p>
             </div>
 
-            {!repeatCycleHeaderPerPart ? (
-                <div
-                    className={`flex items-end overflow-hidden ${headerBands.cycleBandClass}`}
-                    data-assessment-snapshot-cycle-axis-band
-                >
-                    <CycleColumnHeader
-                        cycles={cycles}
-                        layout={layout}
-                        labelOffsetClass={layout.labelOffsetClass}
-                    />
-                </div>
-            ) : (
-                <div
-                    className={`overflow-hidden ${headerBands.cycleBandClass}`}
-                    data-assessment-snapshot-cycle-axis-band
-                    aria-hidden
+            <div
+                className={`flex items-end overflow-hidden ${headerBands.cycleBandClass}`}
+                data-assessment-snapshot-cycle-axis-band
+            >
+                <CycleColumnHeader
+                    cycles={cycles}
+                    layout={layout}
+                    labelOffsetClass={layout.labelOffsetClass}
+                    layoutMode={layoutMode}
                 />
-            )}
+            </div>
 
             <div className={layout.threadRowGapClass} data-assessment-snapshot-thread-body>
                 {zone.parts.map((part) => (
                     <div
                         key={`${zone.zoneId}-part-${part.partIndex}`}
-                        className={part.partNumber > 1 ? 'mt-3 space-y-1' : 'space-y-1'}
+                        className={
+                            part.partNumber > 1
+                                ? `mt-3 ${layout.threadRowGapClass}`
+                                : layout.threadRowGapClass
+                        }
                         data-assessment-snapshot-presentation-part
                         data-part-number={part.partNumber}
                         data-part-total={part.totalParts}
@@ -149,14 +144,6 @@ export function DomainColumn({
                                     )}
                                 </p>
                             </header>
-                        ) : null}
-
-                        {repeatCycleHeaderPerPart ? (
-                            <CycleColumnHeader
-                                cycles={cycles}
-                                layout={layout}
-                                labelOffsetClass={layout.labelOffsetClass}
-                            />
                         ) : null}
 
                         <div className={layout.threadRowGapClass}>

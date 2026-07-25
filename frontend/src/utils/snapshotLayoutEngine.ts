@@ -6,25 +6,31 @@ import {
 } from '../services/learnerMapProfile';
 import { CompetencyState } from './scoreInterpretation';
 
+/**
+ * Screen layout engine for Assessment Snapshot V1.
+ *
+ * Builds the screen {@link RenderPlan} (chapters → rows → zones → presentation Parts).
+ * Print composition is a separate pipeline: {@link buildPrintRenderPlan} in
+ * `snapshotPrintRenderPlan.ts` (pages → columns → domain segments).
+ */
+
 export type SnapshotLayoutMode = 'screen' | 'print';
 export type SnapshotLayoutTier = 'compact' | 'standard' | 'dense';
 export type SnapshotTopology = 'flat' | 'grouped';
 export type ChildZoneKind = 'flat-primary' | 'secondary';
 export type ChapterKind = 'flat' | 'grouped';
 
-/** Targets at or below this count are never presentation-factored. */
+/** Targets at or below this count are never presentation-factored on screen. */
 export const SNAPSHOT_FACTORING_NONE_MAX = 60;
 
-/** Large-group threshold — factoring optional on screen, applied on print. */
-export const SNAPSHOT_FACTORING_LARGE_MIN = 80;
-
-/** Extreme-group threshold — factoring required on print, recommended on screen. */
+/** Extreme-group threshold — screen factors only at or above this count. */
 export const SNAPSHOT_FACTORING_EXTREME_MIN = 120;
 
-/** Default maximum targets per presentation Part when factoring applies. */
+/** Fixed targets per screen presentation Part when factoring applies. */
 export const SNAPSHOT_FACTORING_PART_SIZE = 46;
 
 export const SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM = 96;
+/** Legacy default when `mode: 'print'` is passed to this engine (print UI uses PrintRenderPlan). */
 export const SNAPSHOT_DEFAULT_VIEWPORT_PRINT_REM = 52;
 export const SNAPSHOT_DOMAIN_GAP_REM = 1.25;
 
@@ -52,7 +58,6 @@ export interface SnapshotLayoutConfig {
     mode: SnapshotLayoutMode;
     viewportWidthRem: number;
     factoringNoneMax: number;
-    factoringLargeMin: number;
     factoringExtremeMin: number;
     factoringPartSize: number;
     domainGapRem: number;
@@ -77,13 +82,6 @@ export interface TargetThreadPlan {
     marks: EvidenceMarkPlan[];
 }
 
-/** @deprecated Prefer PresentationPartPlan.threads — kept for transitional helpers. */
-export interface SecondarySectionPlan {
-    title: string;
-    secondaryGroupId?: string;
-    threads: TargetThreadPlan[];
-}
-
 export interface PresentationPartPlan {
     partIndex: number;
     partNumber: number;
@@ -106,13 +104,6 @@ export interface ChildZonePlan {
     columnWidthRem: number;
     parts: PresentationPartPlan[];
 }
-
-/**
- * Transitional alias for ChildZonePlan.
- * Historical name from pre-chapter topology; prefer ChildZonePlan in new code.
- * Flat packs: one zone per primary domain. Grouped packs: one zone per secondary group.
- */
-export type DomainZonePlan = ChildZonePlan;
 
 export interface RenderRowPlan {
     rowIndex: number;
@@ -161,7 +152,6 @@ export function resolveDefaultLayoutConfig(mode: SnapshotLayoutMode): SnapshotLa
                 ? SNAPSHOT_DEFAULT_VIEWPORT_PRINT_REM
                 : SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
         factoringNoneMax: SNAPSHOT_FACTORING_NONE_MAX,
-        factoringLargeMin: SNAPSHOT_FACTORING_LARGE_MIN,
         factoringExtremeMin: SNAPSHOT_FACTORING_EXTREME_MIN,
         factoringPartSize: SNAPSHOT_FACTORING_PART_SIZE,
         domainGapRem: SNAPSHOT_DOMAIN_GAP_REM,
@@ -202,38 +192,28 @@ export function resolveDomainColumnWidthRem(
     );
 }
 
-export function resolveArrowSlotRem(tier: SnapshotLayoutTier): number {
-    return ARROW_SLOT_REM[tier];
-}
-
 export function resolveArrowToMaxGapRem(): number {
     return ARROW_TO_MAX_GAP_REM;
 }
 
-export function resolveMaxRingSlotRem(tier: SnapshotLayoutTier): number {
-    return MAX_RING_SLOT_REM[tier];
-}
-
+/**
+ * Screen presentation-Part factoring gate.
+ * Never below {@link SNAPSHOT_FACTORING_NONE_MAX}; only extreme groups
+ * (≥ {@link SNAPSHOT_FACTORING_EXTREME_MIN}) factor. Print segmentation is handled
+ * by {@link buildPrintRenderPlan}, not this engine.
+ */
 export function shouldApplyPresentationFactoring(
     targetCount: number,
-    mode: SnapshotLayoutMode,
-    config: SnapshotLayoutConfig
+    _mode: SnapshotLayoutMode,
+    config: SnapshotLayoutConfig,
+    _tier: SnapshotLayoutTier = 'dense'
 ): boolean {
+    void _mode;
+    void _tier;
     if (targetCount <= config.factoringNoneMax) {
         return false;
     }
-
-    if (mode === 'print') {
-        if (targetCount >= config.factoringLargeMin) {
-            return true;
-        }
-    }
-
-    if (targetCount >= config.factoringExtremeMin) {
-        return true;
-    }
-
-    return false;
+    return targetCount >= config.factoringExtremeMin;
 }
 
 export function profileUsesGroupedTopology(profile: AssessmentSnapshotProfile): boolean {
@@ -308,8 +288,10 @@ function buildPresentationPartsForTargets(
     zoneTargets: LearnerMapTarget[],
     domainTargets: LearnerMapTarget[],
     config: SnapshotLayoutConfig,
-    cycles: LearnerMapCycleSummary[]
+    cycles: LearnerMapCycleSummary[],
+    tier: SnapshotLayoutTier
 ): PresentationPartPlan[] {
+    void tier;
     const targetCount = zoneTargets.length;
     const isFactored = shouldApplyPresentationFactoring(targetCount, config.mode, config);
 
@@ -338,9 +320,11 @@ function buildPresentationPartsForTargets(
     const chunks = chunkItems(zoneTargets, config.factoringPartSize);
     const totalParts = chunks.length;
 
+    let offset = 0;
     return chunks.map((chunk, partIndex) => {
-        const start = partIndex * config.factoringPartSize + 1;
-        const end = start + chunk.length - 1;
+        const start = offset + 1;
+        const end = offset + chunk.length;
+        offset = end;
         const targetRange = { start, end };
         const partNumber = partIndex + 1;
 
@@ -361,7 +345,8 @@ function buildFlatPrimaryZone(
     domainIndex: number,
     config: SnapshotLayoutConfig,
     columnWidthRem: number,
-    cycles: LearnerMapCycleSummary[]
+    cycles: LearnerMapCycleSummary[],
+    tier: SnapshotLayoutTier
 ): ChildZonePlan {
     return {
         zoneId: domain.domainId,
@@ -375,7 +360,8 @@ function buildFlatPrimaryZone(
             domain.targets,
             domain.targets,
             config,
-            cycles
+            cycles,
+            tier
         ),
     };
 }
@@ -384,7 +370,8 @@ function buildSecondaryChildZones(
     domain: LearnerMapDomain,
     config: SnapshotLayoutConfig,
     columnWidthRem: number,
-    cycles: LearnerMapCycleSummary[]
+    cycles: LearnerMapCycleSummary[],
+    tier: SnapshotLayoutTier
 ): ChildZonePlan[] {
     const sections = domain.targetSections;
     if (!sections?.length) {
@@ -394,7 +381,8 @@ function buildSecondaryChildZones(
                 0,
                 config,
                 columnWidthRem,
-                cycles
+                cycles,
+                tier
             ),
         ];
     }
@@ -412,7 +400,8 @@ function buildSecondaryChildZones(
             section.targets,
             domain.targets,
             config,
-            cycles
+            cycles,
+            tier
         ),
     }));
 }
@@ -461,10 +450,11 @@ export function packDomainZonesIntoRows(
 function buildFlatChapter(
     profile: AssessmentSnapshotProfile,
     config: SnapshotLayoutConfig,
-    columnWidthRem: number
+    columnWidthRem: number,
+    tier: SnapshotLayoutTier
 ): PrimaryChapterPlan {
     const zones = profile.domains.map((domain, domainIndex) =>
-        buildFlatPrimaryZone(domain, domainIndex, config, columnWidthRem, profile.cycles)
+        buildFlatPrimaryZone(domain, domainIndex, config, columnWidthRem, profile.cycles, tier)
     );
 
     return {
@@ -480,14 +470,16 @@ function buildFlatChapter(
 function buildGroupedChapters(
     profile: AssessmentSnapshotProfile,
     config: SnapshotLayoutConfig,
-    columnWidthRem: number
+    columnWidthRem: number,
+    tier: SnapshotLayoutTier
 ): PrimaryChapterPlan[] {
     return profile.domains.map((domain, chapterIndex) => {
         const childZones = buildSecondaryChildZones(
             domain,
             config,
             columnWidthRem,
-            profile.cycles
+            profile.cycles,
+            tier
         );
         const rows = packDomainZonesIntoRows(childZones, config).map((row, rowIndex) => ({
             ...row,
@@ -537,8 +529,8 @@ export function buildSnapshotRenderPlan(
 
     const chapters =
         topology === 'grouped'
-            ? buildGroupedChapters(profile, config, domainColumnWidthRem)
-            : [buildFlatChapter(profile, config, domainColumnWidthRem)];
+            ? buildGroupedChapters(profile, config, domainColumnWidthRem, tier)
+            : [buildFlatChapter(profile, config, domainColumnWidthRem, tier)];
 
     const cycles: CycleAxisPlan[] = profile.cycles.map((cycle, cycleIndex) => ({
         cycleId: cycle.cycleId,
@@ -591,11 +583,6 @@ export function flattenRenderPlanZoneTitles(plan: RenderPlan): string[] {
     }
 
     return titles;
-}
-
-/** @deprecated Use flattenRenderPlanZoneTitles for secondary zone titles. */
-export function flattenRenderPlanSecondarySectionTitles(plan: RenderPlan): string[] {
-    return flattenRenderPlanZoneTitles(plan).filter((title) => title.length > 0);
 }
 
 export function findChildZonePlan(

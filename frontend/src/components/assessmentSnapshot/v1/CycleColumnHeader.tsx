@@ -1,4 +1,5 @@
 import { LearnerMapCycleSummary } from '../../../services/learnerMapProfile';
+import { SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
 import { resolveThreadConnectorGeometry } from './domainZoneLayout';
 import { ThreadsLayoutTokens } from './threadsLayout';
 
@@ -6,14 +7,20 @@ interface Props {
     cycles: LearnerMapCycleSummary[];
     layout: ThreadsLayoutTokens;
     labelOffsetClass: string;
+    layoutMode?: SnapshotLayoutMode;
 }
 
 /**
  * Domain cycle axis — C1 / C2 / … / max only.
  * Dates live once in the document Cycle Reference.
  */
-export function CycleColumnHeader({ cycles, layout, labelOffsetClass }: Props) {
-    const geometry = resolveThreadConnectorGeometry(layout.tier, cycles.length);
+export function CycleColumnHeader({
+    cycles,
+    layout,
+    labelOffsetClass,
+    layoutMode = 'screen',
+}: Props) {
+    const geometry = resolveThreadConnectorGeometry(layout.tier, cycles.length, layoutMode);
 
     return (
         <div

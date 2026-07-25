@@ -27,6 +27,7 @@ export function formatPluralNounTitle(singularLabel: string): string {
     return plural.charAt(0).toUpperCase() + plural.slice(1);
 }
 
+/** Screen presentation-Part continuation heading. */
 export function formatPresentationPartHeading(
     partNumber: number,
     options?: { continued?: boolean }
@@ -35,13 +36,16 @@ export function formatPresentationPartHeading(
     return `Part ${partNumber}${continued}`;
 }
 
-export function formatPresentationTargetRange(
+export function formatTargetOrdinalRange(
     start: number,
     end: number,
     targetLabel: string
 ): string {
     return `${formatPluralNounTitle(targetLabel)} ${start}${SNAPSHOT_EN_DASH}${end}`;
 }
+
+/** Alias retained for screen Part callers. Prefer {@link formatTargetOrdinalRange}. */
+export const formatPresentationTargetRange = formatTargetOrdinalRange;
 
 /** Soft title-case for display headings; preserves short mixed-case acronyms. */
 export function toDisplayTitleCase(text: string): string {
@@ -145,12 +149,12 @@ export function beadNumeralClass(state: CompetencyState | 'unscored'): string {
  * Distinct from Mastered evidence beads (solid green fill).
  */
 export function maxRingSurfaceClass(): string {
-    return 'rounded-full border-2 border-green-700 bg-white font-mono font-medium tabular-nums text-green-900';
+    return 'assessment-snapshot-max-ring rounded-full border-2 border-green-700 bg-white font-mono font-medium tabular-nums text-green-900';
 }
 
 /** Legend swatch matching the hollow green-outline maximum ring. */
 export function maxRingLegendSwatchClass(): string {
-    return 'rounded-full border-2 border-green-700 bg-white print:border-green-800';
+    return 'assessment-snapshot-max-ring rounded-full border-2 border-green-700 bg-white';
 }
 
 export function maxRingAccessibleLabel(targetTitle: string, maxDisplay: string): string {

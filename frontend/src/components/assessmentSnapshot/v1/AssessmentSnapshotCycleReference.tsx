@@ -18,7 +18,7 @@ export function AssessmentSnapshotCycleReference({ cycles, cycleDateLabels }: Pr
 
     return (
         <div
-            className="border-b border-gray-200 pb-2.5 print:border-gray-400 print:pb-2"
+            className="border-b border-gray-200 pb-2.5 print:border-gray-400 print:pb-1.5"
             data-assessment-snapshot-cycle-reference
         >
             <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-gray-400 print:text-[8px] print:text-black">

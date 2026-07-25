@@ -9,7 +9,7 @@ export function AssessmentSnapshotThreadsLegend() {
 
     return (
         <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 pb-2.5 text-[10px] leading-snug text-gray-700 print:border-gray-400 print:pb-2 print:text-[9px] print:text-black"
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-gray-200 pb-2.5 text-[10px] leading-snug text-gray-700 print:border-gray-400 print:pb-1.5 print:text-[9px] print:text-black"
             data-assessment-snapshot-legend
         >
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">

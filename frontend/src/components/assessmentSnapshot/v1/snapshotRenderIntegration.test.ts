@@ -111,7 +111,7 @@ describe('snapshot render integration', () => {
         expect(flattenRenderPlanZoneTitles(plan)).toEqual(['Listening', 'Motor', 'Ungrouped']);
     });
 
-    it('plans multiple presentation parts for PEAK-scale domains in print mode', () => {
+    it('plans multiple presentation parts for PEAK-scale domains on screen', () => {
         const profile = makeProfile({
             pack_id: 'peak',
             org_id: 'org-1',
@@ -127,7 +127,7 @@ describe('snapshot render integration', () => {
             ],
         });
 
-        const plan = buildSnapshotRenderPlan(profile, { mode: 'print' });
+        const plan = buildSnapshotRenderPlan(profile, { mode: 'screen' });
         const zone = findDomainZonePlan(plan, 'PEAK_DT')!;
 
         expect(zone.parts.length).toBeGreaterThan(1);
@@ -170,7 +170,7 @@ describe('snapshot render integration', () => {
         });
         const snapshot = JSON.stringify(profile);
 
-        buildSnapshotRenderPlan(profile, { mode: 'print' });
+        buildSnapshotRenderPlan(profile, { mode: 'screen' });
 
         expect(JSON.stringify(profile)).toBe(snapshot);
     });
