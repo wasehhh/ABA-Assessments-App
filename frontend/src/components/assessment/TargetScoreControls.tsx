@@ -79,7 +79,7 @@ export function TargetScoreControls({
                         disabled={!scoresEditable}
                         onClick={() => onScoreUpdate(val)}
                         className={`
-                            ${useCompactButtons ? 'h-9 w-9' : 'min-h-9 px-2.5'}
+                            ${useCompactButtons ? 'h-9 min-w-9 px-1.5' : 'min-h-9 px-2.5'}
                             rounded-lg text-sm font-medium transition-all
                             ${
                                 current === val

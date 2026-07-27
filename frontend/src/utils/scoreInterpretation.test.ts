@@ -2,12 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { AssessmentScore, Target } from '../types';
 import {
     clampRawScore,
+    coerceScoreFromDb,
+    coerceStoredScore,
     getCompetencyState,
     getDisplayScore,
     getNormalizedRatio,
     getTargetMaxScore,
     getTargetScaleValues,
     interpretTargetScore,
+    isScoreInResolvedScale,
     resolveScaleType,
 } from './scoreInterpretation';
 
@@ -208,10 +211,41 @@ describe('interpretTargetScore', () => {
         expect(interpretTargetScore(yesNo, makeScoreRow('YN2', 1)).supportsInProgress).toBe(false);
     });
 
-    it('clamps score greater than max', () => {
+    it('preserves out-of-scale stored scores without clamping to max', () => {
         const result = interpretTargetScore(numeric04, makeScoreRow('N04', 99));
-        expect(result.rawScore).toBe(4);
-        expect(result.competencyState).toBe('at_maximum');
+        expect(result.rawScore).toBe(99);
+        expect(result.competencyState).toBe('in_progress');
+    });
+
+    it('preserves decimal and negative scores on decimal/negative scales', () => {
+        const decimal = makeTarget({
+            target_id: 'DEC',
+            scoring: {
+                type: 'numeric',
+                scale: [0, 0.5, 1],
+                scale_labels: {},
+                no_opportunity_allowed: false,
+            },
+        });
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5)).rawScore).toBe(0.5);
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5)).displayScore).toBe('0.5');
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 1)).competencyState).toBe(
+            'at_maximum'
+        );
+
+        const signed = makeTarget({
+            target_id: 'NEG',
+            scoring: {
+                type: 'numeric',
+                scale: [-1, 0, 1],
+                scale_labels: {},
+                no_opportunity_allowed: false,
+            },
+        });
+        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1)).rawScore).toBe(-1);
+        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1)).competencyState).toBe(
+            'not_yet'
+        );
     });
 
     it('interprets non-contiguous scale [0, 2, 4] with generic logic', () => {
@@ -278,17 +312,34 @@ describe('getNormalizedRatio', () => {
     });
 });
 
-describe('clampRawScore', () => {
-    it('returns null for nullish input', () => {
-        expect(clampRawScore(null, 4)).toBeNull();
-        expect(clampRawScore(undefined, 4)).toBeNull();
+describe('isScoreInResolvedScale', () => {
+    it('accepts membership including decimals and rejects non-members', () => {
+        expect(isScoreInResolvedScale(0.5, [0, 0.5, 1])).toBe(true);
+        expect(isScoreInResolvedScale(0.25, [0, 0.5, 1])).toBe(false);
+        expect(isScoreInResolvedScale(4, [0, 2, 4])).toBe(true);
+        expect(isScoreInResolvedScale(3, [0, 2, 4])).toBe(false);
+        expect(isScoreInResolvedScale(null, [0, 0.5, 1])).toBe(true);
+    });
+});
+
+describe('coerceStoredScore / coerceScoreFromDb', () => {
+    it('returns null for nullish or non-finite input', () => {
+        expect(coerceStoredScore(null)).toBeNull();
+        expect(coerceStoredScore(undefined)).toBeNull();
+        expect(coerceScoreFromDb('')).toBeNull();
+        expect(coerceScoreFromDb('NaN')).toBeNull();
     });
 
-    it('clamps high values to target max', () => {
-        expect(clampRawScore(10, 4)).toBe(4);
+    it('does not clamp high or negative values', () => {
+        expect(clampRawScore(10, 4)).toBe(10);
+        expect(clampRawScore(-1, 4)).toBe(-1);
+        expect(coerceStoredScore(0.25)).toBe(0.25);
     });
 
-    it('clamps negative values to zero', () => {
-        expect(clampRawScore(-1, 4)).toBe(0);
+    it('normalizes numeric strings from Postgres numeric columns', () => {
+        expect(coerceScoreFromDb('0.5')).toBe(0.5);
+        expect(coerceScoreFromDb('0.25')).toBe(0.25);
+        expect(coerceScoreFromDb('-1')).toBe(-1);
+        expect(coerceScoreFromDb(2)).toBe(2);
     });
 });

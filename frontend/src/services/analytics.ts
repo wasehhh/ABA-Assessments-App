@@ -1,5 +1,5 @@
 import { AssessmentScore, ContentPackData } from '../types';
-import { clampRawScore, getTargetMaxScore } from '../utils/scoreInterpretation';
+import { coerceStoredScore, getTargetMaxScore } from '../utils/scoreInterpretation';
 
 export interface DomainStat {
     domainId: string;
@@ -42,9 +42,9 @@ export const analyticsService = {
 
                 const val = scoreMap.get(target.target_id);
                 if (val !== undefined && val !== null) {
-                    const clampedVal = clampRawScore(val, targetMax);
-                    if (clampedVal !== null) {
-                        totalScore += clampedVal;
+                    const stored = coerceStoredScore(val);
+                    if (stored !== null) {
+                        totalScore += stored;
                         scoredCount++;
                     }
                 }

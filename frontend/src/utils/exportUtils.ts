@@ -84,7 +84,7 @@ function generateLongFormat(assessment: Assessment, scores: AssessmentScore[]): 
             s.target_id,
             targetTitle,
             s.cycle?.cycle_number || 1,
-            s.score !== null ? Math.min(s.score, targetMaxVal) : '',
+            s.score !== null ? s.score : '',
             maxScore,
             s.note || '',
             s.assessor_user_id || '',
@@ -158,7 +158,7 @@ function generateMatrixFormat(assessment: Assessment, scores: AssessmentScore[])
                 const s = scoreMap.get(`${target.target_id}_${cNum}`);
                 if (s) {
                     row.push(s.updated_at ? s.updated_at.split('T')[0] : s.created_at.split('T')[0]);
-                    row.push(s.score !== null ? Math.min(s.score, targetMaxVal) : '');
+                    row.push(s.score !== null ? s.score : '');
                     row.push(s.note || '');
                 } else {
                     row.push(''); // Date

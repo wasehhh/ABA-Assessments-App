@@ -91,6 +91,7 @@ These functions are **required** for signup/invite flows used by `frontend/src/s
 | 11 | `20251213000005_add_pack_status.sql` | Pack `status` column. |
 | 12 | `20251214000001_add_delete_policies.sql` | DELETE-capable policies where needed. |
 | 13 | `20251215000000_add_score_metadata.sql` | Additional columns/metadata on score rows. |
+| 14 | `20260727120000_assessment_scores_score_numeric.sql` | Ensure `assessment_scores.score` is `numeric` (decimal-safe; idempotent). |
 
 **Gap (documented):** None of the above migration files define **`check_user_invite`** or **`claim_invite`** (verified by repository search). Invite RPCs live in the **`database/migrations/`** snapshot and patches (see §5.2).
 
@@ -114,6 +115,7 @@ Do not assume the two trees are identical; reconcile drift before treating eithe
 | `database/migrations/20260107_allow_profile_update.sql` | Policy for users updating their own profile fields. |
 | `database/migrations/20260108_audit_view_policy.sql` | Admin SELECT policy on `audit_logs`. |
 | `database/migrations/20260108_org_update_policy.sql` | Admin UPDATE policy on `organizations`. |
+| `database/migrations/20260727_assessment_scores_score_numeric.sql` | Ensure `assessment_scores.score` is `numeric` (decimal-safe; idempotent). |
 
 **Not canonical schema setup** (operational / one-off data fixes—do not use as standard Alpha provisioning):
 
@@ -150,6 +152,8 @@ On an **empty** Supabase database (or one you intend to wipe—see script warnin
 4. Run **`database/migrations/20260107_allow_profile_update.sql`**.
 5. Run **`database/migrations/20260108_audit_view_policy.sql`**.
 6. Run **`database/migrations/20260108_org_update_policy.sql`**.
+7. Run **`database/migrations/20260727_assessment_scores_score_numeric.sql`**.  
+   - Ensures `assessment_scores.score` is `numeric` so decimal scores persist (idempotent).
 
 Optional after baseline:
 

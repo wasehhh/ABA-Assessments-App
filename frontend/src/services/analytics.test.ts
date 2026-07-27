@@ -100,10 +100,43 @@ describe('analyticsService.calculateDomainStats', () => {
         expect(stats[0].percentage).toBe(0);
     });
 
-    it('clamps scores above target max', () => {
+    it('includes out-of-scale stored scores in totals without clamping', () => {
         const stats = analyticsService.calculateDomainStats(pack, [makeScore('TYN', 99)]);
 
-        expect(stats[0].totalScore).toBe(1);
-        expect(stats[0].percentage).toBe(Math.round((1 / 7) * 100));
+        expect(stats[0].totalScore).toBe(99);
+        expect(stats[0].percentage).toBe(Math.round((99 / 7) * 100));
+    });
+
+    it('sums decimal scores without truncation', () => {
+        const decimalPack: ContentPackData = {
+            ...pack,
+            domains: [
+                {
+                    domain_id: 'DOM1',
+                    title: 'Domain One',
+                    targets: [
+                        {
+                            target_id: 'TD',
+                            title: 'Decimal',
+                            success_criteria: 'Criteria',
+                            materials: '',
+                            scoring: {
+                                type: 'numeric',
+                                scale: [0, 0.5, 1],
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const stats = analyticsService.calculateDomainStats(decimalPack, [
+            makeScore('TD', 0.5),
+        ]);
+        expect(stats[0].totalScore).toBe(0.5);
+        expect(stats[0].maxScore).toBe(1);
+        expect(stats[0].percentage).toBe(50);
     });
 });

@@ -1,7 +1,41 @@
 import { supabase } from '../lib/supabase';
-import { Assessment, AssessmentScore, ContentPackData } from '../types';
+import { Assessment, AssessmentScore, ContentPackData, Target } from '../types';
 import { auditService } from './audit';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
+import {
+  findPackTarget,
+  getResolvedScaleValues,
+} from '../utils/matrixDisplayHelpers';
+import { resolveTargetScoring } from '../utils/assessmentPackStructure';
+import { isScoreInResolvedScale, coerceScoreFromDb } from '../utils/scoreInterpretation';
+
+function assertScoreAllowedForTarget(
+  score: number | null,
+  target: Target | undefined,
+  pack: ContentPackData | null | undefined
+): void {
+  if (score === null) {
+    return;
+  }
+  if (!target || !pack) {
+    throw new Error('Unable to validate score against the assessment scale.');
+  }
+
+  const resolved = resolveTargetScoring(target, pack);
+  const scaleValues = getResolvedScaleValues(resolved);
+  if (!isScoreInResolvedScale(score, scaleValues)) {
+    throw new Error(
+      `Score ${score} is not allowed for this target. Allowed values: ${scaleValues.join(', ')}.`
+    );
+  }
+}
+
+function normalizeAssessmentScoreRow(row: AssessmentScore): AssessmentScore {
+  return {
+    ...row,
+    score: coerceScoreFromDb(row.score),
+  };
+}
 
 export const assessmentService = {
   async create(
@@ -143,7 +177,7 @@ export const assessmentService = {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data as AssessmentScore[];
+    return ((data ?? []) as AssessmentScore[]).map(normalizeAssessmentScoreRow);
   },
 
   async getPreviousScores(assessmentId: string, currentCycleNumber: number) {
@@ -313,7 +347,7 @@ export const assessmentService = {
   ) {
     const { data: scoreRow, error: scoreRowError } = await supabase
       .from('assessment_scores')
-      .select('assessment_id, assessment_cycle_id')
+      .select('assessment_id, assessment_cycle_id, target_id')
       .eq('id', scoreId)
       .single();
 
@@ -323,7 +357,11 @@ export const assessmentService = {
     }
 
     const [aRes, cRes, pRes] = await Promise.all([
-      supabase.from('assessments').select('status').eq('id', scoreRow.assessment_id).single(),
+      supabase
+        .from('assessments')
+        .select('status, pack_snapshot')
+        .eq('id', scoreRow.assessment_id)
+        .single(),
       supabase.from('assessment_cycles').select('status').eq('id', scoreRow.assessment_cycle_id).single(),
       supabase.from('user_profiles').select('role').eq('id', assessorId).single(),
     ]);
@@ -337,18 +375,14 @@ export const assessmentService = {
       throw new Error('Score updates are not allowed for this assessment state or your role.');
     }
 
-    // Defensive: Clamp score to standard range if numeric
-    // This is a safety net. The UI should match target specifics.
-    let finalScore = score;
-    if (typeof score === 'number') {
-      if (score > 4) finalScore = 4;
-      if (score < 0) finalScore = 0;
-    }
+    const pack = aRes.data?.pack_snapshot as ContentPackData | null | undefined;
+    const target = findPackTarget(pack, scoreRow.target_id);
+    assertScoreAllowedForTarget(score, target, pack);
 
     const { data, error } = await supabase
       .from('assessment_scores')
       .update({
-        score: finalScore,
+        score,
         note,
         metadata,
         assessor_user_id: assessorId,
@@ -370,7 +404,7 @@ export const assessmentService = {
       });
     }
 
-    return data as AssessmentScore;
+    return normalizeAssessmentScoreRow(data as AssessmentScore);
   },
 
   /**
@@ -403,7 +437,11 @@ export const assessmentService = {
     } = params;
 
     const [aRes, cRes, pRes] = await Promise.all([
-      supabase.from('assessments').select('status').eq('id', assessmentId).single(),
+      supabase
+        .from('assessments')
+        .select('status, pack_snapshot')
+        .eq('id', assessmentId)
+        .single(),
       supabase.from('assessment_cycles').select('status').eq('id', cycleId).single(),
       supabase.from('user_profiles').select('role').eq('id', assessorId).single(),
     ]);
@@ -416,6 +454,10 @@ export const assessmentService = {
     if (!canEditAssessmentScores(role, aRes.data?.status, cRes.data?.status)) {
       throw new Error('Score updates are not allowed for this assessment state or your role.');
     }
+
+    const pack = aRes.data?.pack_snapshot as ContentPackData | null | undefined;
+    const target = findPackTarget(pack, targetId);
+    assertScoreAllowedForTarget(score, target, pack);
 
     const { data: existing, error: existingError } = await supabase
       .from('assessment_scores')
@@ -430,12 +472,6 @@ export const assessmentService = {
       return this.updateScore(existing.id, score, note, assessorId, orgId, metadata);
     }
 
-    let finalScore = score;
-    if (typeof score === 'number') {
-      if (score > 4) finalScore = 4;
-      if (score < 0) finalScore = 0;
-    }
-
     const { data, error } = await supabase
       .from('assessment_scores')
       .insert({
@@ -445,7 +481,7 @@ export const assessmentService = {
         pack_snapshot_id: assessmentId,
         target_id: targetId,
         domain_id: domainId,
-        score: finalScore,
+        score,
         note,
         metadata,
         assessor_user_id: assessorId,
@@ -462,11 +498,11 @@ export const assessmentService = {
         action: 'CREATE',
         entity_type: 'assessment_score',
         entity_id: data.id,
-        details: { target_id: targetId, cycle_id: cycleId, score: finalScore, note },
+        details: { target_id: targetId, cycle_id: cycleId, score, note },
       });
     }
 
-    return data as AssessmentScore;
+    return normalizeAssessmentScoreRow(data as AssessmentScore);
   },
 
   async submit(assessmentId: string, orgId: string, userId: string) {

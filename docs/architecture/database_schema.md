@@ -114,7 +114,7 @@ erDiagram
 | `client_id` | UUID | FK | Redundant for easy query |
 | `target_id` | Text | Not Null | ID from pack_data JSON |
 | `domain_id` | Text | Not Null | ID from pack_data JSON |
-| `score` | Int | | 0-4 usually |
+| `score` | Numeric | | Member of target resolved scale; decimals allowed |
 | `metadata` | JSONB | Default {} | **Task Analysis Details** |
 | `evidence_files` | JSONB | Default [] | |
 | `assessor_user_id` | UUID | FK | |

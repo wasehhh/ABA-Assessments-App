@@ -167,4 +167,29 @@ describe('matrixDisplayHelpers', () => {
         expect(getResolvedScaleValues(resolved)).toEqual([0, 1, 2, 3]);
         expect(resolved.scale_labels).toEqual({});
     });
+
+    it('preserves decimal and negative resolved scale values for Matrix buttons', () => {
+        expect(
+            getResolvedScaleValues({
+                type: 'numeric',
+                scale: [0, 0.25, 0.5, 0.75, 1],
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            })
+        ).toEqual([0, 0.25, 0.5, 0.75, 1]);
+
+        expect(
+            getResolvedScaleValues({
+                type: 'numeric',
+                scale: [-1, 0, 1],
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            })
+        ).toEqual([-1, 0, 1]);
+
+        expect(formatMatrixScoreButtonLabel(0.5, { 0.5: 'Partial' })).toEqual({
+            text: 'Partial',
+            title: '0.5 — Partial',
+        });
+    });
 });

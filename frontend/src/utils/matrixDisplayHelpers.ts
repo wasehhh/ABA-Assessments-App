@@ -1,4 +1,4 @@
-import { Domain, Target } from '../types';
+import { ContentPackData, Domain, Target } from '../types';
 import {
     DisplayTargetGroup,
     groupTargetsForDisplay,
@@ -90,4 +90,21 @@ export function getResolvedScaleValues(scoring: ResolvedTargetScoring): number[]
     }
 
     return [0, 1, 2, 3, 4];
+}
+
+/** Find a target by id within a pack snapshot. */
+export function findPackTarget(
+    pack: ContentPackData | null | undefined,
+    targetId: string
+): Target | undefined {
+    if (!pack) {
+        return undefined;
+    }
+    for (const domain of pack.domains) {
+        const target = domain.targets.find((entry) => entry.target_id === targetId);
+        if (target) {
+            return target;
+        }
+    }
+    return undefined;
 }

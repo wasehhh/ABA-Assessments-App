@@ -90,20 +90,69 @@ export function getTargetScaleValues(target: Target): number[] {
     return [...DEFAULT_NUMERIC_SCALE];
 }
 
-/** Clamp invalid stored scores; returns null if unscored. */
-export function clampRawScore(
-    raw: number | null | undefined,
-    targetMax: number
-): number | null {
+/**
+ * Membership check against a resolved scale.
+ * Null clears a score and is always allowed. Does not use min/max range.
+ */
+export function isScoreInResolvedScale(
+    score: number | null,
+    scaleValues: number[]
+): boolean {
+    if (score === null) {
+        return true;
+    }
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+        return false;
+    }
+    return scaleValues.some((value) => value === score);
+}
+
+/**
+ * Coerce a stored score for read/interpretation.
+ * Does not clamp to 0–max — membership validation belongs at write time.
+ */
+export function coerceStoredScore(raw: number | null | undefined): number | null {
     if (raw === null || raw === undefined) {
         return null;
     }
 
-    if (typeof raw !== 'number' || Number.isNaN(raw)) {
+    if (typeof raw !== 'number' || Number.isNaN(raw) || !Number.isFinite(raw)) {
         return null;
     }
 
-    return Math.min(Math.max(raw, 0), targetMax);
+    return raw;
+}
+
+/**
+ * Normalize score values returned from Postgres/PostgREST.
+ * `numeric` columns are often serialized as strings (e.g. "0.5").
+ */
+export function coerceScoreFromDb(raw: unknown): number | null {
+    if (raw === null || raw === undefined) {
+        return null;
+    }
+    if (typeof raw === 'number') {
+        return coerceStoredScore(raw);
+    }
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (!trimmed) {
+            return null;
+        }
+        return coerceStoredScore(Number(trimmed));
+    }
+    return null;
+}
+
+/**
+ * @deprecated Prefer coerceStoredScore. Range clamping is incorrect for
+ * non-contiguous and negative scales; targetMax is ignored.
+ */
+export function clampRawScore(
+    raw: number | null | undefined,
+    _targetMax?: number
+): number | null {
+    return coerceStoredScore(raw);
 }
 
 export function getNormalizedRatio(
@@ -184,7 +233,7 @@ export function interpretTargetScore(
     const supportsInProgress = scaleType !== 'yes_no';
 
     const rawFromRow = hasScoreRow ? scoreRow!.score : null;
-    const rawScore = clampRawScore(rawFromRow, targetMax);
+    const rawScore = coerceScoreFromDb(rawFromRow);
     const isUnscored = rawScore === null;
     const competencyState = getCompetencyState(target, rawScore);
     const normalizedRatio = getNormalizedRatio(rawScore, targetMax);

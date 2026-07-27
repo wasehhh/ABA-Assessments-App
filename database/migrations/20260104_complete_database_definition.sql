@@ -119,7 +119,7 @@ create table assessment_scores (
   pack_snapshot_id uuid, -- Optional ref
   target_id text not null,
   domain_id text not null,
-  score integer,
+  score numeric,
   note text,
   metadata jsonb default '{}'::jsonb, -- Added per user request (Task Analysis)
   evidence_files jsonb default '[]'::jsonb,

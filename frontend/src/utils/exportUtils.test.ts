@@ -147,4 +147,59 @@ describe('exportUtils', () => {
         // Target T2 should be present but empty scores
         expect(csv).toContain('Domain One,T2,Target Two,1'); // YesNo max score inferred as 1
     });
+
+    it('preserves decimal scores in CSV without truncation or range clamping', () => {
+        const decimalAssessment = {
+            ...mockAssessment,
+            pack_snapshot: {
+                ...mockAssessment.pack_snapshot,
+                domains: [
+                    {
+                        domain_id: 'DOM1',
+                        title: 'Domain One',
+                        targets: [
+                            {
+                                target_id: 'TD',
+                                title: 'Decimal Target',
+                                scoring: { type: 'numeric', scale: [0, 0.5, 1] },
+                            },
+                        ],
+                    },
+                ],
+            },
+        };
+        const decimalScores = [
+            {
+                id: 'score-d',
+                assessment_id: 'assess-123',
+                target_id: 'TD',
+                domain_id: 'DOM1',
+                score: 0.5,
+                note: '',
+                cycle: { cycle_number: 1 },
+                updated_at: '2023-01-01T10:00:00Z',
+                assessor_user_id: 'user-1',
+            },
+        ];
+
+        const capturedBlobs: any[] = [];
+        global.Blob = class Blob {
+            content: any[];
+            constructor(content: any[]) {
+                this.content = content;
+                capturedBlobs.push(content[0]);
+            }
+        } as any;
+
+        exportUtils.generateCSV(decimalAssessment as any, decimalScores as any, {
+            format: 'long',
+        });
+        expect(capturedBlobs[0]).toContain(',0.5,1,');
+
+        capturedBlobs.length = 0;
+        exportUtils.generateCSV(decimalAssessment as any, decimalScores as any, {
+            format: 'matrix',
+        });
+        expect(capturedBlobs[0]).toContain('2023-01-01,0.5,');
+    });
 });
