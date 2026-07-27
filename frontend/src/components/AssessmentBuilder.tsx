@@ -9,15 +9,21 @@ import {
 } from '../types';
 import {
     ALPHA_DEFAULT_PRIMARY_LABEL,
+    applyGlobalScaleLabels,
     applySecondaryGroupingDisabled,
     applySecondaryGroupingEnabled,
+    BuilderAuthoringIssue,
     buildPackStructureLabels,
     collectPackOversizedWarnings,
+    commitNumericScaleCsv,
+    formatNumericScale,
     NEUTRAL_DEFAULT_PRIMARY_LABEL,
     NEUTRAL_DEFAULT_SECONDARY_LABEL,
     NEUTRAL_DEFAULT_TARGET_LABEL,
     OVERSIZED_WARNING_ADVICE,
     prepareBuilderPackForSave,
+    reconcileScaleLabels,
+    validateBuilderPackAuthoring,
 } from '../utils/assessmentPackAuthoring';
 import {
     appendTargetToDomain,
@@ -33,11 +39,17 @@ interface Props {
     initialData?: ContentPackData & { title?: string; description?: string };
 }
 
-function parseDefaultScale(defaultScale: string): number[] {
-    return defaultScale
-        .split(',')
-        .map((v) => parseFloat(v.trim()))
-        .filter((v) => !Number.isNaN(v));
+function scaleDraftKey(domainIndex: number, targetIndex: number): string {
+    return `${domainIndex}:${targetIndex}`;
+}
+
+function collectReservedTargetIds(domains: Domain[]): string[] {
+    return domains.flatMap((domain) => domain.targets.map((target) => target.target_id));
+}
+
+function parseDefaultScaleOrFallback(defaultScale: string, fallback: number[] = [0, 1, 2, 3, 4]): number[] {
+    const result = commitNumericScaleCsv(defaultScale);
+    return result.ok ? result.values : [...fallback];
 }
 
 export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
@@ -45,8 +57,11 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
     const [description, setDescription] = useState(initialData?.description || '');
     const [domains, setDomains] = useState<Domain[]>(initialData?.domains || []);
     const [defaultScale, setDefaultScale] = useState('0,1,2,3,4');
+    const [defaultScaleError, setDefaultScaleError] = useState<string | null>(null);
     const [globalScaleLabels, setGlobalScaleLabels] = useState<Record<number, string>>({});
     const [useGlobalScale, setUseGlobalScale] = useState(true);
+    const [targetScaleDrafts, setTargetScaleDrafts] = useState<Record<string, string>>({});
+    const [authoringIssues, setAuthoringIssues] = useState<BuilderAuthoringIssue[]>([]);
     const [primaryGroupLabel, setPrimaryGroupLabel] = useState(
         initialData?.structure_labels?.primary_group ?? 'Domain'
     );
@@ -108,6 +123,58 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         secondaryGroupingEnabled,
     ]);
 
+    const defaultScaleCommit = commitNumericScaleCsv(defaultScale);
+    const defaultScaleValues = defaultScaleCommit.ok ? defaultScaleCommit.values : [];
+
+    const issueFor = (
+        field: BuilderAuthoringIssue['field'],
+        domainIndex?: number,
+        targetIndex?: number
+    ): string | null => {
+        const match = authoringIssues.find((issue) => {
+            if (issue.field !== field) {
+                return false;
+            }
+            if (domainIndex !== undefined && issue.domainIndex !== domainIndex) {
+                return false;
+            }
+            if (targetIndex !== undefined && issue.targetIndex !== targetIndex) {
+                return false;
+            }
+            return true;
+        });
+        return match?.message ?? null;
+    };
+
+    const getTargetScaleDraft = (domainIndex: number, targetIndex: number, target: Target): string => {
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        if (Object.prototype.hasOwnProperty.call(targetScaleDrafts, key)) {
+            return targetScaleDrafts[key];
+        }
+        return formatNumericScale(target.scoring.scale ?? []);
+    };
+
+    const clearAuthoringIssue = (
+        field: BuilderAuthoringIssue['field'],
+        domainIndex?: number,
+        targetIndex?: number
+    ) => {
+        setAuthoringIssues((prev) =>
+            prev.filter((issue) => {
+                if (issue.field !== field) {
+                    return true;
+                }
+                if (domainIndex !== undefined && issue.domainIndex !== domainIndex) {
+                    return true;
+                }
+                if (targetIndex !== undefined && issue.targetIndex !== targetIndex) {
+                    return true;
+                }
+                return false;
+            })
+        );
+    };
+
     const addDomain = () => {
         setDomains([
             ...domains,
@@ -122,12 +189,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
     const removeDomain = (index: number) => {
         setDomains(domains.filter((_, i) => i !== index));
+        setTargetScaleDrafts({});
+        setAuthoringIssues([]);
     };
 
     const updateDomain = (index: number, field: keyof Domain, value: Domain[keyof Domain]) => {
         const updated = [...domains];
         updated[index] = { ...updated[index], [field]: value };
         setDomains(updated);
+        if (field === 'domain_id') {
+            clearAuthoringIssue('domain_id', index);
+        }
     };
 
     const addSecondaryGroup = (domainIndex: number) => {
@@ -184,8 +256,9 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         const updated = [...domains];
         updated[domainIndex] = appendTargetToDomain(
             updated[domainIndex],
-            parseDefaultScale(defaultScale),
-            secondaryGroupId
+            parseDefaultScaleOrFallback(defaultScale),
+            secondaryGroupId,
+            collectReservedTargetIds(domains)
         );
         setDomains(updated);
     };
@@ -210,6 +283,13 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             (_, i) => i !== targetIndex
         );
         setDomains(updated);
+        setTargetScaleDrafts({});
+        setAuthoringIssues((prev) =>
+            prev.filter(
+                (issue) =>
+                    !(issue.domainIndex === domainIndex && issue.targetIndex === targetIndex)
+            )
+        );
     };
 
     const updateTarget = (
@@ -224,19 +304,133 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             [field]: value,
         };
         setDomains(updated);
+        if (field === 'target_id') {
+            clearAuthoringIssue('target_id', domainIndex, targetIndex);
+        }
     };
 
-    const updateTargetScale = (domainIndex: number, targetIndex: number, scaleString: string) => {
-        const scale = scaleString
-            .split(',')
-            .map((v) => parseFloat(v.trim()))
-            .filter((v) => !Number.isNaN(v));
-        const updated = [...domains];
-        updated[domainIndex].targets[targetIndex].scoring = {
-            ...updated[domainIndex].targets[targetIndex].scoring,
-            scale,
-        };
-        setDomains(updated);
+    const updateTargetScaleDraft = (
+        domainIndex: number,
+        targetIndex: number,
+        draft: string
+    ) => {
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        setTargetScaleDrafts((prev) => ({ ...prev, [key]: draft }));
+        clearAuthoringIssue('scale', domainIndex, targetIndex);
+    };
+
+    const commitTargetScale = (
+        domainIndex: number,
+        targetIndex: number,
+        domainsSnapshot: Domain[] = domains,
+        draftsSnapshot: Record<string, string> = targetScaleDrafts
+    ): { ok: true; domains: Domain[] } | { ok: false; error: string; domains: Domain[] } => {
+        const target = domainsSnapshot[domainIndex]?.targets[targetIndex];
+        if (!target || target.scoring.type !== 'numeric') {
+            return { ok: true, domains: domainsSnapshot };
+        }
+
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        const draft = Object.prototype.hasOwnProperty.call(draftsSnapshot, key)
+            ? draftsSnapshot[key]
+            : formatNumericScale(target.scoring.scale ?? []);
+        const result = commitNumericScaleCsv(draft);
+        if (!result.ok) {
+            return { ok: false, error: result.error, domains: domainsSnapshot };
+        }
+
+        const updated = domainsSnapshot.map((domain, dIndex) => {
+            if (dIndex !== domainIndex) {
+                return domain;
+            }
+            return {
+                ...domain,
+                targets: domain.targets.map((entry, tIndex) => {
+                    if (tIndex !== targetIndex) {
+                        return entry;
+                    }
+                    return {
+                        ...entry,
+                        scoring: {
+                            ...entry.scoring,
+                            scale: result.values,
+                            scale_labels: reconcileScaleLabels(
+                                result.values,
+                                entry.scoring.scale_labels
+                            ),
+                        },
+                    };
+                }),
+            };
+        });
+
+        return { ok: true, domains: updated };
+    };
+
+    const onCommitTargetScale = (domainIndex: number, targetIndex: number) => {
+        const result = commitTargetScale(domainIndex, targetIndex);
+        if (!result.ok) {
+            setAuthoringIssues((prev) => [
+                ...prev.filter(
+                    (issue) =>
+                        !(
+                            issue.field === 'scale' &&
+                            issue.domainIndex === domainIndex &&
+                            issue.targetIndex === targetIndex
+                        )
+                ),
+                {
+                    field: 'scale',
+                    domainIndex,
+                    targetIndex,
+                    message: result.error,
+                },
+            ]);
+            return;
+        }
+
+        setDomains(result.domains);
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        const committed = result.domains[domainIndex].targets[targetIndex].scoring.scale ?? [];
+        setTargetScaleDrafts((prev) => ({
+            ...prev,
+            [key]: formatNumericScale(committed),
+        }));
+        clearAuthoringIssue('scale', domainIndex, targetIndex);
+    };
+
+    const commitAllTargetScaleDrafts = (
+        domainsSnapshot: Domain[],
+        draftsSnapshot: Record<string, string>
+    ): { domains: Domain[]; issues: BuilderAuthoringIssue[] } => {
+        let nextDomains = domainsSnapshot;
+        const issues: BuilderAuthoringIssue[] = [];
+
+        domainsSnapshot.forEach((domain, domainIndex) => {
+            domain.targets.forEach((target, targetIndex) => {
+                if (target.scoring.type !== 'numeric') {
+                    return;
+                }
+                const result = commitTargetScale(
+                    domainIndex,
+                    targetIndex,
+                    nextDomains,
+                    draftsSnapshot
+                );
+                if (!result.ok) {
+                    issues.push({
+                        field: 'scale',
+                        domainIndex,
+                        targetIndex,
+                        message: result.error,
+                    });
+                    return;
+                }
+                nextDomains = result.domains;
+            });
+        });
+
+        return { domains: nextDomains, issues };
     };
 
     const updateScoringType = (
@@ -259,29 +453,71 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             delete target.scoring.scale;
             delete target.scoring.task_steps;
         } else {
-            const scale = parseDefaultScale(defaultScale);
+            const scale = parseDefaultScaleOrFallback(defaultScale);
             target.scoring.scale = scale;
+            target.scoring.scale_labels = reconcileScaleLabels(scale, target.scoring.scale_labels);
             delete target.scoring.task_steps;
         }
 
         setDomains(updated);
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        setTargetScaleDrafts((prev) => {
+            const next = { ...prev };
+            if (scoringType === 'numeric') {
+                next[key] = formatNumericScale(
+                    updated[domainIndex].targets[targetIndex].scoring.scale ?? []
+                );
+            } else {
+                delete next[key];
+            }
+            return next;
+        });
+        clearAuthoringIssue('scale', domainIndex, targetIndex);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        let finalDomains = domains;
+        let workingDomains = domains;
+        let workingDefaultScale = defaultScale;
+        let workingGlobalLabels = globalScaleLabels;
+        const draftIssues: BuilderAuthoringIssue[] = [];
+
         if (useGlobalScale) {
-            finalDomains = domains.map((domain) => ({
-                ...domain,
-                targets: domain.targets.map((target) => ({
-                    ...target,
-                    scoring: {
-                        ...target.scoring,
-                        scale_labels: globalScaleLabels,
-                    },
-                })),
-            }));
+            const globalResult = commitNumericScaleCsv(defaultScale);
+            if (!globalResult.ok) {
+                setDefaultScaleError(globalResult.error);
+                draftIssues.push({
+                    field: 'default_scale',
+                    message: globalResult.error,
+                });
+            } else {
+                setDefaultScaleError(null);
+                workingDefaultScale = formatNumericScale(globalResult.values);
+                setDefaultScale(workingDefaultScale);
+                workingGlobalLabels = reconcileScaleLabels(
+                    globalResult.values,
+                    globalScaleLabels
+                );
+                setGlobalScaleLabels(workingGlobalLabels);
+            }
+            workingDomains = applyGlobalScaleLabels(workingDomains, workingGlobalLabels);
+        } else {
+            const committed = commitAllTargetScaleDrafts(workingDomains, targetScaleDrafts);
+            workingDomains = committed.domains;
+            draftIssues.push(...committed.issues);
+            setDomains(workingDomains);
+            const nextDrafts: Record<string, string> = { ...targetScaleDrafts };
+            workingDomains.forEach((domain, domainIndex) => {
+                domain.targets.forEach((target, targetIndex) => {
+                    if (target.scoring.type === 'numeric' && target.scoring.scale) {
+                        nextDrafts[scaleDraftKey(domainIndex, targetIndex)] = formatNumericScale(
+                            target.scoring.scale
+                        );
+                    }
+                });
+            });
+            setTargetScaleDrafts(nextDrafts);
         }
 
         const packData: ContentPackData = {
@@ -296,9 +532,33 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                 secondaryGroupLabel,
                 secondaryGroupingEnabled
             ),
-            domains: finalDomains,
+            domains: workingDomains,
         };
 
+        const validated = validateBuilderPackAuthoring(packData, {
+            useGlobalScale,
+            defaultScaleCsv: workingDefaultScale,
+        });
+
+        const mergedIssues = [...draftIssues];
+        for (const issue of validated) {
+            const alreadyPresent = draftIssues.some(
+                (draftIssue) =>
+                    draftIssue.field === issue.field &&
+                    draftIssue.domainIndex === issue.domainIndex &&
+                    draftIssue.targetIndex === issue.targetIndex
+            );
+            if (!alreadyPresent) {
+                mergedIssues.push(issue);
+            }
+        }
+
+        if (mergedIssues.length > 0) {
+            setAuthoringIssues(mergedIssues);
+            return;
+        }
+
+        setAuthoringIssues([]);
         await onSave(prepareBuilderPackForSave(packData));
     };
 
@@ -377,11 +637,19 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                         <input
                             type="text"
                             value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                            onChange={(e) => {
+                                setTitle(e.target.value);
+                                clearAuthoringIssue('title');
+                            }}
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
+                                issueFor('title') ? 'border-red-400' : 'border-gray-300'
+                            }`}
                             placeholder="e.g., Custom ABA Assessment"
                             required
                         />
+                        {issueFor('title') ? (
+                            <p className="mt-1 text-xs text-red-600">{issueFor('title')}</p>
+                        ) : null}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -482,13 +750,44 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                             <input
                                 type="text"
                                 value={defaultScale}
-                                onChange={(e) => setDefaultScale(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                                placeholder="e.g., 0,1,2,3,4 or 0,0.5,1 or 0,1,2"
+                                onChange={(e) => {
+                                    setDefaultScale(e.target.value);
+                                    setDefaultScaleError(null);
+                                    clearAuthoringIssue('default_scale');
+                                }}
+                                onBlur={() => {
+                                    const result = commitNumericScaleCsv(defaultScale);
+                                    if (!result.ok) {
+                                        setDefaultScaleError(result.error);
+                                        return;
+                                    }
+                                    setDefaultScaleError(null);
+                                    setDefaultScale(formatNumericScale(result.values));
+                                    setGlobalScaleLabels((prev) =>
+                                        reconcileScaleLabels(result.values, prev)
+                                    );
+                                }}
+                                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
+                                    defaultScaleError || issueFor('default_scale')
+                                        ? 'border-red-400'
+                                        : 'border-gray-300'
+                                }`}
+                                placeholder="e.g., 0,1,2,3,4 or 0,0.5,1 or -1,0,1"
+                                aria-invalid={Boolean(
+                                    defaultScaleError || issueFor('default_scale')
+                                )}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                                Comma-separated numbers for your scoring system
-                            </p>
+                            {defaultScaleError || issueFor('default_scale') ? (
+                                <p className="text-xs text-red-600 mt-1">
+                                    {defaultScaleError || issueFor('default_scale')}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    New targets snapshot this scale when created. Changing it later
+                                    does not rewrite existing target scales. Score criteria below are
+                                    applied to all targets on save.
+                                </p>
+                            )}
 
                             <div className="mt-4 space-y-2 pl-4 border-l-2 border-gray-100">
                                 <label className="block text-sm font-medium text-gray-700">
@@ -497,35 +796,32 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                 <p className="text-xs text-gray-500 mb-2">
                                     Define what each score means (e.g. 4 = Independent)
                                 </p>
-                                {defaultScale
-                                    .split(',')
-                                    .map((v) => parseFloat(v.trim()))
-                                    .filter((v) => !Number.isNaN(v))
-                                    .map((scoreValue) => (
-                                        <div key={scoreValue} className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-gray-700 w-8">
-                                                {scoreValue} =
-                                            </span>
-                                            <input
-                                                type="text"
-                                                value={globalScaleLabels[scoreValue] || ''}
-                                                onChange={(e) =>
-                                                    setGlobalScaleLabels((prev) => ({
-                                                        ...prev,
-                                                        [scoreValue]: e.target.value,
-                                                    }))
-                                                }
-                                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm"
-                                                placeholder={`Definition for score ${scoreValue}`}
-                                            />
-                                        </div>
-                                    ))}
+                                {defaultScaleValues.map((scoreValue) => (
+                                    <div key={scoreValue} className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-gray-700 w-8">
+                                            {scoreValue} =
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={globalScaleLabels[scoreValue] || ''}
+                                            onChange={(e) =>
+                                                setGlobalScaleLabels((prev) => ({
+                                                    ...prev,
+                                                    [scoreValue]: e.target.value,
+                                                }))
+                                            }
+                                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                            placeholder={`Definition for score ${scoreValue}`}
+                                        />
+                                    </div>
+                                ))}
                             </div>
                         </>
                     )}
                     {!useGlobalScale && (
                         <p className="text-sm text-gray-600">
-                            Customize scoring for each target below.
+                            Customize scoring for each target below. Target-specific scales are kept
+                            when you save and reopen the pack.
                         </p>
                     )}
                 </div>
@@ -562,10 +858,19 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                 onChange={(e) =>
                                                     updateDomain(dIndex, 'domain_id', e.target.value)
                                                 }
-                                                className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                                className={`w-full px-3 py-2 border rounded text-sm ${
+                                                    issueFor('domain_id', dIndex)
+                                                        ? 'border-red-400'
+                                                        : 'border-gray-300'
+                                                }`}
                                                 placeholder="A"
                                                 required
                                             />
+                                            {issueFor('domain_id', dIndex) ? (
+                                                <p className="mt-1 text-xs text-red-600">
+                                                    {issueFor('domain_id', dIndex)}
+                                                </p>
+                                            ) : null}
                                         </div>
                                         <div className="col-span-3">
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -704,9 +1009,27 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                                     showMoveToGroup
                                                                     domains={domains}
                                                                     setDomains={setDomains}
+                                                                    scaleDraft={getTargetScaleDraft(
+                                                                        dIndex,
+                                                                        tIndex,
+                                                                        target
+                                                                    )}
+                                                                    scaleError={issueFor(
+                                                                        'scale',
+                                                                        dIndex,
+                                                                        tIndex
+                                                                    )}
+                                                                    targetIdError={issueFor(
+                                                                        'target_id',
+                                                                        dIndex,
+                                                                        tIndex
+                                                                    )}
                                                                     onUpdateTarget={updateTarget}
-                                                                    onUpdateTargetScale={
-                                                                        updateTargetScale
+                                                                    onScaleDraftChange={
+                                                                        updateTargetScaleDraft
+                                                                    }
+                                                                    onCommitTargetScale={
+                                                                        onCommitTargetScale
                                                                     }
                                                                     onUpdateScoringType={
                                                                         updateScoringType
@@ -754,8 +1077,26 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                             showMoveToGroup
                                                             domains={domains}
                                                             setDomains={setDomains}
+                                                            scaleDraft={getTargetScaleDraft(
+                                                                dIndex,
+                                                                tIndex,
+                                                                target
+                                                            )}
+                                                            scaleError={issueFor(
+                                                                'scale',
+                                                                dIndex,
+                                                                tIndex
+                                                            )}
+                                                            targetIdError={issueFor(
+                                                                'target_id',
+                                                                dIndex,
+                                                                tIndex
+                                                            )}
                                                             onUpdateTarget={updateTarget}
-                                                            onUpdateTargetScale={updateTargetScale}
+                                                            onScaleDraftChange={
+                                                                updateTargetScaleDraft
+                                                            }
+                                                            onCommitTargetScale={onCommitTargetScale}
                                                             onUpdateScoringType={updateScoringType}
                                                             onRemoveTarget={removeTarget}
                                                             onMoveToGroup={moveTargetToGroup}
@@ -794,8 +1135,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                             showMoveToGroup={false}
                                             domains={domains}
                                             setDomains={setDomains}
+                                            scaleDraft={getTargetScaleDraft(dIndex, tIndex, target)}
+                                            scaleError={issueFor('scale', dIndex, tIndex)}
+                                            targetIdError={issueFor('target_id', dIndex, tIndex)}
                                             onUpdateTarget={updateTarget}
-                                            onUpdateTargetScale={updateTargetScale}
+                                            onScaleDraftChange={updateTargetScaleDraft}
+                                            onCommitTargetScale={onCommitTargetScale}
                                             onUpdateScoringType={updateScoringType}
                                             onRemoveTarget={removeTarget}
                                             onMoveToGroup={moveTargetToGroup}
@@ -813,6 +1158,14 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                     </div>
                 )}
             </div>
+
+            {authoringIssues.length > 0 ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    Fix {authoringIssues.length} authoring{' '}
+                    {authoringIssues.length === 1 ? 'issue' : 'issues'} before saving. Inline
+                    messages mark the fields that need attention.
+                </div>
+            ) : null}
 
             <div className="flex gap-3 pt-4 border-t">
                 <button

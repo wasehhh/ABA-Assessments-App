@@ -55,6 +55,32 @@ describe('contentPackCsv', () => {
         });
     });
 
+    it('imports decimal scales without dropping values', () => {
+        const csv = [
+            'domain_id,domain_title,target_id,title,success_criteria,scoring_type,scale,scale_labels',
+            'A,Domain,T1,Target 1,Criteria,numeric,"0,0.5,1","0:None|0.5:Partial|1:Full"',
+        ].join('\n');
+
+        const pack = parseContentPackCsv(csv, 'Decimal Pack', '');
+        expect(pack.domains[0].targets[0].scoring.scale).toEqual([0, 0.5, 1]);
+    });
+
+    it('rejects malformed scale tokens instead of silently dropping them', () => {
+        const badToken = [
+            'domain_id,domain_title,target_id,title,success_criteria,scoring_type,scale',
+            'A,Domain,T1,Target 1,Criteria,numeric,"0,a,1"',
+        ].join('\n');
+        expect(() => parseContentPackCsv(badToken, 'Bad Pack', '')).toThrow(
+            /"a" is not a valid numeric score/
+        );
+
+        const emptyEntry = [
+            'domain_id,domain_title,target_id,title,success_criteria,scoring_type,scale',
+            'A,Domain,T1,Target 1,Criteria,numeric,"0,,1"',
+        ].join('\n');
+        expect(() => parseContentPackCsv(emptyEntry, 'Bad Pack', '')).toThrow(/empty values/i);
+    });
+
     it('materializes imported scoring onto targets for Alpha safety', () => {
         const csv = [
             'domain_id,domain_title,target_id,title,success_criteria,scoring_type,scale,scale_labels',

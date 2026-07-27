@@ -1,15 +1,12 @@
 import {
     ContentPackData,
     Domain,
-    ScoringScaleDefinition,
     StructureLabels,
     Target,
     TargetScoring,
 } from '../types';
 import {
     getOversizedGroupWarning,
-    OVERSIZED_GROUP_EXTREME_THRESHOLD,
-    OVERSIZED_GROUP_LARGE_THRESHOLD,
     OversizedGroupWarning,
     resolveTargetScoring,
 } from './assessmentPackStructure';
@@ -30,7 +27,94 @@ export interface PackGroupWarning extends OversizedGroupWarning {
     secondaryGroupTitle?: string;
 }
 
-/** Parse CSV scale column e.g. "0,1,2,3,4". */
+/** Complete numeric token: integers, decimals, negatives. Rejects NaN/Infinity/malformed. */
+const COMPLETE_NUMERIC_TOKEN =
+    /^-?(?:(?:0|[1-9]\d*)(?:\.\d+)?|\.\d+)$/;
+
+export type NumericScaleCommitResult =
+    | { ok: true; values: number[] }
+    | { ok: false; error: string };
+
+/** Format canonical scale values for display / draft seeding. Preserves decimals; no rounding. */
+export function formatNumericScale(values: number[]): string {
+    return values.map(String).join(',');
+}
+
+/**
+ * Commit a numeric-scale CSV string to canonical number[].
+ * Rejects empty entries, non-numeric tokens, duplicates, NaN/Infinity, and trailing commas.
+ * Does not silently drop invalid tokens.
+ */
+export function commitNumericScaleCsv(input: string): NumericScaleCommitResult {
+    const trimmed = input.trim();
+    if (!trimmed) {
+        return {
+            ok: false,
+            error: 'Enter numeric values separated by commas.',
+        };
+    }
+
+    const parts = trimmed.split(',');
+    const values: number[] = [];
+    const seen = new Set<number>();
+
+    for (let index = 0; index < parts.length; index++) {
+        const raw = parts[index];
+        const token = raw.trim();
+
+        if (!token) {
+            if (index === parts.length - 1) {
+                return {
+                    ok: false,
+                    error: 'Remove the trailing comma or finish the last score value.',
+                };
+            }
+            return {
+                ok: false,
+                error: 'Score lists cannot include empty values. Remove extra commas.',
+            };
+        }
+
+        if (!COMPLETE_NUMERIC_TOKEN.test(token)) {
+            return {
+                ok: false,
+                error: `"${token}" is not a valid numeric score.`,
+            };
+        }
+
+        const value = Number(token);
+        if (!Number.isFinite(value)) {
+            return {
+                ok: false,
+                error: `"${token}" is not a valid numeric score.`,
+            };
+        }
+
+        if (seen.has(value)) {
+            return {
+                ok: false,
+                error: 'Score values must be unique.',
+            };
+        }
+
+        seen.add(value);
+        values.push(value);
+    }
+
+    if (values.length === 0) {
+        return {
+            ok: false,
+            error: 'Enter numeric values separated by commas.',
+        };
+    }
+
+    return { ok: true, values };
+}
+
+/**
+ * Parse CSV scale column e.g. "0,1,2,3,4".
+ * Empty input returns fallback. Malformed input throws (no silent token dropping).
+ */
 export function parseNumericScaleCsv(
     input: string,
     fallback: number[] = [0, 1, 2, 3, 4]
@@ -40,12 +124,189 @@ export function parseNumericScaleCsv(
         return [...fallback];
     }
 
-    const values = trimmed
-        .split(',')
-        .map((part) => parseFloat(part.trim()))
-        .filter((value) => !Number.isNaN(value));
+    const result = commitNumericScaleCsv(trimmed);
+    if (!result.ok) {
+        throw new Error(result.error);
+    }
 
-    return values.length > 0 ? values : [...fallback];
+    return result.values;
+}
+
+/**
+ * Keep labels for score values that remain on the scale; drop stale mappings.
+ * Does not remap labels across different score values.
+ */
+export function reconcileScaleLabels(
+    scale: number[],
+    previousLabels: Record<number, string> | undefined
+): Record<number, string> {
+    const next: Record<number, string> = {};
+    if (!previousLabels) {
+        return next;
+    }
+
+    for (const value of scale) {
+        const label = previousLabels[value];
+        if (label !== undefined) {
+            next[value] = label;
+        }
+    }
+
+    return next;
+}
+
+export type BuilderAuthoringIssueField =
+    | 'domain_id'
+    | 'target_id'
+    | 'scale'
+    | 'default_scale'
+    | 'title';
+
+export interface BuilderAuthoringIssue {
+    message: string;
+    field: BuilderAuthoringIssueField;
+    domainIndex?: number;
+    targetIndex?: number;
+}
+
+export interface ValidateBuilderAuthoringOptions {
+    /** When true, validate defaultScaleCsv and skip per-target numeric scale checks. */
+    useGlobalScale?: boolean;
+    defaultScaleCsv?: string;
+}
+
+/**
+ * Identifier contract (Builder + CSV import):
+ * - domain_id: required, non-whitespace, unique within the pack (after trim).
+ * - target_id: required, non-whitespace, unique across the entire pack (not merely per domain).
+ *   CSV import enforces the same pack-global target_id uniqueness.
+ * Autogenerated Builder IDs use `${domain_id}${n}` and must avoid colliding with existing IDs.
+ */
+export function validateBuilderPackAuthoring(
+    pack: ContentPackData,
+    options: ValidateBuilderAuthoringOptions = {}
+): BuilderAuthoringIssue[] {
+    const issues: BuilderAuthoringIssue[] = [];
+    const domainIds = new Map<string, number>();
+    const targetIds = new Map<string, { domainIndex: number; targetIndex: number }>();
+
+    if (!pack.title.trim()) {
+        issues.push({
+            field: 'title',
+            message: 'Enter an assessment title.',
+        });
+    }
+
+    if (options.useGlobalScale) {
+        const scaleResult = commitNumericScaleCsv(options.defaultScaleCsv ?? '');
+        if (!scaleResult.ok) {
+            issues.push({
+                field: 'default_scale',
+                message: scaleResult.error,
+            });
+        }
+    }
+
+    pack.domains.forEach((domain, domainIndex) => {
+        const domainId = domain.domain_id.trim();
+        if (!domainId) {
+            issues.push({
+                field: 'domain_id',
+                domainIndex,
+                message: 'Enter a domain ID.',
+            });
+        } else if (domainIds.has(domainId)) {
+            issues.push({
+                field: 'domain_id',
+                domainIndex,
+                message: `Domain ID "${domainId}" is already used. Domain IDs must be unique.`,
+            });
+        } else {
+            domainIds.set(domainId, domainIndex);
+        }
+
+        domain.targets.forEach((target, targetIndex) => {
+            const targetId = target.target_id.trim();
+            if (!targetId) {
+                issues.push({
+                    field: 'target_id',
+                    domainIndex,
+                    targetIndex,
+                    message: 'Enter a target ID.',
+                });
+            } else if (targetIds.has(targetId)) {
+                issues.push({
+                    field: 'target_id',
+                    domainIndex,
+                    targetIndex,
+                    message: `Target ID "${targetId}" is already used. Target IDs must be unique across the assessment.`,
+                });
+            } else {
+                targetIds.set(targetId, { domainIndex, targetIndex });
+            }
+
+            if (!options.useGlobalScale && target.scoring.type === 'numeric') {
+                const scale = target.scoring.scale;
+                if (!scale || scale.length === 0) {
+                    issues.push({
+                        field: 'scale',
+                        domainIndex,
+                        targetIndex,
+                        message: 'Enter numeric values separated by commas.',
+                    });
+                } else {
+                    const serialized = formatNumericScale(scale);
+                    const scaleResult = commitNumericScaleCsv(serialized);
+                    if (!scaleResult.ok) {
+                        issues.push({
+                            field: 'scale',
+                            domainIndex,
+                            targetIndex,
+                            message: scaleResult.error,
+                        });
+                    }
+                }
+            }
+        });
+    });
+
+    return issues;
+}
+
+/** Trim domain/target IDs for save. Call only after validation succeeds. */
+export function normalizePackIdentifiers(pack: ContentPackData): ContentPackData {
+    return {
+        ...pack,
+        domains: pack.domains.map((domain) => ({
+            ...domain,
+            domain_id: domain.domain_id.trim(),
+            targets: domain.targets.map((target) => ({
+                ...target,
+                target_id: target.target_id.trim(),
+            })),
+        })),
+    };
+}
+
+/**
+ * Global-scale save behaviour (documented, unchanged):
+ * applies global scale_labels to every target. Does not rewrite target.scoring.scale.
+ * New targets snapshot defaultScale at creation time only.
+ */
+export function applyGlobalScaleLabels(
+    domains: Domain[],
+    globalScaleLabels: Record<number, string>
+): Domain[] {
+    return domains.map((domain) => ({
+        ...domain,
+        targets: domain.targets.map((target) => ({
+            ...target,
+            scoring: {
+                ...target.scoring,
+                scale_labels: { ...globalScaleLabels },
+            },
+        })),
+    }));
 }
 
 /** Parse CSV scale_labels column e.g. "0:Not Yet|1:Emerging|2:Mastered". */
@@ -224,9 +485,11 @@ export function stripPackScoringScaleReferences(pack: ContentPackData): ContentP
     };
 }
 
-/** Builder save path: inline scoring only, then Alpha-safe materialization. */
+/** Builder save path: normalize IDs, inline scoring only, then Alpha-safe materialization. */
 export function prepareBuilderPackForSave(pack: ContentPackData): ContentPackData {
-    return materializePackForSave(stripPackScoringScaleReferences(pack));
+    return materializePackForSave(
+        stripPackScoringScaleReferences(normalizePackIdentifiers(pack))
+    );
 }
 
 /**

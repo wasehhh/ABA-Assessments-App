@@ -13,13 +13,17 @@ export interface AssessmentBuilderTargetEditorProps {
     showMoveToGroup: boolean;
     domains: Domain[];
     setDomains: Dispatch<SetStateAction<Domain[]>>;
+    scaleDraft: string;
+    scaleError?: string | null;
+    targetIdError?: string | null;
     onUpdateTarget: (
         domainIndex: number,
         targetIndex: number,
         field: keyof Target,
         value: Target[keyof Target]
     ) => void;
-    onUpdateTargetScale: (domainIndex: number, targetIndex: number, scaleString: string) => void;
+    onScaleDraftChange: (domainIndex: number, targetIndex: number, draft: string) => void;
+    onCommitTargetScale: (domainIndex: number, targetIndex: number) => void;
     onUpdateScoringType: (
         domainIndex: number,
         targetIndex: number,
@@ -40,8 +44,12 @@ export function AssessmentBuilderTargetEditor({
     showMoveToGroup,
     domains,
     setDomains,
+    scaleDraft,
+    scaleError,
+    targetIdError,
     onUpdateTarget,
-    onUpdateTargetScale,
+    onScaleDraftChange,
+    onCommitTargetScale,
     onUpdateScoringType,
     onRemoveTarget,
     onMoveToGroup,
@@ -61,10 +69,15 @@ export function AssessmentBuilderTargetEditor({
                                 onChange={(e) =>
                                     onUpdateTarget(domainIndex, targetIndex, 'target_id', e.target.value)
                                 }
-                                className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                                className={`w-full rounded border px-2 py-1 text-xs ${
+                                    targetIdError ? 'border-red-400' : 'border-gray-300'
+                                }`}
                                 placeholder="A1"
                                 required
                             />
+                            {targetIdError ? (
+                                <p className="mt-1 text-xs text-red-600">{targetIdError}</p>
+                            ) : null}
                         </div>
                         <div className="col-span-3">
                             <label className="mb-1 block text-xs text-gray-600">
@@ -153,17 +166,30 @@ export function AssessmentBuilderTargetEditor({
                                     </label>
                                     <input
                                         type="text"
-                                        value={target.scoring.scale?.join(',') || ''}
+                                        value={scaleDraft}
                                         onChange={(e) =>
-                                            onUpdateTargetScale(
+                                            onScaleDraftChange(
                                                 domainIndex,
                                                 targetIndex,
                                                 e.target.value
                                             )
                                         }
-                                        className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                                        onBlur={() =>
+                                            onCommitTargetScale(domainIndex, targetIndex)
+                                        }
+                                        className={`w-full rounded border px-2 py-1 text-xs ${
+                                            scaleError ? 'border-red-400' : 'border-gray-300'
+                                        }`}
                                         placeholder="e.g., 0,1,2,3,4"
+                                        aria-invalid={Boolean(scaleError)}
                                     />
+                                    {scaleError ? (
+                                        <p className="mt-1 text-xs text-red-600">{scaleError}</p>
+                                    ) : (
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Comma-separated scores. Decimals and negatives are allowed.
+                                        </p>
+                                    )}
                                     <div className="mt-3 space-y-2">
                                         <label className="block text-xs font-medium text-gray-600">
                                             Score Criteria Definitions (Optional)
