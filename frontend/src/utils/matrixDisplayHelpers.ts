@@ -4,11 +4,14 @@ import {
     groupTargetsForDisplay,
     ResolvedTargetScoring,
 } from './assessmentPackStructure';
+import {
+    deriveScaleBoundsFromResolved,
+    resolveEffectiveScoring,
+} from './effectiveScoring';
 
 /**
- * Future work: when all consumers have migrated to the universal pack architecture,
- * score interpretation should consistently resolve scoring through resolveTargetScoring()
- * rather than assuming inline materialized scoring.
+ * Matrix display helpers. Scoring-definition attributes must come from Effective Scoring
+ * (resolveEffectiveScoring / deriveScaleBoundsFromResolved) — never local fallbacks.
  */
 
 export function getMatrixDisplaySections(domain: Domain): DisplayTargetGroup[] {
@@ -69,27 +72,12 @@ export function formatMatrixScoreButtonLabel(
     return { text: String(value), title };
 }
 
+/**
+ * Allowed values for Matrix controls from ResolvedTargetScoring.
+ * Delegates to the shared Effective Scoring bound derivation (single fallback policy).
+ */
 export function getResolvedScaleValues(scoring: ResolvedTargetScoring): number[] {
-    const scoringType = scoring.type as string;
-
-    if (scoringType === 'yes_no' || scoringType === 'yesno') {
-        return [0, 1];
-    }
-
-    if (scoringType === 'checkbox') {
-        if (scoring.scale && scoring.scale.length > 0) {
-            return [...scoring.scale];
-        }
-
-        const stepCount = scoring.task_steps?.length ?? 0;
-        return Array.from({ length: stepCount + 1 }, (_, index) => index);
-    }
-
-    if (scoring.scale && scoring.scale.length > 0) {
-        return [...scoring.scale];
-    }
-
-    return [0, 1, 2, 3, 4];
+    return deriveScaleBoundsFromResolved(scoring).allowedValues;
 }
 
 /** Find a target by id within a pack snapshot. */
@@ -107,4 +95,12 @@ export function findPackTarget(
         }
     }
     return undefined;
+}
+
+/** Effective allowed values for Matrix controls (pack context required). */
+export function getEffectiveScaleValuesForTarget(
+    target: Target,
+    pack: ContentPackData
+): number[] {
+    return resolveEffectiveScoring(target, pack).allowedValues;
 }

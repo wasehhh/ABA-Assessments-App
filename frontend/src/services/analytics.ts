@@ -1,5 +1,6 @@
 import { AssessmentScore, ContentPackData } from '../types';
-import { coerceStoredScore, getTargetMaxScore } from '../utils/scoreInterpretation';
+import { coerceStoredScore } from '../utils/scoreInterpretation';
+import { getEffectiveMaxScore } from '../utils/effectiveScoring';
 
 export interface DomainStat {
     domainId: string;
@@ -37,7 +38,7 @@ export const analyticsService = {
             let scoredCount = 0;
 
             domain.targets.forEach(target => {
-                const targetMax = getTargetMaxScore(target);
+                const targetMax = getEffectiveMaxScore(target, pack);
                 maxScore += targetMax;
 
                 const val = scoreMap.get(target.target_id);

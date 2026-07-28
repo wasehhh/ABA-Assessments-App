@@ -90,6 +90,7 @@ function resolveTrend(
 }
 
 function buildCycleDelta(
+    pack: ContentPackData,
     domainTargets: Target[],
     currentScores: AssessmentScore[],
     previousScores: AssessmentScore[],
@@ -102,11 +103,13 @@ function buildCycleDelta(
     domainTargets.forEach((target) => {
         const currentInterpretation = interpretTargetScore(
             target,
-            scoreRowByTargetId(currentScores, target.target_id)
+            scoreRowByTargetId(currentScores, target.target_id),
+            pack
         );
         const previousInterpretation = interpretTargetScore(
             target,
-            scoreRowByTargetId(previousScores, target.target_id)
+            scoreRowByTargetId(previousScores, target.target_id),
+            pack
         );
 
         if (
@@ -159,12 +162,14 @@ export function buildDomainProfiles(
         domain.targets.forEach((target) => {
             const interpretation = interpretTargetScore(
                 target,
-                scoreRowByTargetId(currentScores, target.target_id)
+                scoreRowByTargetId(currentScores, target.target_id),
+                pack
             );
             const previousInterpretation = hasPreviousBaseline
                 ? interpretTargetScore(
                     target,
-                    scoreRowByTargetId(previousScores!, target.target_id)
+                    scoreRowByTargetId(previousScores!, target.target_id),
+                    pack
                 )
                 : null;
 
@@ -184,6 +189,7 @@ export function buildDomainProfiles(
 
         const cycleDelta = hasPreviousBaseline
             ? buildCycleDelta(
+                pack,
                 domain.targets,
                 currentScores,
                 previousScores!,

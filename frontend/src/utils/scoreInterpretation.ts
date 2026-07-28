@@ -1,4 +1,11 @@
-import { AssessmentScore, Target } from '../types';
+import { AssessmentScore, ContentPackData, Target } from '../types';
+import {
+    EffectiveScoringDefinition,
+    getEffectiveAllowedValues,
+    getEffectiveMaxScore,
+    normalizeEffectiveScaleType,
+    resolveEffectiveScoring,
+} from './effectiveScoring';
 
 export type ScaleType = 'numeric' | 'yes_no' | 'checkbox' | 'text' | 'unknown';
 
@@ -23,75 +30,28 @@ export interface TargetScoreInterpretation {
     supportsInProgress: boolean;
 }
 
-const DEFAULT_NUMERIC_SCALE = [0, 1, 2, 3, 4];
 const UNSCORED_DISPLAY = '—';
 
-function scoringTypeKey(target: Target): string {
-    return (target.scoring.type as string) ?? 'numeric';
+/**
+ * Max score from Effective Scoring for the given pack context.
+ * Pass assessment pack_snapshot for historical assessments (G8).
+ */
+export function getTargetMaxScore(target: Target, pack: ContentPackData): number {
+    return getEffectiveMaxScore(target, pack);
 }
 
-/** Single source of truth for max score on a target definition. */
-export function getTargetMaxScore(target: Target): number {
-    const type = scoringTypeKey(target);
-
-    if (type === 'yes_no' || type === 'yesno') {
-        return 1;
-    }
-
-    if (type === 'checkbox') {
-        return target.scoring.task_steps?.length
-            || (target.scoring as { checkbox_count?: number }).checkbox_count
-            || 4;
-    }
-
-    if (target.scoring.scale && target.scoring.scale.length > 0) {
-        return Math.max(...target.scoring.scale);
-    }
-
-    return 4;
+/** Normalize legacy yes_no / yesno and builder variants via Effective Scoring rules. */
+export function resolveScaleType(target: Target, pack: ContentPackData): ScaleType {
+    return resolveEffectiveScoring(target, pack).type;
 }
 
-/** Normalize legacy yes_no / yesno and builder variants. */
-export function resolveScaleType(target: Target): ScaleType {
-    const type = scoringTypeKey(target);
-
-    if (type === 'yes_no' || type === 'yesno') {
-        return 'yes_no';
-    }
-    if (type === 'checkbox') {
-        return 'checkbox';
-    }
-    if (type === 'text') {
-        return 'text';
-    }
-    if (type === 'numeric') {
-        return 'numeric';
-    }
-    return 'unknown';
-}
-
-/** Ordered scale values for numeric/checkbox interpretation. */
-export function getTargetScaleValues(target: Target): number[] {
-    const scaleType = resolveScaleType(target);
-
-    if (scaleType === 'yes_no') {
-        return [0, 1];
-    }
-
-    if (target.scoring.scale && target.scoring.scale.length > 0) {
-        return [...target.scoring.scale];
-    }
-
-    if (scaleType === 'checkbox') {
-        const max = getTargetMaxScore(target);
-        return Array.from({ length: max + 1 }, (_, i) => i);
-    }
-
-    return [...DEFAULT_NUMERIC_SCALE];
+/** Allowed scale values from Effective Scoring for the given pack context. */
+export function getTargetScaleValues(target: Target, pack: ContentPackData): number[] {
+    return getEffectiveAllowedValues(target, pack);
 }
 
 /**
- * Membership check against a resolved scale.
+ * Membership check against allowed scale values.
  * Null clears a score and is always allowed. Does not use min/max range.
  */
 export function isScoreInResolvedScale(
@@ -150,8 +110,9 @@ export function coerceScoreFromDb(raw: unknown): number | null {
  */
 export function clampRawScore(
     raw: number | null | undefined,
-    _targetMax?: number
+    targetMax?: number
 ): number | null {
+    void targetMax;
     return coerceStoredScore(raw);
 }
 
@@ -165,18 +126,18 @@ export function getNormalizedRatio(
     return rawScore / targetMax;
 }
 
-export function getCompetencyState(
-    target: Target,
+export function getCompetencyStateFromEffective(
+    effective: EffectiveScoringDefinition,
     rawScore: number | null
 ): CompetencyState {
     if (rawScore === null) {
         return 'unscored';
     }
 
-    const scaleType = resolveScaleType(target);
-    const targetMax = getTargetMaxScore(target);
-    const scaleValues = getTargetScaleValues(target);
-    const minVal = Math.min(...scaleValues);
+    const scaleType = effective.type;
+    const targetMax = effective.maxScore;
+    const scaleValues = effective.allowedValues;
+    const minVal = scaleValues.length > 0 ? Math.min(...scaleValues) : 0;
 
     if (scaleType === 'yes_no') {
         if (rawScore === 0) return 'not_yet';
@@ -200,8 +161,16 @@ export function getCompetencyState(
     return 'in_progress';
 }
 
-export function getDisplayScore(
+export function getCompetencyState(
     target: Target,
+    rawScore: number | null,
+    pack: ContentPackData
+): CompetencyState {
+    return getCompetencyStateFromEffective(resolveEffectiveScoring(target, pack), rawScore);
+}
+
+export function getDisplayScoreFromEffective(
+    effective: EffectiveScoringDefinition,
     rawScore: number | null,
     opts?: {
         includeMax?: boolean;
@@ -209,7 +178,7 @@ export function getDisplayScore(
     }
 ): string {
     const unscoredLabel = opts?.unscoredLabel ?? UNSCORED_DISPLAY;
-    const targetMax = getTargetMaxScore(target);
+    const targetMax = effective.maxScore;
 
     if (rawScore === null) {
         return unscoredLabel;
@@ -222,23 +191,47 @@ export function getDisplayScore(
     return scoreText;
 }
 
+export function getDisplayScore(
+    target: Target,
+    rawScore: number | null,
+    pack: ContentPackData,
+    opts?: {
+        includeMax?: boolean;
+        unscoredLabel?: string;
+    }
+): string {
+    return getDisplayScoreFromEffective(
+        resolveEffectiveScoring(target, pack),
+        rawScore,
+        opts
+    );
+}
+
+/**
+ * Score Interpretation layer — downstream of Effective Scoring only.
+ * Pack must be the assessment pack_snapshot for historical assessments.
+ */
 export function interpretTargetScore(
     target: Target,
-    scoreRow: AssessmentScore | null | undefined
+    scoreRow: AssessmentScore | null | undefined,
+    pack: ContentPackData
 ): TargetScoreInterpretation {
+    const effective = resolveEffectiveScoring(target, pack);
     const hasScoreRow = scoreRow != null;
-    const targetMax = getTargetMaxScore(target);
-    const scaleType = resolveScaleType(target);
-    const scaleValues = getTargetScaleValues(target);
+    const targetMax = effective.maxScore;
+    const scaleType = effective.type;
+    const scaleValues = effective.allowedValues;
     const supportsInProgress = scaleType !== 'yes_no';
 
     const rawFromRow = hasScoreRow ? scoreRow!.score : null;
     const rawScore = coerceScoreFromDb(rawFromRow);
     const isUnscored = rawScore === null;
-    const competencyState = getCompetencyState(target, rawScore);
+    const competencyState = getCompetencyStateFromEffective(effective, rawScore);
     const normalizedRatio = getNormalizedRatio(rawScore, targetMax);
-    const displayScore = getDisplayScore(target, rawScore);
-    const displayScoreWithMax = getDisplayScore(target, rawScore, { includeMax: true });
+    const displayScore = getDisplayScoreFromEffective(effective, rawScore);
+    const displayScoreWithMax = getDisplayScoreFromEffective(effective, rawScore, {
+        includeMax: true,
+    });
 
     return {
         targetId: target.target_id,
@@ -255,3 +248,6 @@ export function interpretTargetScore(
         supportsInProgress,
     };
 }
+
+/** Re-export for callers that only need type normalization without a pack. */
+export { normalizeEffectiveScaleType };

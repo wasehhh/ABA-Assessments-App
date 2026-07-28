@@ -50,7 +50,7 @@ export function TargetDetailModal({
     const showInstructions = instructionsText.length > 0;
     const showExamples = examplesText.length > 0;
     const showTargetNotes = targetNotesText.length > 0;
-    const scoreInterpretation = interpretTargetScore(target, currentScore);
+    const scoreInterpretation = interpretTargetScore(target, currentScore, pack);
     const currentScoreValue = scoreInterpretation.rawScore;
     const targetLabel = structureLabels.target;
     const statusLabel =

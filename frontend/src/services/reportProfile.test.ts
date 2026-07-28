@@ -345,7 +345,11 @@ describe('buildReportProfile', () => {
         mixedDomain.targets.forEach((row, index) => {
             const { target } = mixedDomain.profile.sequence[index];
             const scoreRow = scores.find((s) => s.target_id === target.target_id) ?? null;
-            const interpretation = interpretTargetScore(target, scoreRow);
+            const interpretation = interpretTargetScore(
+                target,
+                scoreRow,
+                baseInput.assessment.pack_snapshot
+            );
 
             expect(row.score).toBe(interpretation.rawScore);
             expect(row.displayScoreWithMax).toBe(interpretation.displayScoreWithMax);

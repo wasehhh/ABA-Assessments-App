@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AssessmentScore, Target } from '../types';
+import { AssessmentScore, ContentPackData, Target } from '../types';
 import {
     clampRawScore,
     coerceScoreFromDb,
@@ -13,6 +13,24 @@ import {
     isScoreInResolvedScale,
     resolveScaleType,
 } from './scoreInterpretation';
+
+
+function packFor(target: Target, extras: Target[] = []): ContentPackData {
+    return {
+        pack_id: 'pack-1',
+        org_id: 'org-1',
+        title: 'Pack',
+        description: '',
+        version: '1.0',
+        domains: [
+            {
+                domain_id: 'D',
+                title: 'Domain',
+                targets: [target, ...extras],
+            },
+        ],
+    };
+}
 
 function makeTarget(overrides: Partial<Target> & Pick<Target, 'target_id'>): Target {
     return {
@@ -53,7 +71,7 @@ function makeScoreRow(
 describe('getTargetMaxScore', () => {
     it('returns 4 for default numeric scale', () => {
         const target = makeTarget({ target_id: 'T1' });
-        expect(getTargetMaxScore(target)).toBe(4);
+        expect(getTargetMaxScore(target, packFor(target))).toBe(4);
     });
 
     it('returns max for custom numeric 0-2 scale', () => {
@@ -66,7 +84,7 @@ describe('getTargetMaxScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(getTargetMaxScore(target)).toBe(2);
+        expect(getTargetMaxScore(target, packFor(target))).toBe(2);
     });
 
     it('returns 1 for yes_no and yesno', () => {
@@ -78,7 +96,7 @@ describe('getTargetMaxScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(getTargetMaxScore(yesNo)).toBe(1);
+        expect(getTargetMaxScore(yesNo, packFor(yesNo))).toBe(1);
 
         const legacy = makeTarget({
             target_id: 'YN2',
@@ -88,7 +106,7 @@ describe('getTargetMaxScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(getTargetMaxScore(legacy)).toBe(1);
+        expect(getTargetMaxScore(legacy, packFor(legacy))).toBe(1);
     });
 
     it('derives max from checkbox task_steps length', () => {
@@ -101,7 +119,7 @@ describe('getTargetMaxScore', () => {
                 task_steps: ['Step A', 'Step B', 'Step C', 'Step D', 'Step E'],
             },
         });
-        expect(getTargetMaxScore(target)).toBe(5);
+        expect(getTargetMaxScore(target, packFor(target))).toBe(5);
     });
 
     it('falls back to 4 when checkbox has no task_steps', () => {
@@ -113,7 +131,7 @@ describe('getTargetMaxScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(getTargetMaxScore(target)).toBe(4);
+        expect(getTargetMaxScore(target, packFor(target))).toBe(4);
     });
 
     it('falls back to 4 when numeric scale is missing', () => {
@@ -125,20 +143,17 @@ describe('getTargetMaxScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(getTargetMaxScore(target)).toBe(4);
+        expect(getTargetMaxScore(target, packFor(target))).toBe(4);
     });
 });
 
 describe('resolveScaleType', () => {
     it('normalizes yesno and yes_no to yes_no', () => {
-        expect(
-            resolveScaleType(
-                makeTarget({
-                    target_id: 'Y1',
-                    scoring: { type: 'yesno', scale_labels: {}, no_opportunity_allowed: false },
-                })
-            )
-        ).toBe('yes_no');
+        const yesNo = makeTarget({
+            target_id: 'Y1',
+            scoring: { type: 'yesno', scale_labels: {}, no_opportunity_allowed: false },
+        });
+        expect(resolveScaleType(yesNo, packFor(yesNo))).toBe('yes_no');
     });
 });
 
@@ -154,7 +169,7 @@ describe('interpretTargetScore', () => {
     });
 
     it('treats missing score row as unscored', () => {
-        const result = interpretTargetScore(numeric04, null);
+        const result = interpretTargetScore(numeric04, null, packFor(numeric04));
         expect(result.isUnscored).toBe(true);
         expect(result.hasScoreRow).toBe(false);
         expect(result.rawScore).toBeNull();
@@ -164,18 +179,18 @@ describe('interpretTargetScore', () => {
     });
 
     it('treats row with null score as unscored', () => {
-        const result = interpretTargetScore(numeric04, makeScoreRow('N04', null));
+        const result = interpretTargetScore(numeric04, makeScoreRow('N04', null), packFor(numeric04));
         expect(result.isUnscored).toBe(true);
         expect(result.hasScoreRow).toBe(true);
         expect(result.competencyState).toBe('unscored');
     });
 
     it('maps 0-4 scale competency states', () => {
-        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 0)).competencyState).toBe('not_yet');
-        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 1)).competencyState).toBe('in_progress');
-        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 2)).competencyState).toBe('in_progress');
-        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 3)).competencyState).toBe('in_progress');
-        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 4)).competencyState).toBe('at_maximum');
+        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 0), packFor(numeric04)).competencyState).toBe('not_yet');
+        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 1), packFor(numeric04)).competencyState).toBe('in_progress');
+        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 2), packFor(numeric04)).competencyState).toBe('in_progress');
+        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 3), packFor(numeric04)).competencyState).toBe('in_progress');
+        expect(interpretTargetScore(numeric04, makeScoreRow('N04', 4), packFor(numeric04)).competencyState).toBe('at_maximum');
     });
 
     it('maps 0-2 scale full path', () => {
@@ -188,9 +203,9 @@ describe('interpretTargetScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 0)).competencyState).toBe('not_yet');
-        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 1)).competencyState).toBe('in_progress');
-        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 2)).competencyState).toBe('at_maximum');
+        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 0), packFor(numeric02)).competencyState).toBe('not_yet');
+        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 1), packFor(numeric02)).competencyState).toBe('in_progress');
+        expect(interpretTargetScore(numeric02, makeScoreRow('N02', 2), packFor(numeric02)).competencyState).toBe('at_maximum');
     });
 
     it('maps yes/no 0 to not_yet and 1 to at_maximum', () => {
@@ -198,8 +213,8 @@ describe('interpretTargetScore', () => {
             target_id: 'YN',
             scoring: { type: 'yesno', scale_labels: {}, no_opportunity_allowed: false },
         });
-        expect(interpretTargetScore(yesNo, makeScoreRow('YN', 0)).competencyState).toBe('not_yet');
-        expect(interpretTargetScore(yesNo, makeScoreRow('YN', 1)).competencyState).toBe('at_maximum');
+        expect(interpretTargetScore(yesNo, makeScoreRow('YN', 0), packFor(yesNo)).competencyState).toBe('not_yet');
+        expect(interpretTargetScore(yesNo, makeScoreRow('YN', 1), packFor(yesNo)).competencyState).toBe('at_maximum');
     });
 
     it('never supports in_progress for yes/no', () => {
@@ -207,12 +222,12 @@ describe('interpretTargetScore', () => {
             target_id: 'YN2',
             scoring: { type: 'yesno', scale_labels: {}, no_opportunity_allowed: false },
         });
-        expect(interpretTargetScore(yesNo, makeScoreRow('YN2', 0)).supportsInProgress).toBe(false);
-        expect(interpretTargetScore(yesNo, makeScoreRow('YN2', 1)).supportsInProgress).toBe(false);
+        expect(interpretTargetScore(yesNo, makeScoreRow('YN2', 0), packFor(yesNo)).supportsInProgress).toBe(false);
+        expect(interpretTargetScore(yesNo, makeScoreRow('YN2', 1), packFor(yesNo)).supportsInProgress).toBe(false);
     });
 
     it('preserves out-of-scale stored scores without clamping to max', () => {
-        const result = interpretTargetScore(numeric04, makeScoreRow('N04', 99));
+        const result = interpretTargetScore(numeric04, makeScoreRow('N04', 99), packFor(numeric04));
         expect(result.rawScore).toBe(99);
         expect(result.competencyState).toBe('in_progress');
     });
@@ -227,9 +242,9 @@ describe('interpretTargetScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5)).rawScore).toBe(0.5);
-        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5)).displayScore).toBe('0.5');
-        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 1)).competencyState).toBe(
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5), packFor(decimal)).rawScore).toBe(0.5);
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 0.5), packFor(decimal)).displayScore).toBe('0.5');
+        expect(interpretTargetScore(decimal, makeScoreRow('DEC', 1), packFor(decimal)).competencyState).toBe(
             'at_maximum'
         );
 
@@ -242,8 +257,8 @@ describe('interpretTargetScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1)).rawScore).toBe(-1);
-        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1)).competencyState).toBe(
+        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1), packFor(signed)).rawScore).toBe(-1);
+        expect(interpretTargetScore(signed, makeScoreRow('NEG', -1), packFor(signed)).competencyState).toBe(
             'not_yet'
         );
     });
@@ -258,10 +273,10 @@ describe('interpretTargetScore', () => {
                 no_opportunity_allowed: false,
             },
         });
-        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 0)).competencyState).toBe('not_yet');
-        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 2)).competencyState).toBe('in_progress');
-        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 4)).competencyState).toBe('at_maximum');
-        expect(getTargetScaleValues(nonContiguous)).toEqual([0, 2, 4]);
+        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 0), packFor(nonContiguous)).competencyState).toBe('not_yet');
+        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 2), packFor(nonContiguous)).competencyState).toBe('in_progress');
+        expect(interpretTargetScore(nonContiguous, makeScoreRow('NC', 4), packFor(nonContiguous)).competencyState).toBe('at_maximum');
+        expect(getTargetScaleValues(nonContiguous, packFor(nonContiguous))).toEqual([0, 2, 4]);
     });
 });
 
@@ -277,11 +292,11 @@ describe('getDisplayScore', () => {
     });
 
     it('displays — when unscored', () => {
-        expect(getDisplayScore(numeric04, null)).toBe('—');
+        expect(getDisplayScore(numeric04, null, packFor(numeric04))).toBe('—');
     });
 
     it('displays score with max when includeMax is true', () => {
-        expect(getDisplayScore(numeric04, 2, { includeMax: true })).toBe('2/4');
+        expect(getDisplayScore(numeric04, 2, packFor(numeric04), { includeMax: true })).toBe('2/4');
     });
 
     it('keeps yes/no display stable as numeric strings', () => {
@@ -289,14 +304,14 @@ describe('getDisplayScore', () => {
             target_id: 'YDISP',
             scoring: { type: 'yesno', scale_labels: {}, no_opportunity_allowed: false },
         });
-        expect(getDisplayScore(yesNo, 0)).toBe('0');
-        expect(getDisplayScore(yesNo, 1)).toBe('1');
-        expect(getDisplayScore(yesNo, 1, { includeMax: true })).toBe('1/1');
+        expect(getDisplayScore(yesNo, 0, packFor(yesNo))).toBe('0');
+        expect(getDisplayScore(yesNo, 1, packFor(yesNo))).toBe('1');
+        expect(getDisplayScore(yesNo, 1, packFor(yesNo), { includeMax: true })).toBe('1/1');
     });
 
     it('treats 0 as scored zero, not unscored', () => {
-        expect(getDisplayScore(numeric04, 0)).toBe('0');
-        expect(getCompetencyState(numeric04, 0)).toBe('not_yet');
+        expect(getDisplayScore(numeric04, 0, packFor(numeric04))).toBe('0');
+        expect(getCompetencyState(numeric04, 0, packFor(numeric04))).toBe('not_yet');
     });
 });
 

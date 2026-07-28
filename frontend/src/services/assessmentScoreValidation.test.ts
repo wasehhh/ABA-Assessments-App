@@ -1,11 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ContentPackData, Target } from '../types';
-import { resolveTargetScoring } from '../utils/assessmentPackStructure';
 import {
-    findPackTarget,
-    getResolvedScaleValues,
-} from '../utils/matrixDisplayHelpers';
-import { isScoreInResolvedScale } from '../utils/scoreInterpretation';
+    isScoreAllowedByEffectiveScoring,
+    resolveEffectiveScoring,
+} from '../utils/effectiveScoring';
 
 function makePack(targets: Target[]): ContentPackData {
     return {
@@ -25,7 +23,7 @@ function makePack(targets: Target[]): ContentPackData {
 }
 
 describe('assessment score membership validation', () => {
-    it('validates against resolved target-specific scale membership', () => {
+    it('validates against Effective Scoring membership', () => {
         const pack = makePack([
             {
                 target_id: 'A1',
@@ -53,21 +51,12 @@ describe('assessment score membership validation', () => {
             },
         ]);
 
-        const decimal = findPackTarget(pack, 'A1')!;
-        const even = findPackTarget(pack, 'A2')!;
-        const decimalScale = getResolvedScaleValues(resolveTargetScoring(decimal, pack));
-        const evenScale = getResolvedScaleValues(resolveTargetScoring(even, pack));
+        const decimal = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        const even = resolveEffectiveScoring(pack.domains[0].targets[1], pack);
 
-        expect(isScoreInResolvedScale(0.5, decimalScale)).toBe(true);
-        expect(isScoreInResolvedScale(0.25, decimalScale)).toBe(false);
-        expect(isScoreInResolvedScale(4, evenScale)).toBe(true);
-        expect(isScoreInResolvedScale(3, evenScale)).toBe(false);
-    });
-
-    it('round-trips decimal persistence values through coerce + membership', () => {
-        const values = [0.5, 0.25, -1, 0, 1];
-        for (const value of values) {
-            expect(isScoreInResolvedScale(value, values)).toBe(true);
-        }
+        expect(isScoreAllowedByEffectiveScoring(0.5, decimal)).toBe(true);
+        expect(isScoreAllowedByEffectiveScoring(0.25, decimal)).toBe(false);
+        expect(isScoreAllowedByEffectiveScoring(4, even)).toBe(true);
+        expect(isScoreAllowedByEffectiveScoring(3, even)).toBe(false);
     });
 });

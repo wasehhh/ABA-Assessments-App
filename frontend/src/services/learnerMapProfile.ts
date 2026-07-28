@@ -173,7 +173,8 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
                 const scores = scoresByCycleId.get(cycle.id) ?? [];
                 const interpretation = interpretTargetScore(
                     target,
-                    scoreRowByTargetId(scores, target.target_id)
+                    scoreRowByTargetId(scores, target.target_id),
+                    input.assessment.pack_snapshot
                 );
 
                 let previousInterpretation: TargetScoreInterpretation | null = null;
@@ -182,7 +183,8 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
                     const previousScores = scoresByCycleId.get(previousCycle.id) ?? [];
                     previousInterpretation = interpretTargetScore(
                         target,
-                        scoreRowByTargetId(previousScores, target.target_id)
+                        scoreRowByTargetId(previousScores, target.target_id),
+                        input.assessment.pack_snapshot
                     );
                 }
 
@@ -205,7 +207,9 @@ export function buildLearnerMapProfile(input: BuildLearnerMapProfileInput): Lear
             return {
                 targetId: target.target_id,
                 title: target.title,
-                displayTargetMax: String(getTargetMaxScore(target)),
+                displayTargetMax: String(
+                    getTargetMaxScore(target, input.assessment.pack_snapshot)
+                ),
                 cells,
             };
         });

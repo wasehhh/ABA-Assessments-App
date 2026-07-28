@@ -1,9 +1,6 @@
 import { ContentPackData, Target } from '../../types';
-import { resolveTargetScoring } from '../../utils/assessmentPackStructure';
-import {
-    formatMatrixScoreButtonLabel,
-    getResolvedScaleValues,
-} from '../../utils/matrixDisplayHelpers';
+import { resolveEffectiveScoring } from '../../utils/effectiveScoring';
+import { formatMatrixScoreButtonLabel } from '../../utils/matrixDisplayHelpers';
 
 interface Props {
     target: Target;
@@ -21,10 +18,9 @@ export function TargetScoreControls({
     scoresEditable,
     onScoreUpdate,
 }: Props) {
-    const scoring = resolveTargetScoring(target, pack);
-    const scoringType = scoring.type as string;
+    const effective = resolveEffectiveScoring(target, pack);
 
-    if (scoringType === 'yes_no' || scoringType === 'yesno') {
+    if (effective.type === 'yes_no') {
         return (
             <div className="flex flex-wrap gap-2">
                 <button
@@ -63,13 +59,16 @@ export function TargetScoreControls({
         );
     }
 
-    const scale = getResolvedScaleValues(scoring);
-    const useCompactButtons = scoringType !== 'checkbox';
+    const scale = effective.allowedValues;
+    const useCompactButtons = effective.type !== 'checkbox';
 
     return (
         <div className="flex flex-wrap gap-1.5">
             {scale.map((val) => {
-                const { text, title } = formatMatrixScoreButtonLabel(val, scoring.scale_labels);
+                const { text, title } = formatMatrixScoreButtonLabel(
+                    val,
+                    effective.scaleLabels
+                );
 
                 return (
                     <button

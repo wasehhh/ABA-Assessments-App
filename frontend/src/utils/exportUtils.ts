@@ -1,4 +1,6 @@
-import { Assessment, AssessmentScore, ContentPackData } from '../types';
+import { Assessment, AssessmentScore } from '../types';
+import { resolveEffectiveScoring } from './effectiveScoring';
+import { findPackTarget } from './matrixDisplayHelpers';
 
 interface ExportOptions {
     format: 'long' | 'matrix';
@@ -24,7 +26,6 @@ export const exportUtils = {
 
 function generateLongFormat(assessment: Assessment, scores: AssessmentScore[]): string {
     const rows = [];
-    // Header
     rows.push([
         'Client ID',
         'Client Name',
@@ -46,32 +47,20 @@ function generateLongFormat(assessment: Assessment, scores: AssessmentScore[]): 
     const pack = assessment.pack_snapshot;
     if (!pack) return '';
 
-    // Create a map for quick lookup of domain/target info if needed, 
-    // but iterating scores is primary for Long format.
-    // HOWEVER, to be robust, we should iterate all scores found.
-
     scores.forEach(s => {
-        // Find metadata
         let domainTitle = '';
         let targetTitle = '';
         let maxScore = '';
 
         const domain = pack.domains.find(d => d.domain_id === s.domain_id);
-        let targetMaxVal = 4; // Default
         if (domain) {
             domainTitle = domain.title;
-            const target = domain.targets.find(t => t.target_id === s.target_id);
-            if (target) {
-                targetTitle = target.title;
-                // Determine max score
-                if (target.scoring?.scale && target.scoring.scale.length > 0) {
-                    targetMaxVal = Math.max(...target.scoring.scale);
-                    maxScore = targetMaxVal.toString();
-                } else if (target.scoring?.type === 'yesno' || target.scoring?.type === 'yes_no') {
-                    targetMaxVal = 1;
-                    maxScore = '1';
-                }
-            }
+        }
+
+        const target = findPackTarget(pack, s.target_id);
+        if (target) {
+            targetTitle = target.title;
+            maxScore = String(resolveEffectiveScoring(target, pack).maxScore);
         }
 
         rows.push([
@@ -100,22 +89,19 @@ function generateMatrixFormat(assessment: Assessment, scores: AssessmentScore[])
     const pack = assessment.pack_snapshot;
     if (!pack) return '';
 
-    // 1. Identify all Cycles present in scores
     const cycleNumbers = new Set<number>();
     scores.forEach(s => {
         if (s.cycle?.cycle_number) cycleNumbers.add(s.cycle.cycle_number);
     });
     const sortedCycles = Array.from(cycleNumbers).sort((a, b) => a - b);
-    if (sortedCycles.length === 0) sortedCycles.push(1); // Default to at least cycle 1
+    if (sortedCycles.length === 0) sortedCycles.push(1);
 
-    // 2. Build Header
     const headers = [
         'Domain',
         'Target ID',
         'Target Title',
         'Max Score'
     ];
-    // Add columns for each cycle
     sortedCycles.forEach(num => {
         headers.push(`Cycle ${num} Date`);
         headers.push(`Cycle ${num} Score`);
@@ -123,37 +109,20 @@ function generateMatrixFormat(assessment: Assessment, scores: AssessmentScore[])
     });
     const rows = [headers];
 
-    // 3. Score Lookup Map: Key = target_id + cycle_number -> Score Object
     const scoreMap = new Map<string, AssessmentScore>();
     scores.forEach(s => {
         const cNum = s.cycle?.cycle_number || 1;
         scoreMap.set(`${s.target_id}_${cNum}`, s);
     });
 
-    // 4. Iterate Pack Structure (Rows)
     pack.domains.forEach(domain => {
         domain.targets.forEach(target => {
             const row = [];
-            // Basic Info
             row.push(domain.title);
             row.push(target.target_id);
             row.push(target.title);
+            row.push(String(resolveEffectiveScoring(target, pack).maxScore));
 
-            // Max Score
-            let maxScore = '';
-            let targetMaxVal = 4; // Default
-            const scoringType = target.scoring?.type as string;
-
-            if (target.scoring?.scale && target.scoring.scale.length > 0) {
-                targetMaxVal = Math.max(...target.scoring.scale);
-                maxScore = targetMaxVal.toString();
-            } else if (scoringType === 'yesno' || scoringType === 'yes_no') {
-                targetMaxVal = 1;
-                maxScore = '1';
-            }
-            row.push(maxScore);
-
-            // Cycle Data
             sortedCycles.forEach(cNum => {
                 const s = scoreMap.get(`${target.target_id}_${cNum}`);
                 if (s) {
@@ -161,9 +130,9 @@ function generateMatrixFormat(assessment: Assessment, scores: AssessmentScore[])
                     row.push(s.score !== null ? s.score : '');
                     row.push(s.note || '');
                 } else {
-                    row.push(''); // Date
-                    row.push(''); // Score
-                    row.push(''); // Note
+                    row.push('');
+                    row.push('');
+                    row.push('');
                 }
             });
 
@@ -177,7 +146,6 @@ function generateMatrixFormat(assessment: Assessment, scores: AssessmentScore[])
 function escapeCSV(field: any): string {
     if (field === null || field === undefined) return '';
     const stringField = String(field);
-    // Escape quotes and wrap in quotes if contains comma, quote, or newline
     if (stringField.includes('"') || stringField.includes(',') || stringField.includes('\n')) {
         return `"${stringField.replace(/"/g, '""')}"`;
     }

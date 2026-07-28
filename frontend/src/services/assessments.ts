@@ -4,10 +4,12 @@ import { auditService } from './audit';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
 import {
   findPackTarget,
-  getResolvedScaleValues,
 } from '../utils/matrixDisplayHelpers';
-import { resolveTargetScoring } from '../utils/assessmentPackStructure';
-import { isScoreInResolvedScale, coerceScoreFromDb } from '../utils/scoreInterpretation';
+import {
+  isScoreAllowedByEffectiveScoring,
+  resolveEffectiveScoring,
+} from '../utils/effectiveScoring';
+import { coerceScoreFromDb } from '../utils/scoreInterpretation';
 
 function assertScoreAllowedForTarget(
   score: number | null,
@@ -21,11 +23,10 @@ function assertScoreAllowedForTarget(
     throw new Error('Unable to validate score against the assessment scale.');
   }
 
-  const resolved = resolveTargetScoring(target, pack);
-  const scaleValues = getResolvedScaleValues(resolved);
-  if (!isScoreInResolvedScale(score, scaleValues)) {
+  const effective = resolveEffectiveScoring(target, pack);
+  if (!isScoreAllowedByEffectiveScoring(score, effective)) {
     throw new Error(
-      `Score ${score} is not allowed for this target. Allowed values: ${scaleValues.join(', ')}.`
+      `Score ${score} is not allowed for this target. Allowed values: ${effective.allowedValues.join(', ')}.`
     );
   }
 }

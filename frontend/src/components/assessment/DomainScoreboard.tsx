@@ -58,7 +58,7 @@ export function DomainScoreboard({
     const targetMatchesFilters = useMemo(() => {
         return (target: Target) => {
             const scoreRow = getScoreRow(target.target_id, scores);
-            const interpretation = interpretTargetScore(target, scoreRow);
+            const interpretation = interpretTargetScore(target, scoreRow, pack);
             const matchesSearch =
                 target.title.toLowerCase().includes(search.toLowerCase()) ||
                 target.target_id.toLowerCase().includes(search.toLowerCase());
@@ -74,7 +74,7 @@ export function DomainScoreboard({
 
             return matchesSearch && matchesFilter;
         };
-    }, [scores, search, filter]);
+    }, [scores, search, filter, pack]);
 
     const filteredTargets = useMemo(() => {
         return domain.targets.filter(targetMatchesFilters);
@@ -96,7 +96,7 @@ export function DomainScoreboard({
         const current = currentRow?.score ?? null;
         const prev = getScoreRow(target.target_id, previousScores)?.score ?? null;
         const trend = analyticsService.calculateTrend(current, prev);
-        const interpretation = interpretTargetScore(target, currentRow);
+        const interpretation = interpretTargetScore(target, currentRow, pack);
         const isAtMaxScore = interpretation.competencyState === 'at_maximum';
 
         return (
