@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AssessmentScore, ContentPackData, Target } from '../types';
+import { AssessmentScore, ContentPackData, ScoringType, Target } from '../types';
 import {
     clampRawScore,
     coerceScoreFromDb,
@@ -91,7 +91,7 @@ describe('getTargetMaxScore', () => {
         const yesNo = makeTarget({
             target_id: 'YN1',
             scoring: {
-                type: 'yesno' as Target['scoring']['type'],
+                type: 'yesno' as ScoringType,
                 scale_labels: {},
                 no_opportunity_allowed: false,
             },
@@ -101,7 +101,7 @@ describe('getTargetMaxScore', () => {
         const legacy = makeTarget({
             target_id: 'YN2',
             scoring: {
-                type: 'yes_no' as Target['scoring']['type'],
+                type: 'yes_no' as ScoringType,
                 scale_labels: {},
                 no_opportunity_allowed: false,
             },

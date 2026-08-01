@@ -50,6 +50,26 @@ export interface ScoringScaleDefinition {
   no_opportunity_allowed?: boolean;
 }
 
+/**
+ * Pack scoring mode (PR B1).
+ * - uniform: all targets inherit pack default; overrides disallowed
+ * - custom: targets may inherit or store sparse overrides
+ */
+export type PackScoringMode = 'uniform' | 'custom';
+
+/**
+ * Pack-level default scoring (inherited configuration).
+ * Same attribute family as target scoring / named scales.
+ */
+export interface PackDefaultScoring {
+  type: ScoringType;
+  scale_id?: string;
+  scale?: number[];
+  scale_labels?: Record<number, string>;
+  task_steps?: string[];
+  no_opportunity_allowed?: boolean;
+}
+
 /** Optional catalog entry for secondary groups within a primary group (domain). */
 export interface SecondaryGroupCatalogEntry {
   secondary_group_id: string;
@@ -79,7 +99,11 @@ export interface Target {
   notes?: string;
   /** Optional secondary group membership within parent domain. */
   secondary_group_id?: string;
-  scoring: TargetScoring;
+  /**
+   * Authored scoring override.
+   * Absent on canonical Inherited targets; present on Override / legacy dense targets.
+   */
+  scoring?: TargetScoring;
 }
 
 export interface Domain {
@@ -99,6 +123,10 @@ export interface ContentPackData {
   description: string;
   version: string;
   structure_labels?: StructureLabels;
+  /** PR B1: uniform | custom. Absent on legacy dense packs/snapshots. */
+  scoring_mode?: PackScoringMode;
+  /** PR B1: pack default scoring for inheritance. Absent on legacy dense packs/snapshots. */
+  default_scoring?: PackDefaultScoring;
   scoring_scales?: ScoringScaleDefinition[];
   domains: Domain[];
 }

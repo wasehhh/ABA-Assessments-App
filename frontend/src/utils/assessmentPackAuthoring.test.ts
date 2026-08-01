@@ -36,9 +36,10 @@ function makeTarget(overrides: Partial<Target> & Pick<Target, 'target_id'>): Tar
         ...rest,
         scoring: {
             type: 'numeric',
+            scale: [0, 1, 2, 3, 4],
             scale_labels: {},
             no_opportunity_allowed: false,
-            ...(scoringOverrides ?? { scale: [0, 1, 2, 3, 4] }),
+            ...scoringOverrides,
         },
     };
 }
@@ -92,8 +93,8 @@ describe('assessmentPackAuthoring', () => {
 
         expect(saved.structure_labels).toBeUndefined();
         expect(saved.scoring_scales).toBeUndefined();
-        expect(saved.domains[0].targets[0].scoring.scale).toEqual([0, 1, 2, 3, 4]);
-        expect(saved.domains[0].targets[0].scoring.scale_id).toBeUndefined();
+        expect(saved.domains[0].targets[0].scoring!.scale).toEqual([0, 1, 2, 3, 4]);
+        expect(saved.domains[0].targets[0].scoring!.scale_id).toBeUndefined();
         expect(getStructureLabels(saved)).toEqual({
             primary_group: 'Domain',
             target: 'Target',
@@ -196,8 +197,8 @@ describe('assessmentPackAuthoring', () => {
         const saved = prepareBuilderPackForSave(pack);
 
         expect(saved.scoring_scales).toBeUndefined();
-        expect(saved.domains[0].targets[0].scoring.scale_id).toBeUndefined();
-        expect(saved.domains[0].targets[0].scoring.scale).toEqual([0, 1, 2, 3, 4]);
+        expect(saved.domains[0].targets[0].scoring!.scale_id).toBeUndefined();
+        expect(saved.domains[0].targets[0].scoring!.scale).toEqual([0, 1, 2, 3, 4]);
     });
 
     it('stripPackScoringScaleReferences preserves inline per-target scoring', () => {
@@ -240,7 +241,7 @@ describe('assessmentPackAuthoring', () => {
         };
 
         const saved = materializePackForSave(pack);
-        const scoring = saved.domains[0].targets[0].scoring;
+        const scoring = saved.domains[0].targets[0].scoring!;
 
         expect(scoring.scale_id).toBe('scale-0-2');
         expect(scoring.scale).toEqual([0, 1, 2]);
@@ -272,9 +273,9 @@ describe('assessmentPackAuthoring', () => {
         };
 
         const saved = materializePackForSave(pack);
-        expect(saved.domains[0].targets[0].scoring.scale).toEqual([0, 1, 2]);
-        expect(saved.domains[0].targets[0].scoring.scale_labels[0]).toBe('Target zero');
-        expect(saved.domains[0].targets[0].scoring.no_opportunity_allowed).toBe(true);
+        expect(saved.domains[0].targets[0].scoring!.scale).toEqual([0, 1, 2]);
+        expect(saved.domains[0].targets[0].scoring!.scale_labels![0]).toBe('Target zero');
+        expect(saved.domains[0].targets[0].scoring!.no_opportunity_allowed).toBe(true);
     });
 
     it('strips secondary grouping when disabled at save', () => {
@@ -576,8 +577,8 @@ describe('global vs target-specific scale behaviour', () => {
             1: 'Global one',
         });
 
-        expect(next[0].targets[0].scoring.scale).toEqual([0, 0.5, 1]);
-        expect(next[0].targets[0].scoring.scale_labels).toEqual({
+        expect(next[0].targets[0].scoring!.scale).toEqual([0, 0.5, 1]);
+        expect(next[0].targets[0].scoring!.scale_labels).toEqual({
             0: 'Global zero',
             0.5: 'Global half',
             1: 'Global one',
@@ -591,13 +592,13 @@ describe('global vs target-specific scale behaviour', () => {
             targets: [] as Target[],
         };
         domain = appendTargetToDomain(domain, [0, 1, 2, 3, 4]);
-        expect(domain.targets[0].scoring.scale).toEqual([0, 1, 2, 3, 4]);
+        expect(domain.targets[0].scoring!.scale).toEqual([0, 1, 2, 3, 4]);
 
         domain = appendTargetToDomain(domain, [0, 0.5, 1], undefined, [
             domain.targets[0].target_id,
         ]);
-        expect(domain.targets[0].scoring.scale).toEqual([0, 1, 2, 3, 4]);
-        expect(domain.targets[1].scoring.scale).toEqual([0, 0.5, 1]);
+        expect(domain.targets[0].scoring!.scale).toEqual([0, 1, 2, 3, 4]);
+        expect(domain.targets[1].scoring!.scale).toEqual([0, 0.5, 1]);
     });
 
     it('target-specific decimal scales round-trip through prepareBuilderPackForSave', () => {
@@ -610,15 +611,15 @@ describe('global vs target-specific scale behaviour', () => {
         };
 
         const saved = prepareBuilderPackForSave(pack);
-        expect(saved.domains[0].targets[0].scoring.scale).toEqual([0, 0.5, 1]);
-        expect(saved.domains[0].targets[0].scoring.scale_labels).toEqual({
+        expect(saved.domains[0].targets[0].scoring!.scale).toEqual([0, 0.5, 1]);
+        expect(saved.domains[0].targets[0].scoring!.scale_labels).toEqual({
             0: 'None',
             0.5: 'Partial',
             1: 'Full',
         });
 
         const reloadedDraft = formatNumericScale(
-            saved.domains[0].targets[0].scoring.scale ?? []
+            saved.domains[0].targets[0].scoring!.scale ?? []
         );
         expect(reloadedDraft).toBe('0,0.5,1');
         expect(commitNumericScaleCsv(reloadedDraft)).toEqual({

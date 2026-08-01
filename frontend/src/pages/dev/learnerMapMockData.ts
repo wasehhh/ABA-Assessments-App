@@ -1,4 +1,5 @@
 import { AssessmentScore, ContentPackData, Target } from '../../types';
+import { denseTargetScoring } from '../../utils/targetScoringAccess';
 import { buildCycleDateLabels } from '../../components/learnerMap/cycleDateDisplay';
 import {
     buildLearnerMapProfile,
@@ -114,10 +115,11 @@ function makeCycles(count: number) {
 }
 
 function maxScoreForTarget(target: Target): number {
-    if (target.scoring.type === 'yesno') {
+    const scoring = denseTargetScoring(target);
+    if (scoring.type === 'yesno') {
         return 1;
     }
-    const scale = target.scoring.scale;
+    const scale = scoring.scale;
     return scale && scale.length > 0 ? Math.max(...scale) : 4;
 }
 

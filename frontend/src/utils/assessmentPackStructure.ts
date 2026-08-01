@@ -1,7 +1,9 @@
 import {
     ContentPackData,
     Domain,
+    PackDefaultScoring,
     ScoringScaleDefinition,
+    ScoringType,
     StructureLabels,
     Target,
     TargetScoring,
@@ -29,6 +31,16 @@ export interface ResolvedTargetScoring extends TargetScoring {
     /** Scale id when resolution used a known pack scale; undefined when inline-only. */
     resolved_from_scale_id?: string;
 }
+
+/** Authored scoring fields that can merge with a named catalog entry. */
+export type AuthoredScoringFields = {
+    type?: ScoringType | string;
+    scale_id?: string;
+    scale?: number[];
+    scale_labels?: Record<number, string>;
+    task_steps?: string[];
+    no_opportunity_allowed?: boolean;
+};
 
 export interface DisplayTargetGroup {
     secondary_group_id?: string;
@@ -82,12 +94,54 @@ function resolveScaleLabels(
 }
 
 /**
- * Resolves effective target scoring from optional pack-level scales.
- *
- * Authority (highest wins):
- * 1. Target inline field when set
- * 2. Referenced scoring_scales entry
- * 3. System-safe empty defaults for labels
+ * Merge authored scoring fields with an optional named pack scale.
+ * Inline authored fields win when both are present.
+ * Unknown scale_id → inline fields only (no invented catalog data).
+ */
+export function mergeAuthoredScoringWithCatalog(
+    authored: AuthoredScoringFields | PackDefaultScoring | TargetScoring,
+    pack: ContentPackData
+): ResolvedTargetScoring {
+    const scale = findScoringScale(pack, authored.scale_id);
+    const hasKnownScale = scale !== undefined;
+
+    if (!hasKnownScale) {
+        return {
+            type: (authored.type as TargetScoring['type']) ?? 'numeric',
+            scale_id: authored.scale_id,
+            scale: authored.scale !== undefined ? [...authored.scale] : undefined,
+            scale_labels: { ...(authored.scale_labels ?? {}) },
+            task_steps:
+                authored.task_steps !== undefined ? [...authored.task_steps] : undefined,
+            no_opportunity_allowed: Boolean(authored.no_opportunity_allowed),
+        };
+    }
+
+    return {
+        type: (authored.type as TargetScoring['type']) ?? scale.type,
+        scale_id: authored.scale_id,
+        resolved_from_scale_id: scale.scale_id,
+        scale:
+            authored.scale !== undefined
+                ? [...authored.scale]
+                : scale.scale !== undefined
+                  ? [...scale.scale]
+                  : undefined,
+        scale_labels: resolveScaleLabels(authored.scale_labels, scale.scale_labels, true),
+        task_steps:
+            authored.task_steps !== undefined
+                ? [...authored.task_steps]
+                : scale.task_steps !== undefined
+                  ? [...scale.task_steps]
+                  : undefined,
+        no_opportunity_allowed:
+            authored.no_opportunity_allowed ?? scale.no_opportunity_allowed ?? false,
+    };
+}
+
+/**
+ * Resolves target scoring from optional pack-level scales (legacy / dense path).
+ * For Phase B canonical packs, prefer resolveEffectiveScoring which applies inheritance.
  *
  * Unknown or missing scale_id → inline target.scoring only (Alpha behavior).
  * Never mutates pack or target.
@@ -96,41 +150,15 @@ export function resolveTargetScoring(
     target: Target,
     pack: ContentPackData
 ): ResolvedTargetScoring {
-    const inline = target.scoring;
-    const scale = findScoringScale(pack, inline.scale_id);
-    const hasKnownScale = scale !== undefined;
-
-    if (!hasKnownScale) {
+    if (!target.scoring) {
         return {
-            type: inline.type,
-            scale_id: inline.scale_id,
-            scale: inline.scale !== undefined ? [...inline.scale] : undefined,
-            scale_labels: { ...(inline.scale_labels ?? {}) },
-            task_steps: inline.task_steps !== undefined ? [...inline.task_steps] : undefined,
-            no_opportunity_allowed: inline.no_opportunity_allowed,
+            type: 'numeric',
+            scale_labels: {},
+            no_opportunity_allowed: false,
         };
     }
 
-    return {
-        type: inline.type ?? scale.type,
-        scale_id: inline.scale_id,
-        resolved_from_scale_id: scale.scale_id,
-        scale:
-            inline.scale !== undefined
-                ? [...inline.scale]
-                : scale.scale !== undefined
-                  ? [...scale.scale]
-                  : undefined,
-        scale_labels: resolveScaleLabels(inline.scale_labels, scale.scale_labels, true),
-        task_steps:
-            inline.task_steps !== undefined
-                ? [...inline.task_steps]
-                : scale.task_steps !== undefined
-                  ? [...scale.task_steps]
-                  : undefined,
-        no_opportunity_allowed:
-            inline.no_opportunity_allowed ?? scale.no_opportunity_allowed ?? false,
-    };
+    return mergeAuthoredScoringWithCatalog(target.scoring, pack);
 }
 
 function isFlatDomain(domain: Domain): boolean {

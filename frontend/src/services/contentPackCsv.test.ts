@@ -13,9 +13,9 @@ describe('contentPackCsv', () => {
 
         expect(pack.domains).toHaveLength(1);
         expect(pack.domains[0].targets).toHaveLength(2);
-        expect(pack.domains[0].targets[0].scoring.type).toBe('numeric');
-        expect(pack.domains[0].targets[0].scoring.scale).toEqual([0, 1, 2, 3, 4]);
-        expect(pack.domains[0].targets[0].scoring.scale_labels).toEqual({});
+        expect(pack.domains[0].targets[0].scoring!.type).toBe('numeric');
+        expect(pack.domains[0].targets[0].scoring!.scale).toEqual([0, 1, 2, 3, 4]);
+        expect(pack.domains[0].targets[0].scoring!.scale_labels).toEqual({});
         expect(pack.domains[0].targets[0].secondary_group_id).toBeUndefined();
         expect(pack.structure_labels).toBeUndefined();
     });
@@ -47,8 +47,8 @@ describe('contentPackCsv', () => {
 
         const pack = parseContentPackCsv(csv, 'Labeled Pack', '');
 
-        expect(pack.domains[0].targets[0].scoring.scale).toEqual([0, 1, 2]);
-        expect(pack.domains[0].targets[0].scoring.scale_labels).toEqual({
+        expect(pack.domains[0].targets[0].scoring!.scale).toEqual([0, 1, 2]);
+        expect(pack.domains[0].targets[0].scoring!.scale_labels).toEqual({
             0: 'Not Yet',
             1: 'Emerging',
             2: 'Mastered',
@@ -62,7 +62,7 @@ describe('contentPackCsv', () => {
         ].join('\n');
 
         const pack = parseContentPackCsv(csv, 'Decimal Pack', '');
-        expect(pack.domains[0].targets[0].scoring.scale).toEqual([0, 0.5, 1]);
+        expect(pack.domains[0].targets[0].scoring!.scale).toEqual([0, 0.5, 1]);
     });
 
     it('rejects malformed scale tokens instead of silently dropping them', () => {
@@ -88,9 +88,9 @@ describe('contentPackCsv', () => {
         ].join('\n');
 
         const pack = parseContentPackCsv(csv, 'Labeled Pack', '');
-        const scoring = pack.domains[0].targets[0].scoring;
+        const scoring = pack.domains[0].targets[0].scoring!;
 
         expect(scoring.scale).toEqual([0, 1, 2]);
-        expect(scoring.scale_labels[2]).toBe('Mastered');
+        expect(scoring.scale_labels![2]).toBe('Mastered');
     });
 });

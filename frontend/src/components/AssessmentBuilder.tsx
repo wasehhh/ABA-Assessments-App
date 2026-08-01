@@ -31,6 +31,7 @@ import {
     getUngroupedTargetEntries,
     moveTargetSecondaryGroup,
 } from '../utils/assessmentPackBuilder';
+import { denseTargetScoring } from '../utils/targetScoringAccess';
 import { AssessmentBuilderTargetEditor } from './AssessmentBuilderTargetEditor';
 
 interface Props {
@@ -151,7 +152,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         if (Object.prototype.hasOwnProperty.call(targetScaleDrafts, key)) {
             return targetScaleDrafts[key];
         }
-        return formatNumericScale(target.scoring.scale ?? []);
+        return formatNumericScale(denseTargetScoring(target).scale ?? []);
     };
 
     const clearAuthoringIssue = (
@@ -326,14 +327,18 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         draftsSnapshot: Record<string, string> = targetScaleDrafts
     ): { ok: true; domains: Domain[] } | { ok: false; error: string; domains: Domain[] } => {
         const target = domainsSnapshot[domainIndex]?.targets[targetIndex];
-        if (!target || target.scoring.type !== 'numeric') {
+        if (!target) {
+            return { ok: true, domains: domainsSnapshot };
+        }
+        const scoring = denseTargetScoring(target);
+        if (scoring.type !== 'numeric') {
             return { ok: true, domains: domainsSnapshot };
         }
 
         const key = scaleDraftKey(domainIndex, targetIndex);
         const draft = Object.prototype.hasOwnProperty.call(draftsSnapshot, key)
             ? draftsSnapshot[key]
-            : formatNumericScale(target.scoring.scale ?? []);
+            : formatNumericScale(scoring.scale ?? []);
         const result = commitNumericScaleCsv(draft);
         if (!result.ok) {
             return { ok: false, error: result.error, domains: domainsSnapshot };
@@ -349,14 +354,15 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                     if (tIndex !== targetIndex) {
                         return entry;
                     }
+                    const entryScoring = denseTargetScoring(entry);
                     return {
                         ...entry,
                         scoring: {
-                            ...entry.scoring,
+                            ...entryScoring,
                             scale: result.values,
                             scale_labels: reconcileScaleLabels(
                                 result.values,
-                                entry.scoring.scale_labels
+                                entryScoring.scale_labels
                             ),
                         },
                     };
@@ -391,7 +397,8 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
         setDomains(result.domains);
         const key = scaleDraftKey(domainIndex, targetIndex);
-        const committed = result.domains[domainIndex].targets[targetIndex].scoring.scale ?? [];
+        const committed =
+            denseTargetScoring(result.domains[domainIndex].targets[targetIndex]).scale ?? [];
         setTargetScaleDrafts((prev) => ({
             ...prev,
             [key]: formatNumericScale(committed),
@@ -408,7 +415,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
         domainsSnapshot.forEach((domain, domainIndex) => {
             domain.targets.forEach((target, targetIndex) => {
-                if (target.scoring.type !== 'numeric') {
+                if (denseTargetScoring(target).type !== 'numeric') {
                     return;
                 }
                 const result = commitTargetScale(
@@ -440,32 +447,29 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
     ) => {
         const updated = [...domains];
         const target = updated[domainIndex].targets[targetIndex];
-
-        target.scoring = {
-            ...target.scoring,
-            type: scoringType,
-        };
+        const scoring = { ...denseTargetScoring(target), type: scoringType };
 
         if (scoringType === 'checkbox') {
-            target.scoring.task_steps = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5'];
-            delete target.scoring.scale;
+            scoring.task_steps = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5'];
+            delete scoring.scale;
         } else if (scoringType === 'yesno' || scoringType === 'text') {
-            delete target.scoring.scale;
-            delete target.scoring.task_steps;
+            delete scoring.scale;
+            delete scoring.task_steps;
         } else {
             const scale = parseDefaultScaleOrFallback(defaultScale);
-            target.scoring.scale = scale;
-            target.scoring.scale_labels = reconcileScaleLabels(scale, target.scoring.scale_labels);
-            delete target.scoring.task_steps;
+            scoring.scale = scale;
+            scoring.scale_labels = reconcileScaleLabels(scale, scoring.scale_labels);
+            delete scoring.task_steps;
         }
 
+        updated[domainIndex].targets[targetIndex] = { ...target, scoring };
         setDomains(updated);
         const key = scaleDraftKey(domainIndex, targetIndex);
         setTargetScaleDrafts((prev) => {
             const next = { ...prev };
             if (scoringType === 'numeric') {
                 next[key] = formatNumericScale(
-                    updated[domainIndex].targets[targetIndex].scoring.scale ?? []
+                    denseTargetScoring(updated[domainIndex].targets[targetIndex]).scale ?? []
                 );
             } else {
                 delete next[key];
@@ -510,9 +514,10 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             const nextDrafts: Record<string, string> = { ...targetScaleDrafts };
             workingDomains.forEach((domain, domainIndex) => {
                 domain.targets.forEach((target, targetIndex) => {
-                    if (target.scoring.type === 'numeric' && target.scoring.scale) {
+                    const scoring = denseTargetScoring(target);
+                    if (scoring.type === 'numeric' && scoring.scale) {
                         nextDrafts[scaleDraftKey(domainIndex, targetIndex)] = formatNumericScale(
-                            target.scoring.scale
+                            scoring.scale
                         );
                     }
                 });

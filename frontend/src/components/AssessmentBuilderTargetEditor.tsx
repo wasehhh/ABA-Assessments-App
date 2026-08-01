@@ -1,6 +1,10 @@
 import { Dispatch, SetStateAction } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Domain, ScoringType, SecondaryGroupCatalogEntry, Target } from '../types';
+import {
+    denseTargetScoring,
+    ensureDenseTargetScoring,
+} from '../utils/targetScoringAccess';
 
 export interface AssessmentBuilderTargetEditorProps {
     domainIndex: number;
@@ -54,6 +58,8 @@ export function AssessmentBuilderTargetEditor({
     onRemoveTarget,
     onMoveToGroup,
 }: AssessmentBuilderTargetEditorProps) {
+    const scoring = denseTargetScoring(target);
+
     return (
         <div className="rounded border border-gray-200 bg-white p-3">
             <div className="flex items-start gap-2">
@@ -143,7 +149,7 @@ export function AssessmentBuilderTargetEditor({
                             <div>
                                 <label className="mb-1 block text-xs text-gray-600">Scoring Type</label>
                                 <select
-                                    value={target.scoring.type}
+                                    value={scoring.type}
                                     onChange={(e) =>
                                         onUpdateScoringType(
                                             domainIndex,
@@ -159,7 +165,7 @@ export function AssessmentBuilderTargetEditor({
                                     <option value="text">Text Input</option>
                                 </select>
                             </div>
-                            {target.scoring.type === 'numeric' && (
+                            {scoring.type === 'numeric' && (
                                 <div>
                                     <label className="mb-1 block text-xs text-gray-600">
                                         Numeric Scale
@@ -194,7 +200,7 @@ export function AssessmentBuilderTargetEditor({
                                         <label className="block text-xs font-medium text-gray-600">
                                             Score Criteria Definitions (Optional)
                                         </label>
-                                        {target.scoring.scale?.map((scoreValue) => (
+                                        {scoring.scale?.map((scoreValue) => (
                                             <div key={scoreValue} className="flex items-center gap-2">
                                                 <span className="w-6 text-xs font-bold text-gray-700">
                                                     {scoreValue} =
@@ -202,16 +208,16 @@ export function AssessmentBuilderTargetEditor({
                                                 <input
                                                     type="text"
                                                     value={
-                                                        target.scoring.scale_labels?.[scoreValue] || ''
+                                                        scoring.scale_labels?.[scoreValue] || ''
                                                     }
                                                     onChange={(e) => {
                                                         const updated = [...domains];
-                                                        const currentLabels =
-                                                            target.scoring.scale_labels || {};
-                                                        updated[domainIndex].targets[
-                                                            targetIndex
-                                                        ].scoring.scale_labels = {
-                                                            ...currentLabels,
+                                                        const currentTarget =
+                                                            updated[domainIndex].targets[targetIndex];
+                                                        const currentScoring =
+                                                            ensureDenseTargetScoring(currentTarget);
+                                                        currentScoring.scale_labels = {
+                                                            ...(currentScoring.scale_labels || {}),
                                                             [scoreValue]: e.target.value,
                                                         };
                                                         setDomains(updated);
@@ -224,20 +230,20 @@ export function AssessmentBuilderTargetEditor({
                                     </div>
                                 </div>
                             )}
-                            {target.scoring.type === 'checkbox' && (
+                            {scoring.type === 'checkbox' && (
                                 <div className="space-y-3">
                                     <label className="block text-xs font-medium text-gray-600">
                                         Task Analysis Steps
                                     </label>
-                                    {(!target.scoring.task_steps ||
-                                        target.scoring.task_steps.length === 0) && (
+                                    {(!scoring.task_steps ||
+                                        scoring.task_steps.length === 0) && (
                                         <button
                                             type="button"
                                             onClick={() => {
                                                 const updated = [...domains];
-                                                updated[domainIndex].targets[
-                                                    targetIndex
-                                                ].scoring.task_steps = ['Step 1'];
+                                                ensureDenseTargetScoring(
+                                                    updated[domainIndex].targets[targetIndex]
+                                                ).task_steps = ['Step 1'];
                                                 setDomains(updated);
                                             }}
                                             className="text-xs text-emerald-600 underline"
@@ -245,7 +251,7 @@ export function AssessmentBuilderTargetEditor({
                                             Initialize Steps
                                         </button>
                                     )}
-                                    {target.scoring.task_steps?.map((step, sIndex) => (
+                                    {scoring.task_steps?.map((step, sIndex) => (
                                         <div key={sIndex} className="flex items-center gap-2">
                                             <span className="w-4 text-xs text-gray-500">
                                                 {sIndex + 1}.
@@ -255,17 +261,14 @@ export function AssessmentBuilderTargetEditor({
                                                 value={step}
                                                 onChange={(e) => {
                                                     const updated = [...domains];
-                                                    if (
-                                                        !updated[domainIndex].targets[targetIndex]
-                                                            .scoring.task_steps
-                                                    ) {
-                                                        updated[domainIndex].targets[
-                                                            targetIndex
-                                                        ].scoring.task_steps = [];
+                                                    const currentScoring = ensureDenseTargetScoring(
+                                                        updated[domainIndex].targets[targetIndex]
+                                                    );
+                                                    if (!currentScoring.task_steps) {
+                                                        currentScoring.task_steps = [];
                                                     }
-                                                    updated[domainIndex].targets[
-                                                        targetIndex
-                                                    ].scoring.task_steps![sIndex] = e.target.value;
+                                                    currentScoring.task_steps[sIndex] =
+                                                        e.target.value;
                                                     setDomains(updated);
                                                 }}
                                                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"

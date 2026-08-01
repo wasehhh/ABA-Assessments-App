@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { ContentPackData, Target } from '../types';
-import {
-    CANONICAL_NUMERIC_FALLBACK_SCALE,
-    getEffectiveAllowedValues,
-    getEffectiveMaxScore,
-    isScoreAllowedByEffectiveScoring,
-    resolveEffectiveScoring,
-} from './effectiveScoring';
+import { ContentPackData, PackDefaultScoring, Target } from '../types';
 import { analyticsService } from '../services/analytics';
 import { interpretTargetScore } from './scoreInterpretation';
+import {
+    CANONICAL_NUMERIC_FALLBACK_SCALE,
+    effectiveScoringEquals,
+    getEffectiveAllowedValues,
+    getEffectiveMaxScore,
+    hasTargetScoringOverride,
+    isCanonicalScoringPack,
+    isLegacyDenseScoringPack,
+    isScoreAllowedByEffectiveScoring,
+    normalizePackScoringMode,
+    resolveEffectiveScoring,
+    resolveTargetAuthoredScoringState,
+    resolveTargetAuthoredScoringSource,
+} from './effectiveScoring';
+
+const CLASSIC_DEFAULT = [0, 1, 2, 3, 4] as const;
 
 function makeTarget(overrides: Partial<Target> & Pick<Target, 'target_id'>): Target {
     return {
@@ -24,14 +33,30 @@ function makeTarget(overrides: Partial<Target> & Pick<Target, 'target_id'>): Tar
     };
 }
 
-function makePack(targets: Target[], scoringScales?: ContentPackData['scoring_scales']): ContentPackData {
+function makeInheritedTarget(overrides: Partial<Target> & Pick<Target, 'target_id'>): Target {
+    const { scoring: _unusedScoring, ...rest } = overrides;
+    void _unusedScoring;
+    return {
+        title: rest.title ?? rest.target_id,
+        success_criteria: '',
+        materials: '',
+        ...rest,
+    };
+}
+
+function makePack(
+    targets: Target[],
+    extras?: Partial<
+        Pick<ContentPackData, 'scoring_mode' | 'default_scoring' | 'scoring_scales'>
+    >
+): ContentPackData {
     return {
         pack_id: 'pack-1',
         org_id: 'org-1',
         title: 'Runtime Pack',
         description: '',
         version: '1.0',
-        ...(scoringScales ? { scoring_scales: scoringScales } : {}),
+        ...extras,
         domains: [
             {
                 domain_id: 'A',
@@ -42,7 +67,19 @@ function makePack(targets: Target[], scoringScales?: ContentPackData['scoring_sc
     };
 }
 
-describe('resolveEffectiveScoring', () => {
+function classicDefaultScoring(
+    overrides: Partial<PackDefaultScoring> = {}
+): PackDefaultScoring {
+    return {
+        type: 'numeric',
+        scale: [...CLASSIC_DEFAULT],
+        scale_labels: {},
+        no_opportunity_allowed: false,
+        ...overrides,
+    };
+}
+
+describe('resolveEffectiveScoring — Phase A', () => {
     it('uses explicit numeric scale for allowed values and max', () => {
         const target = makeTarget({
             target_id: 'T1',
@@ -88,16 +125,18 @@ describe('resolveEffectiveScoring', () => {
                 no_opportunity_allowed: true,
             },
         });
-        const pack = makePack([target], [
-            {
-                scale_id: 'half',
-                title: 'Half',
-                type: 'numeric',
-                scale: [0, 0.5, 1],
-                scale_labels: { 0: 'None', 0.5: 'Half', 1: 'Full' },
-                no_opportunity_allowed: false,
-            },
-        ]);
+        const pack = makePack([target], {
+            scoring_scales: [
+                {
+                    scale_id: 'half',
+                    title: 'Half',
+                    type: 'numeric',
+                    scale: [0, 0.5, 1],
+                    scale_labels: { 0: 'None', 0.5: 'Half', 1: 'Full' },
+                    no_opportunity_allowed: false,
+                },
+            ],
+        });
         const effective = resolveEffectiveScoring(target, pack);
         expect(effective.allowedValues).toEqual([0, 1]);
         expect(effective.maxScore).toBe(1);
@@ -114,16 +153,18 @@ describe('resolveEffectiveScoring', () => {
                 no_opportunity_allowed: true,
             },
         });
-        const pack = makePack([target], [
-            {
-                scale_id: 'half',
-                title: 'Half',
-                type: 'numeric',
-                scale: [0, 0.5, 1],
-                scale_labels: { 0.5: 'Partial' },
-                no_opportunity_allowed: false,
-            },
-        ]);
+        const pack = makePack([target], {
+            scoring_scales: [
+                {
+                    scale_id: 'half',
+                    title: 'Half',
+                    type: 'numeric',
+                    scale: [0, 0.5, 1],
+                    scale_labels: { 0.5: 'Partial' },
+                    no_opportunity_allowed: false,
+                },
+            ],
+        });
         const effective = resolveEffectiveScoring(target, pack);
         expect(effective.allowedValues).toEqual([0, 0.5, 1]);
         expect(effective.maxScore).toBe(1);
@@ -167,7 +208,7 @@ describe('Phase A runtime consistency (G1–G6, G8)', () => {
         target_id: 'CL',
         scoring: {
             type: 'numeric',
-            scale: [0, 1, 2, 3, 4],
+            scale: [...CLASSIC_DEFAULT],
             scale_labels: {},
             no_opportunity_allowed: true,
         },
@@ -221,7 +262,6 @@ describe('Phase A runtime consistency (G1–G6, G8)', () => {
         expect(decimalMax).toBe(1);
         expect(classicMax).toBe(4);
 
-        // CSV export uses the same Effective max (see exportUtils + exportUtils.test).
         expect(getEffectiveMaxScore(decimal, snapshotPack)).toBe(decimalMax);
         expect(getEffectiveMaxScore(classic, snapshotPack)).toBe(classicMax);
     });
@@ -243,7 +283,7 @@ describe('Phase A runtime consistency (G1–G6, G8)', () => {
                 target_id: 'F1',
                 scoring: {
                     type: 'numeric',
-                    scale: [0, 1, 2, 3, 4],
+                    scale: [...CLASSIC_DEFAULT],
                     scale_labels: {},
                     no_opportunity_allowed: true,
                 },
@@ -251,14 +291,434 @@ describe('Phase A runtime consistency (G1–G6, G8)', () => {
         ]);
 
         const fromSnapshot = resolveEffectiveScoring(frozenTarget, frozenSnapshot);
-        // Re-resolving the frozen target against the live pack would be incorrect for G8;
-        // assessment runtime must keep using frozenSnapshot.
         expect(fromSnapshot.allowedValues).toEqual([0, 0.5, 1]);
         expect(fromSnapshot.maxScore).toBe(1);
 
         const fromLive = resolveEffectiveScoring(liveEdited.domains[0].targets[0], liveEdited);
-        expect(fromLive.allowedValues).toEqual([0, 1, 2, 3, 4]);
+        expect(fromLive.allowedValues).toEqual([...CLASSIC_DEFAULT]);
         expect(fromLive.maxScore).toBe(4);
         expect(fromSnapshot.allowedValues).not.toEqual(fromLive.allowedValues);
+    });
+});
+
+describe('PR B2 — detection helpers', () => {
+    it('isCanonicalScoringPack requires both mode and default_scoring', () => {
+        expect(isCanonicalScoringPack(makePack([], { scoring_mode: 'uniform' }))).toBe(false);
+        expect(
+            isCanonicalScoringPack(
+                makePack([], {
+                    default_scoring: classicDefaultScoring(),
+                })
+            )
+        ).toBe(false);
+        expect(
+            isCanonicalScoringPack(
+                makePack([], {
+                    scoring_mode: 'uniform',
+                    default_scoring: classicDefaultScoring(),
+                })
+            )
+        ).toBe(true);
+    });
+
+    it('isLegacyDenseScoringPack is the inverse', () => {
+        expect(isLegacyDenseScoringPack(makePack([]))).toBe(true);
+        expect(
+            isLegacyDenseScoringPack(
+                makePack([], {
+                    scoring_mode: 'custom',
+                    default_scoring: classicDefaultScoring(),
+                })
+            )
+        ).toBe(false);
+    });
+
+    it('hasTargetScoringOverride reflects optional target.scoring', () => {
+        expect(hasTargetScoringOverride(makeInheritedTarget({ target_id: 'I1' }))).toBe(false);
+        expect(hasTargetScoringOverride(makeTarget({ target_id: 'O1' }))).toBe(true);
+    });
+
+    it('normalizePackScoringMode coerces unknown values to custom', () => {
+        expect(normalizePackScoringMode('uniform')).toBe('uniform');
+        expect(normalizePackScoringMode('custom')).toBe('custom');
+        expect(normalizePackScoringMode('bogus')).toBe('custom');
+        expect(normalizePackScoringMode(undefined)).toBe('custom');
+    });
+
+    it('resolveTargetAuthoredScoringState distinguishes inherited, override, legacy', () => {
+        const canonical = makePack([], {
+            scoring_mode: 'custom',
+            default_scoring: classicDefaultScoring(),
+        });
+        expect(
+            resolveTargetAuthoredScoringState(
+                makeInheritedTarget({ target_id: 'I' }),
+                canonical
+            )
+        ).toBe('inherited');
+        expect(
+            resolveTargetAuthoredScoringState(makeTarget({ target_id: 'O' }), canonical)
+        ).toBe('override');
+        expect(
+            resolveTargetAuthoredScoringState(makeTarget({ target_id: 'L' }), makePack([]))
+        ).toBe('legacy');
+    });
+});
+
+describe('PR B2 — Uniform inheritance', () => {
+    it('inherited targets use pack default_scoring', () => {
+        const pack = makePack([makeInheritedTarget({ target_id: 'I1' })], {
+            scoring_mode: 'uniform',
+            default_scoring: {
+                type: 'numeric',
+                scale: [0, 0.5, 1],
+                scale_labels: { 1: 'Full' },
+                no_opportunity_allowed: true,
+            },
+        });
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 0.5, 1]);
+        expect(effective.maxScore).toBe(1);
+        expect(effective.authoredState).toBe('inherited');
+        expect(effective.authoredSource).toBe('pack_default');
+        expect(effective.provenance).toBe('pack_default');
+    });
+
+    it('Uniform ignores target overrides and emits a warning', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale: [0, 1],
+                        scale_labels: {},
+                        no_opportunity_allowed: false,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'uniform',
+                default_scoring: classicDefaultScoring(),
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(effective.authoredState).toBe('override');
+        expect(effective.authoredSource).toBe('pack_default');
+        expect(effective.warnings.some((w) => w.includes('overrides are ignored'))).toBe(true);
+    });
+});
+
+describe('PR B2 — Custom inheritance and overrides', () => {
+    it('Custom inherited targets use pack default', () => {
+        const pack = makePack([makeInheritedTarget({ target_id: 'I1' })], {
+            scoring_mode: 'custom',
+            default_scoring: classicDefaultScoring(),
+        });
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(effective.authoredState).toBe('inherited');
+    });
+
+    it('Custom sparse override replaces inheritance', () => {
+        const pack = makePack(
+            [
+                makeInheritedTarget({ target_id: 'I1' }),
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale: [0, 1],
+                        scale_labels: {},
+                        no_opportunity_allowed: false,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: classicDefaultScoring(),
+            }
+        );
+        const inherited = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        const overridden = resolveEffectiveScoring(pack.domains[0].targets[1], pack);
+        expect(inherited.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(overridden.allowedValues).toEqual([0, 1]);
+        expect(overridden.authoredState).toBe('override');
+        expect(overridden.authoredSource).toBe('target_override');
+    });
+
+    it('override equal to default still resolves as target_override', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale: [...CLASSIC_DEFAULT],
+                        scale_labels: {},
+                        no_opportunity_allowed: false,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: classicDefaultScoring(),
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(effective.authoredSource).toBe('target_override');
+    });
+
+    it('does not partially inherit pack default into incomplete override', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale_labels: {},
+                        no_opportunity_allowed: false,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: {
+                    type: 'numeric',
+                    scale: [0, 2, 4],
+                    scale_labels: {},
+                    no_opportunity_allowed: false,
+                },
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CANONICAL_NUMERIC_FALLBACK_SCALE]);
+        expect(effective.allowedValues).not.toEqual([0, 2, 4]);
+        expect(
+            effective.warnings.some((w) => w.includes('no pack-default field fill'))
+        ).toBe(true);
+    });
+});
+
+describe('PR B2 — named scale inheritance', () => {
+    const catalog = [
+        {
+            scale_id: 'half',
+            title: 'Half',
+            type: 'numeric' as const,
+            scale: [0, 0.5, 1],
+            scale_labels: { 0.5: 'Catalog Partial' },
+            no_opportunity_allowed: false,
+        },
+    ];
+
+    it('pack default named scale resolves through catalog', () => {
+        const pack = makePack([makeInheritedTarget({ target_id: 'I1' })], {
+            scoring_mode: 'custom',
+            default_scoring: {
+                type: 'numeric',
+                scale_id: 'half',
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            },
+            scoring_scales: catalog,
+        });
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 0.5, 1]);
+        expect(effective.provenance).toBe('pack_default_named_scale');
+        expect(effective.resolvedFromScaleId).toBe('half');
+    });
+
+    it('override named scale resolves through catalog', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale_id: 'half',
+                        scale_labels: {},
+                        no_opportunity_allowed: true,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: classicDefaultScoring(),
+                scoring_scales: catalog,
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 0.5, 1]);
+        expect(effective.authoredSource).toBe('target_override');
+    });
+
+    it('inline override wins over named catalog scale', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale_id: 'half',
+                        scale: [0, 1],
+                        scale_labels: {},
+                        no_opportunity_allowed: true,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: classicDefaultScoring(),
+                scoring_scales: catalog,
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 1]);
+        expect(effective.provenance).toBe('named_scale_with_inline_override');
+    });
+
+    it('unknown scale_id uses inline fields only', () => {
+        const pack = makePack(
+            [
+                makeTarget({
+                    target_id: 'O1',
+                    scoring: {
+                        type: 'numeric',
+                        scale_id: 'missing',
+                        scale: [0, 2],
+                        scale_labels: {},
+                        no_opportunity_allowed: true,
+                    },
+                }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: classicDefaultScoring(),
+                scoring_scales: catalog,
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 2]);
+        expect(effective.resolvedFromScaleId).toBeUndefined();
+    });
+
+    it('empty catalog behaves like no catalog', () => {
+        const pack = makePack(
+            [
+                makeInheritedTarget({ target_id: 'I1' }),
+            ],
+            {
+                scoring_mode: 'custom',
+                default_scoring: {
+                    type: 'numeric',
+                    scale_id: 'half',
+                    scale: [0, 3],
+                    scale_labels: {},
+                    no_opportunity_allowed: false,
+                },
+                scoring_scales: [],
+            }
+        );
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([0, 3]);
+    });
+});
+
+describe('PR B2 — legacy dense compatibility', () => {
+    it('legacy dense pack resolves per-target scoring', () => {
+        const pack = makePack([
+            makeTarget({
+                target_id: 'L1',
+                scoring: {
+                    type: 'numeric',
+                    scale: [0, 1],
+                    scale_labels: {},
+                    no_opportunity_allowed: false,
+                },
+            }),
+            makeTarget({
+                target_id: 'L2',
+                scoring: {
+                    type: 'yesno',
+                    scale_labels: {},
+                    no_opportunity_allowed: false,
+                },
+            }),
+        ]);
+        expect(resolveEffectiveScoring(pack.domains[0].targets[0], pack).allowedValues).toEqual([
+            0, 1,
+        ]);
+        expect(resolveEffectiveScoring(pack.domains[0].targets[1], pack).allowedValues).toEqual([
+            0, 1,
+        ]);
+        expect(resolveEffectiveScoring(pack.domains[0].targets[0], pack).authoredState).toBe(
+            'legacy'
+        );
+    });
+
+    it('legacy target missing scoring uses canonical fallback + warning', () => {
+        const pack = makePack([makeInheritedTarget({ target_id: 'M1' })]);
+        const source = resolveTargetAuthoredScoringSource(pack.domains[0].targets[0], pack);
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CANONICAL_NUMERIC_FALLBACK_SCALE]);
+        expect(source.warnings.some((w) => w.includes('missing scoring'))).toBe(true);
+    });
+});
+
+describe('PR B2 — unknown mode and G8 canonical', () => {
+    it('unknown scoring_mode is treated as custom with warning', () => {
+        const pack = makePack([makeInheritedTarget({ target_id: 'I1' })], {
+            scoring_mode: 'bogus' as 'custom',
+            default_scoring: classicDefaultScoring(),
+        });
+        const effective = resolveEffectiveScoring(pack.domains[0].targets[0], pack);
+        expect(effective.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(effective.warnings.some((w) => w.includes('Unknown scoring_mode'))).toBe(true);
+    });
+
+    it('G8: frozen canonical pack default is independent of live default edits', () => {
+        const inherited = makeInheritedTarget({ target_id: 'I1' });
+        const frozenSnapshot = makePack([inherited], {
+            scoring_mode: 'custom',
+            default_scoring: {
+                type: 'numeric',
+                scale: [0, 0.5, 1],
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            },
+        });
+
+        const livePack = makePack([inherited], {
+            scoring_mode: 'custom',
+            default_scoring: classicDefaultScoring(),
+        });
+
+        const fromSnapshot = resolveEffectiveScoring(inherited, frozenSnapshot);
+        const fromLive = resolveEffectiveScoring(inherited, livePack);
+        expect(fromSnapshot.allowedValues).toEqual([0, 0.5, 1]);
+        expect(fromLive.allowedValues).toEqual([...CLASSIC_DEFAULT]);
+        expect(fromSnapshot.allowedValues).not.toEqual(fromLive.allowedValues);
+    });
+});
+
+describe('PR B2 — purity and determinism', () => {
+    it('does not mutate pack or target and returns stable results', () => {
+        const target = makeInheritedTarget({ target_id: 'I1' });
+        const pack = makePack([target], {
+            scoring_mode: 'custom',
+            default_scoring: classicDefaultScoring(),
+        });
+        const packJson = JSON.stringify(pack);
+        const targetJson = JSON.stringify(target);
+
+        const first = resolveEffectiveScoring(target, pack);
+        const second = resolveEffectiveScoring(target, pack);
+
+        expect(JSON.stringify(pack)).toBe(packJson);
+        expect(JSON.stringify(target)).toBe(targetJson);
+        expect(effectiveScoringEquals(first, second)).toBe(true);
     });
 });

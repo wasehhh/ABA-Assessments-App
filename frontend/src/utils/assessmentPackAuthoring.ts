@@ -10,6 +10,7 @@ import {
     OversizedGroupWarning,
     resolveTargetScoring,
 } from './assessmentPackStructure';
+import { denseTargetScoring } from './targetScoringAccess';
 
 export {
     OVERSIZED_GROUP_EXTREME_THRESHOLD,
@@ -245,8 +246,9 @@ export function validateBuilderPackAuthoring(
                 targetIds.set(targetId, { domainIndex, targetIndex });
             }
 
-            if (!options.useGlobalScale && target.scoring.type === 'numeric') {
-                const scale = target.scoring.scale;
+            const targetScoring = denseTargetScoring(target);
+            if (!options.useGlobalScale && targetScoring.type === 'numeric') {
+                const scale = targetScoring.scale;
                 if (!scale || scale.length === 0) {
                     issues.push({
                         field: 'scale',
@@ -302,7 +304,7 @@ export function applyGlobalScaleLabels(
         targets: domain.targets.map((target) => ({
             ...target,
             scoring: {
-                ...target.scoring,
+                ...denseTargetScoring(target),
                 scale_labels: { ...globalScaleLabels },
             },
         })),
@@ -478,7 +480,7 @@ export function stripPackScoringScaleReferences(pack: ContentPackData): ContentP
         domains: pack.domains.map((domain) => ({
             ...domain,
             targets: domain.targets.map((target) => {
-                const { scale_id: _removed, ...scoring } = target.scoring;
+                const { scale_id: _removed, ...scoring } = denseTargetScoring(target);
                 return { ...target, scoring };
             }),
         })),
