@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import { AssessmentSnapshotView } from '../components/assessmentSnapshot';
 import { SNAPSHOT_V1_ID } from '../components/assessmentSnapshot/concepts';
+import { SnapshotExportDialog } from '../components/assessmentSnapshot/export/SnapshotExportDialog';
+import { hasSnapshotExportAcknowledged } from '../components/assessmentSnapshot/export/snapshotExportAcknowledgment';
+import {
+    buildSnapshotExportPreviewHash,
+    shouldOpenSnapshotExportDialog,
+} from '../components/assessmentSnapshot/export/snapshotExportState';
+import { logClinicalExportAudit } from '../clinicalExport/clinicalExportAudit';
+import { readHashSearch } from '../clinicalExport/clinicalExportState';
 import { useAuth } from '../context/AuthContext';
 import {
     getAssessmentSnapshotAvailability,
@@ -15,13 +23,16 @@ interface Props {
     assessmentId: string;
 }
 
+type SnapshotGateIntent = 'export' | 'print' | null;
+
 export function AssessmentSnapshot({ assessmentId }: Props) {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [productionData, setProductionData] = useState<Awaited<
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
+    const [gateIntent, setGateIntent] = useState<SnapshotGateIntent>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -59,6 +70,12 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
         };
     }, [assessmentId, profile?.org_id]);
 
+    useEffect(() => {
+        if (shouldOpenSnapshotExportDialog(readHashSearch())) {
+            setGateIntent('export');
+        }
+    }, [assessmentId]);
+
     const snapshotProfile = useMemo(
         () =>
             productionData
@@ -91,6 +108,35 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
 
     const goBack = () => {
         window.location.hash = `#/assessment/${assessmentId}`;
+    };
+
+    const runPrint = () => {
+        logClinicalExportAudit({
+            orgId: profile?.org_id,
+            userId: user?.id,
+            assessmentId,
+            artifact: 'snapshot',
+            channel: 'print',
+            mode: 'full',
+            event: 'print',
+        });
+        window.print();
+    };
+
+    const handlePrintClick = () => {
+        if (hasSnapshotExportAcknowledged(assessmentId)) {
+            runPrint();
+            return;
+        }
+        setGateIntent('print');
+    };
+
+    const handleExportClick = () => {
+        if (hasSnapshotExportAcknowledged(assessmentId)) {
+            window.location.hash = buildSnapshotExportPreviewHash(assessmentId);
+            return;
+        }
+        setGateIntent('export');
     };
 
     if (loading) {
@@ -168,15 +214,26 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => window.print()}
-                        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                        aria-label="Print Assessment Snapshot"
-                    >
-                        <Printer className="h-4 w-4" aria-hidden />
-                        Print
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={handleExportClick}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                            aria-label="Export Assessment Snapshot"
+                        >
+                            <Download className="h-4 w-4" aria-hidden />
+                            Export
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handlePrintClick}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                            aria-label="Print Assessment Snapshot"
+                        >
+                            <Printer className="h-4 w-4" aria-hidden />
+                            Print
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -202,6 +259,25 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                     measureScreenViewport
                 />
             </div>
+
+            <SnapshotExportDialog
+                isOpen={gateIntent !== null}
+                assessmentId={assessmentId}
+                orgId={profile?.org_id}
+                userId={user?.id}
+                onClose={() => setGateIntent(null)}
+                auditChannel={gateIntent === 'print' ? 'print' : 'export'}
+                continueLabel={
+                    gateIntent === 'print' ? 'Acknowledge and Print' : 'Continue to Export'
+                }
+                onAcknowledgedContinue={
+                    gateIntent === 'print'
+                        ? runPrint
+                        : () => {
+                              window.location.hash = buildSnapshotExportPreviewHash(assessmentId);
+                          }
+                }
+            />
         </div>
     );
 }

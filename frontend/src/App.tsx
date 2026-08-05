@@ -13,6 +13,7 @@ import { AssessmentReport } from './pages/AssessmentReport';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
 import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
 import { AssessmentSnapshot } from './pages/AssessmentSnapshot';
+import { AssessmentSnapshotExport } from './pages/AssessmentSnapshotExport';
 import { Settings } from './pages/Settings';
 import { AuditLog } from './pages/AuditLog';
 import { OrgSettings } from './pages/OrgSettings';
@@ -172,6 +173,11 @@ function AppRouter() {
         <AssessmentLearnerMap assessmentId={learnerMapMatch[1]} />
       </Layout>
     );
+  }
+
+  const snapshotExportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/snapshot\/export$/);
+  if (snapshotExportMatch) {
+    return <AssessmentSnapshotExport assessmentId={snapshotExportMatch[1]} />;
   }
 
   const snapshotMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/snapshot$/);

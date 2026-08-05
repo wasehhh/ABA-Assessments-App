@@ -1,3 +1,10 @@
+import {
+    buildClinicalArtifactRouteHash,
+    buildClinicalExportPreviewHash,
+    canContinueClinicalExport,
+    normalizeExportDomainIds,
+    shouldOpenClinicalExportDialog,
+} from '../../../clinicalExport/clinicalExportState';
 import { LearnerMapExportMode } from './learnerMapExportMode';
 
 export interface LearnerMapExportState {
@@ -14,37 +21,14 @@ export function canContinueLearnerMapExport(
     state: LearnerMapExportState,
     options?: { fullAcknowledged?: boolean }
 ): boolean {
-    if (state.exportMode === 'selected-domains') {
-        return state.selectedDomainIds.length > 0;
-    }
-
-    if (state.exportMode === 'full') {
-        return options?.fullAcknowledged === true;
-    }
-
-    return true;
+    return canContinueClinicalExport(state, {
+        requiresDomainSelection: (mode) => mode === 'selected-domains',
+        requiresAcknowledgment: (mode) => mode === 'full',
+        acknowledged: options?.fullAcknowledged,
+    });
 }
 
-export function normalizeExportDomainIds(raw: string | null | undefined): string[] {
-    if (!raw) {
-        return [];
-    }
-
-    const seen = new Set<string>();
-    const selectedDomainIds: string[] = [];
-
-    for (const entry of raw.split(',')) {
-        const trimmed = entry.trim();
-        if (!trimmed || seen.has(trimmed)) {
-            continue;
-        }
-
-        seen.add(trimmed);
-        selectedDomainIds.push(trimmed);
-    }
-
-    return selectedDomainIds;
-}
+export { normalizeExportDomainIds };
 
 export function parseLearnerMapExportPreviewParams(
     search: string
@@ -82,30 +66,22 @@ export function buildLearnerMapExportPreviewHash(
     assessmentId: string,
     state: LearnerMapExportState
 ): string {
-    const params = new URLSearchParams();
-    params.set('mode', state.exportMode);
-
-    if (state.exportMode === 'selected-domains' && state.selectedDomainIds.length > 0) {
-        params.set('domains', state.selectedDomainIds.join(','));
-    }
-
-    return `#/assessment/${assessmentId}/learner-map/export?${params.toString()}`;
+    return buildClinicalExportPreviewHash(assessmentId, 'learner-map/export', {
+        mode: state.exportMode,
+        domains:
+            state.exportMode === 'selected-domains' && state.selectedDomainIds.length > 0
+                ? state.selectedDomainIds.join(',')
+                : undefined,
+    });
 }
 
 export function buildLearnerMapRouteHash(
     assessmentId: string,
     options?: { openExportDialog?: boolean }
 ): string {
-    const base = `#/assessment/${assessmentId}/learner-map`;
-
-    if (options?.openExportDialog) {
-        return `${base}?export=dialog`;
-    }
-
-    return base;
+    return buildClinicalArtifactRouteHash(assessmentId, 'learner-map', options);
 }
 
 export function shouldOpenLearnerMapExportDialog(search: string): boolean {
-    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
-    return params.get('export') === 'dialog';
+    return shouldOpenClinicalExportDialog(search);
 }

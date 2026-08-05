@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Printer } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import {
+    claimExportViewAudit,
+    logClinicalExportAudit,
+} from '../clinicalExport/clinicalExportAudit';
 import { LearnerMapExportView } from '../components/learnerMap/export/LearnerMapExportView';
 import { isLearnerMapFullExportAcknowledged } from '../components/learnerMap/export/learnerMapExportAcknowledgment';
 import { getLearnerMapExportAvailability } from '../components/learnerMap/export/learnerMapExportAvailability';
@@ -106,12 +110,13 @@ function ExportStatusPanel({
 }
 
 export function AssessmentLearnerMapExport({ assessmentId }: Props) {
-    const { profile } = useAuth();
+    const { profile, user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<unknown>(null);
     const [productionData, setProductionData] = useState<Awaited<
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
+    const exportLogged = useRef(false);
 
     const exportParams = useMemo(() => parseLearnerMapExportPreviewParams(readExportPreviewSearch()), []);
     const fullExportAcknowledged = isLearnerMapFullExportAcknowledged(
@@ -167,6 +172,45 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         [productionData]
     );
 
+    const resolvedExportParams = useMemo(() => {
+        if (!productionData) {
+            return exportParams;
+        }
+        return resolveLearnerMapExportPreviewParams(
+            exportParams,
+            productionData.profile.domains.map((domain) => domain.domainId)
+        );
+    }, [productionData, exportParams]);
+
+    useEffect(() => {
+        if (
+            !claimExportViewAudit(exportLogged, {
+                acknowledged: fullExportAcknowledged,
+                available: exportAvailability.available,
+                ready: Boolean(productionData),
+            })
+        ) {
+            return;
+        }
+        logClinicalExportAudit({
+            orgId: profile?.org_id,
+            userId: user?.id,
+            assessmentId,
+            artifact: 'learner-map',
+            channel: 'export',
+            mode: resolvedExportParams.exportMode,
+            event: 'export_view',
+        });
+    }, [
+        fullExportAcknowledged,
+        productionData,
+        exportAvailability.available,
+        resolvedExportParams.exportMode,
+        assessmentId,
+        profile?.org_id,
+        user?.id,
+    ]);
+
     if (!fullExportAcknowledged) {
         return (
             <ExportStatusPanel
@@ -216,10 +260,6 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
     }
 
     const { profile: learnerMapProfile, displayContext, cycleDateLabels } = productionData;
-    const resolvedExportParams = resolveLearnerMapExportPreviewParams(
-        exportParams,
-        learnerMapProfile.domains.map((domain) => domain.domainId)
-    );
     const modeMeta = LEARNER_MAP_EXPORT_MODES.find(
         (entry) => entry.id === resolvedExportParams.exportMode
     )!;
@@ -244,6 +284,15 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
     );
 
     const handlePrint = () => {
+        logClinicalExportAudit({
+            orgId: profile?.org_id,
+            userId: user?.id,
+            assessmentId,
+            artifact: 'learner-map',
+            channel: 'print',
+            mode: resolvedExportParams.exportMode,
+            event: 'print',
+        });
         window.print();
     };
 

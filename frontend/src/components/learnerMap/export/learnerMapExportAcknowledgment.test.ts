@@ -36,6 +36,12 @@ describe('learnerMapExportAcknowledgment', () => {
         vi.unstubAllGlobals();
     });
 
+    it('uses the exact Learner Map acknowledgement storage key prefix', () => {
+        expect(learnerMapFullExportAckStorageKey('assess-1')).toBe(
+            'learner-map-full-export-ack:assess-1'
+        );
+    });
+
     it('requires acknowledgment only for full mode', () => {
         expect(requiresLearnerMapFullExportAcknowledgment('full')).toBe(true);
         expect(requiresLearnerMapFullExportAcknowledgment('standard')).toBe(false);

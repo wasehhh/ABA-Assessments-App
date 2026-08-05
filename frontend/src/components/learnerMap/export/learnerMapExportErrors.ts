@@ -1,25 +1,27 @@
-export type LearnerMapExportLoadErrorKind = 'assessment_not_found' | 'load_failed';
+import {
+    ClinicalExportLoadErrorDisplay,
+    resolveClinicalExportLoadError,
+} from '../../../clinicalExport/clinicalExportErrors';
 
-export interface LearnerMapExportLoadErrorDisplay {
-    kind: LearnerMapExportLoadErrorKind;
-    title: string;
-    message: string;
-}
+export type LearnerMapExportLoadErrorKind = ClinicalExportLoadErrorDisplay['kind'];
 
-export function resolveLearnerMapExportLoadError(error: unknown): LearnerMapExportLoadErrorDisplay {
-    if (error instanceof Error && error.message === 'Assessment not found') {
-        return {
-            kind: 'assessment_not_found',
-            title: 'Assessment not found',
-            message:
-                'This assessment could not be found. It may have been removed, or the link may be incorrect.',
-        };
-    }
+export type LearnerMapExportLoadErrorDisplay = ClinicalExportLoadErrorDisplay;
 
-    return {
-        kind: 'load_failed',
+const LEARNER_MAP_EXPORT_ERROR_COPY = {
+    assessmentNotFound: {
+        title: 'Assessment not found',
+        message:
+            'This assessment could not be found. It may have been removed, or the link may be incorrect.',
+    },
+    loadFailed: {
         title: 'Unable to prepare export',
         message:
             'The Learner Map export could not be prepared from this assessment. Try again from the Learner Map, or return to the assessment overview.',
-    };
+    },
+} as const;
+
+export function resolveLearnerMapExportLoadError(
+    error: unknown
+): LearnerMapExportLoadErrorDisplay {
+    return resolveClinicalExportLoadError(error, LEARNER_MAP_EXPORT_ERROR_COPY);
 }

@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { LearnerMapDomain } from '../../../services/learnerMapProfile';
+import { logClinicalExportAudit } from '../../../clinicalExport/clinicalExportAudit';
+import { useAuth } from '../../../context/AuthContext';
 import {
     estimateAppendixSize,
     formatAppendixSizeEstimateLabel,
@@ -27,6 +29,7 @@ interface Props {
 }
 
 export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose }: Props) {
+    const { profile, user } = useAuth();
     const [state, setState] = useState<LearnerMapExportState>(DEFAULT_LEARNER_MAP_EXPORT_STATE);
     const [fullAcknowledged, setFullAcknowledged] = useState(false);
 
@@ -95,6 +98,15 @@ export function LearnerMapExportDialog({ isOpen, assessmentId, domains, onClose 
 
         if (state.exportMode === 'full') {
             setLearnerMapFullExportAcknowledged(assessmentId);
+            logClinicalExportAudit({
+                orgId: profile?.org_id,
+                userId: user?.id,
+                assessmentId,
+                artifact: 'learner-map',
+                channel: 'export',
+                mode: 'full',
+                event: 'acknowledgement',
+            });
         }
 
         window.location.hash = buildLearnerMapExportPreviewHash(assessmentId, state);

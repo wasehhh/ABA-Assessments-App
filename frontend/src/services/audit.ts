@@ -8,7 +8,8 @@ export type AuditActionCanonical =
     | 'UPDATE'
     | 'DELETE'
     | 'APPROVE'
-    | 'CYCLE_START';
+    | 'CYCLE_START'
+    | 'EXPORT';
 
 /** Entity types used in app + legacy rows that may appear in DB. */
 export type AuditEntityType =
@@ -28,6 +29,7 @@ const CANONICAL_ACTIONS = new Set<string>([
     'DELETE',
     'APPROVE',
     'CYCLE_START',
+    'EXPORT',
 ]);
 
 const UUID_RE =
@@ -38,13 +40,14 @@ function isUuid(value: string): boolean {
 }
 
 /** Map legacy / alternate action strings to the allowed canonical set. */
-function normalizeAction(raw: string): { action: AuditActionCanonical; legacyNote?: string } {
+export function normalizeAuditAction(
+    raw: string
+): { action: AuditActionCanonical; legacyNote?: string } {
     const upper = (raw || '').trim().toUpperCase();
     if (CANONICAL_ACTIONS.has(upper)) {
         return { action: upper as AuditActionCanonical };
     }
     const legacyToCanonical: Record<string, AuditActionCanonical> = {
-        EXPORT: 'VIEW',
         LOGIN: 'VIEW',
         LOGOUT: 'VIEW',
         SUBMIT: 'UPDATE',
@@ -83,7 +86,9 @@ export interface AuditLogEntry {
 export const auditService = {
     async log(entry: AuditLogEntry) {
         try {
-            const { action: canonicalAction, legacyNote } = normalizeAction(String(entry.action));
+            const { action: canonicalAction, legacyNote } = normalizeAuditAction(
+                String(entry.action)
+            );
             const { entity_id, movedRef } = normalizeEntityId(entry.entity_id ?? null);
 
             const details: Record<string, unknown> = {
