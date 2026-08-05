@@ -9,6 +9,13 @@ export interface ThreadDisplayLabel {
      * otherwise the clinical primary code (e.g. A1, ECHO_12).
      */
     accessibilityIdentity: string;
+    /** True when `primary` is a compacted form of a longer usable authored id. */
+    wasCompacted: boolean;
+    /**
+     * True when the visible code came from title helpers or positional fallback
+     * because the authored id was unusable (`isUnusableAuthoredTargetId`).
+     */
+    usedNonAuthoredFallback: boolean;
 }
 
 const SHORT_ID_MAX = 10;
@@ -170,6 +177,8 @@ export function resolveThreadDisplayLabel(
             primary,
             fullTitle,
             accessibilityIdentity: primary,
+            wasCompacted: false,
+            usedNonAuthoredFallback: false,
         };
     }
 
@@ -184,6 +193,8 @@ export function resolveThreadDisplayLabel(
                 primary,
                 fullTitle,
                 accessibilityIdentity: compacted ? rawId : primary,
+                wasCompacted: compacted,
+                usedNonAuthoredFallback: false,
             };
         }
     }
@@ -195,6 +206,8 @@ export function resolveThreadDisplayLabel(
             primary,
             fullTitle,
             accessibilityIdentity: primary,
+            wasCompacted: false,
+            usedNonAuthoredFallback: true,
         };
     }
 
@@ -204,6 +217,8 @@ export function resolveThreadDisplayLabel(
             primary: numericSuffix[1],
             fullTitle,
             accessibilityIdentity: numericSuffix[1],
+            wasCompacted: false,
+            usedNonAuthoredFallback: true,
         };
     }
 
@@ -212,6 +227,8 @@ export function resolveThreadDisplayLabel(
         primary,
         fullTitle,
         accessibilityIdentity: primary,
+        wasCompacted: false,
+        usedNonAuthoredFallback: true,
     };
 }
 

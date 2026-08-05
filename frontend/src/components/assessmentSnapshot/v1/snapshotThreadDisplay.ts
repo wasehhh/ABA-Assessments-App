@@ -16,6 +16,12 @@ export interface ThreadLabelDisplay {
     accessibleLabel: string;
     /** Always false — code-only visible rows. */
     showSubtitle: boolean;
+    /** From {@link resolveThreadDisplayLabel} — compacted longer authored id. */
+    wasCompacted: boolean;
+    /** From {@link resolveThreadDisplayLabel} — title/positional fallback. */
+    usedNonAuthoredFallback: boolean;
+    /** True when {@link disambiguateVisibleCodes} added a `-2`/`-3`/… suffix. */
+    wasDisambiguated: boolean;
 }
 
 const CODE_MAX_BY_MODE: Record<SnapshotLayoutMode, number> = {
@@ -40,10 +46,13 @@ export function resolveThreadLabelDisplay(
     targetIndex: number,
     mode: SnapshotLayoutMode
 ): ThreadLabelDisplay {
-    const { primary, fullTitle, accessibilityIdentity } = resolveThreadDisplayLabel(
-        target,
-        targetIndex
-    );
+    const {
+        primary,
+        fullTitle,
+        accessibilityIdentity,
+        wasCompacted,
+        usedNonAuthoredFallback,
+    } = resolveThreadDisplayLabel(target, targetIndex);
 
     const codeMax = CODE_MAX_BY_MODE[mode];
     const visibleCode =
@@ -58,7 +67,18 @@ export function resolveThreadLabelDisplay(
         fullTitle,
         accessibleLabel: buildAccessibleLabel(accessibilityIdentity, fullTitle),
         showSubtitle: false,
+        wasCompacted,
+        usedNonAuthoredFallback,
+        wasDisambiguated: false,
     };
+}
+
+/** Target Index trigger (§6.3) — any abbreviation of the visible thread code. */
+export function isTargetIndexTrigger(label: Pick<
+    ThreadLabelDisplay,
+    'wasCompacted' | 'usedNonAuthoredFallback' | 'wasDisambiguated'
+>): boolean {
+    return label.wasCompacted || label.usedNonAuthoredFallback || label.wasDisambiguated;
 }
 
 /**
@@ -77,12 +97,14 @@ export function resolveZoneThreadLabelDisplays(
 
     return resolved.map((label, index) => {
         const visibleCode = disambiguated[index] ?? label.visibleCode;
-        if (visibleCode === label.visibleCode) {
+        const wasDisambiguated = visibleCode !== label.visibleCode;
+        if (!wasDisambiguated) {
             return label;
         }
         return {
             ...label,
             visibleCode,
+            wasDisambiguated: true,
         };
     });
 }

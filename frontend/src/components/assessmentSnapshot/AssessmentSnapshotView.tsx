@@ -29,6 +29,8 @@ import {
     AssessmentSnapshotThreadsLegend,
 } from './v1';
 import { AssessmentSnapshotCycleReference } from './v1/AssessmentSnapshotCycleReference';
+import { AssessmentSnapshotTargetIndexScreen } from './v1/AssessmentSnapshotTargetIndexScreen';
+import { buildSnapshotTargetIndex } from './v1/snapshotTargetIndex';
 
 /**
  * Assessment Snapshot V1 — dual render surface.
@@ -83,6 +85,10 @@ export function AssessmentSnapshotView({
         () => (isV1 ? buildPrintRenderPlan(profile, { paper: 'letter' }) : null),
         [isV1, profile]
     );
+    const targetIndex = useMemo(
+        () => (isV1 ? buildSnapshotTargetIndex(profile, 'screen') : null),
+        [isV1, profile]
+    );
 
     const snapshotV1Body = (plan: NonNullable<typeof screenRenderPlan>) => (
         <>
@@ -96,6 +102,7 @@ export function AssessmentSnapshotView({
                 renderPlan={plan}
                 cycleDateLabels={cycleDateLabels}
             />
+            {targetIndex ? <AssessmentSnapshotTargetIndexScreen index={targetIndex} /> : null}
             <AssessmentSnapshotThreadsFooter profile={profile} generatedAtLabel={generatedAt} />
         </>
     );

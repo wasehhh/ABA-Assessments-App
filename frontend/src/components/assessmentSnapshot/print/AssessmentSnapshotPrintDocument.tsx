@@ -9,6 +9,8 @@ import { PrintDocumentFooter } from './PrintDocumentFooter';
 import { PrintDocumentHeader } from './PrintDocumentHeader';
 import { PrintDomainSegment } from './PrintDomainSegment';
 import { PrintRunningHeader } from './PrintRunningHeader';
+import { AssessmentSnapshotTargetIndexPrint } from '../v1/AssessmentSnapshotTargetIndexPrint';
+import { buildSnapshotTargetIndex } from '../v1/snapshotTargetIndex';
 
 interface Props {
     profile: AssessmentSnapshotProfile;
@@ -40,6 +42,7 @@ export function AssessmentSnapshotPrintDocument({
     });
     const targetsById = buildTargetByIdMap(profile);
     const headerBands = resolveDomainZoneHeaderBands(plan.tier);
+    const targetIndex = buildSnapshotTargetIndex(profile, 'print');
 
     return (
         <div
@@ -49,6 +52,7 @@ export function AssessmentSnapshotPrintDocument({
             data-assessment-snapshot-topology={plan.topology}
             data-assessment-snapshot-print-pages={plan.totalPages}
             data-assessment-snapshot-columns-per-page={plan.columnsPerPage}
+            data-assessment-snapshot-has-target-index={targetIndex ? 'true' : undefined}
         >
             {plan.pages.map((page) => {
                 const isDocumentPage =
@@ -156,6 +160,15 @@ export function AssessmentSnapshotPrintDocument({
                     </div>
                 );
             })}
+            {targetIndex ? (
+                <AssessmentSnapshotTargetIndexPrint
+                    profile={profile}
+                    index={targetIndex}
+                    generatedAtLabel={generatedAtLabel}
+                    displayContext={displayContext}
+                    evidencePageCount={plan.totalPages}
+                />
+            ) : null}
         </div>
     );
 }

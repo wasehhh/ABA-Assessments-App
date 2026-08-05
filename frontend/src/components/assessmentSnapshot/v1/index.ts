@@ -23,3 +23,13 @@ export {
     resolveThreadDisplayLabel,
 } from './snapshotTargetIdentity';
 export type { ThreadDisplayLabel } from './snapshotTargetIdentity';
+export {
+    buildSnapshotTargetIndex,
+} from './snapshotTargetIndex';
+export type { SnapshotTargetIndex, SnapshotTargetIndexRow } from './snapshotTargetIndex';
+export { AssessmentSnapshotTargetIndexScreen } from './AssessmentSnapshotTargetIndexScreen';
+export { AssessmentSnapshotTargetIndexPrint } from './AssessmentSnapshotTargetIndexPrint';
+export {
+    AssessmentSnapshotTargetIndexTable,
+    SNAPSHOT_TARGET_INDEX_TITLE,
+} from './AssessmentSnapshotTargetIndexTable';

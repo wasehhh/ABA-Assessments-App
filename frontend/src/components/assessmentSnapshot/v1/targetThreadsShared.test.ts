@@ -54,6 +54,8 @@ describe('threadsLayout', () => {
             primary: 'A3',
             fullTitle: 'Target 1.3',
             accessibilityIdentity: 'A3',
+            wasCompacted: false,
+            usedNonAuthoredFallback: false,
         });
 
         expect(
@@ -65,6 +67,8 @@ describe('threadsLayout', () => {
             primary: 'ECHO_12',
             fullTitle: 'Echoic imitation',
             accessibilityIdentity: 'ECHO_12',
+            wasCompacted: false,
+            usedNonAuthoredFallback: false,
         });
 
         expect(
@@ -73,6 +77,8 @@ describe('threadsLayout', () => {
             primary: 'A4',
             fullTitle: 'Cooperation A4',
             accessibilityIdentity: 'A4',
+            wasCompacted: false,
+            usedNonAuthoredFallback: true,
         });
     });
 
@@ -89,6 +95,8 @@ describe('threadsLayout', () => {
             primary: 'L1-LR-1',
             fullTitle: 'Listener Responding milestone 1',
             accessibilityIdentity: 'L1_LISTENER_RESPONDING_1',
+            wasCompacted: true,
+            usedNonAuthoredFallback: false,
         });
     });
 

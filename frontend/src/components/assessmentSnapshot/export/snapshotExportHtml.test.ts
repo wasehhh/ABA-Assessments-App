@@ -122,8 +122,9 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).toContain('data-assessment-snapshot-evidence-bead');
         expect(html).toContain('data-assessment-snapshot-legend');
         expect(html).toContain('data-export-mode="full"');
-        expect(html).not.toMatch(/<table[\s>]/i);
+        // Score-sheet fork is forbidden; Target Index table (§6) is allowed when triggered.
         expect(html).not.toMatch(/<th scope="col">Cycle/i);
+        expect(html).not.toMatch(/data-assessment-snapshot-score-sheet/i);
     });
 
     it('includes every target exactly once', () => {
