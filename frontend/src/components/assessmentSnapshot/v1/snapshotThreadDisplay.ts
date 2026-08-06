@@ -24,7 +24,7 @@ export interface ThreadLabelDisplay {
     wasDisambiguated: boolean;
 }
 
-const CODE_MAX_BY_MODE: Record<SnapshotLayoutMode, number> = {
+export const CODE_MAX_BY_MODE: Record<SnapshotLayoutMode, number> = {
     screen: 10,
     print: 10,
 };

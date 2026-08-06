@@ -86,7 +86,7 @@ export function AssessmentSnapshotView({
         [isV1, profile]
     );
     const targetIndex = useMemo(
-        () => (isV1 ? buildSnapshotTargetIndex(profile, 'screen') : null),
+        () => (isV1 ? buildSnapshotTargetIndex(profile) : null),
         [isV1, profile]
     );
 

@@ -59,3 +59,11 @@ export function resolveSnapshotPrintIdentity(
 export function formatPrintPageLabel(pageNumber: number, totalPages: number): string {
     return `Page ${pageNumber} of ${totalPages}`;
 }
+
+/** Self-contained Target Index appendix numbering — independent of evidence pages. */
+export function formatTargetIndexPageLabel(
+    pageNumber: number,
+    indexPageCount: number
+): string {
+    return `Target index — page ${pageNumber} of ${indexPageCount}`;
+}

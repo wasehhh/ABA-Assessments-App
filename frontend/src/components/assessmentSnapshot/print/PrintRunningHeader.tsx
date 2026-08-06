@@ -11,6 +11,8 @@ interface Props {
     displayContext?: LearnerMapDisplayContext;
     pageNumber: number;
     totalPages: number;
+    /** When set, replaces the default "Page N of M" evidence label. */
+    pageLabel?: string;
 }
 
 /**
@@ -22,8 +24,10 @@ export function PrintRunningHeader({
     displayContext,
     pageNumber,
     totalPages,
+    pageLabel,
 }: Props) {
     const identity = resolveSnapshotPrintIdentity(profile, displayContext);
+    const label = pageLabel ?? formatPrintPageLabel(pageNumber, totalPages);
 
     return (
         <header
@@ -53,7 +57,7 @@ export function PrintRunningHeader({
                 className="shrink-0 text-[8px] font-medium tabular-nums text-black"
                 data-assessment-snapshot-print-page-label
             >
-                {formatPrintPageLabel(pageNumber, totalPages)}
+                {label}
             </p>
         </header>
     );

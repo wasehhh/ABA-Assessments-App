@@ -25,6 +25,7 @@ export {
 export type { ThreadDisplayLabel } from './snapshotTargetIdentity';
 export {
     buildSnapshotTargetIndex,
+    TARGET_INDEX_RESOLUTION_MODE,
 } from './snapshotTargetIndex';
 export type { SnapshotTargetIndex, SnapshotTargetIndexRow } from './snapshotTargetIndex';
 export { AssessmentSnapshotTargetIndexScreen } from './AssessmentSnapshotTargetIndexScreen';

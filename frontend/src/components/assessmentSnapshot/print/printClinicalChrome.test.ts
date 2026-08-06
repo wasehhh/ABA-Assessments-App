@@ -4,6 +4,7 @@ import { buildAssessmentSnapshotProfile } from '../../../services/assessmentSnap
 import { buildLearnerMapProfile } from '../../../services/learnerMapProfile';
 import {
     formatPrintPageLabel,
+    formatTargetIndexPageLabel,
     resolveSnapshotPrintIdentity,
     SNAPSHOT_PRINT_CLINICAL_NOTE,
     SNAPSHOT_PRINT_CONFIDENTIALITY,
@@ -86,6 +87,8 @@ describe('printClinicalChrome', () => {
     it('formats page labels for the repeated footer', () => {
         expect(formatPrintPageLabel(1, 2)).toBe('Page 1 of 2');
         expect(formatPrintPageLabel(4, 4)).toBe('Page 4 of 4');
+        expect(formatTargetIndexPageLabel(1, 1)).toBe('Target index — page 1 of 1');
+        expect(formatTargetIndexPageLabel(2, 3)).toBe('Target index — page 2 of 3');
     });
 
     it('exposes confidential clinical chrome copy', () => {

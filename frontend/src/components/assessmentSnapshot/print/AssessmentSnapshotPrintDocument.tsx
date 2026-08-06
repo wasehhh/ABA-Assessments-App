@@ -42,7 +42,7 @@ export function AssessmentSnapshotPrintDocument({
     });
     const targetsById = buildTargetByIdMap(profile);
     const headerBands = resolveDomainZoneHeaderBands(plan.tier);
-    const targetIndex = buildSnapshotTargetIndex(profile, 'print');
+    const targetIndex = buildSnapshotTargetIndex(profile);
 
     return (
         <div
@@ -160,13 +160,12 @@ export function AssessmentSnapshotPrintDocument({
                     </div>
                 );
             })}
-            {targetIndex ? (
+                    {targetIndex ? (
                 <AssessmentSnapshotTargetIndexPrint
                     profile={profile}
                     index={targetIndex}
                     generatedAtLabel={generatedAtLabel}
                     displayContext={displayContext}
-                    evidencePageCount={plan.totalPages}
                 />
             ) : null}
         </div>

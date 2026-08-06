@@ -14,6 +14,8 @@ interface Props {
     totalPages: number;
     /** Richer clinical note + pack summary — only on the final planned page. */
     isDocumentEnd?: boolean;
+    /** When set, replaces the default "Page N of M" evidence label. */
+    pageLabel?: string;
 }
 
 /**
@@ -26,9 +28,11 @@ export function PrintDocumentFooter({
     pageNumber,
     totalPages,
     isDocumentEnd = false,
+    pageLabel,
 }: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
+    const label = pageLabel ?? formatPrintPageLabel(pageNumber, totalPages);
 
     return (
         <footer
@@ -49,7 +53,7 @@ export function PrintDocumentFooter({
                     className="shrink-0 font-medium tabular-nums"
                     data-assessment-snapshot-print-page-label
                 >
-                    {formatPrintPageLabel(pageNumber, totalPages)}
+                    {label}
                 </p>
             </div>
 
