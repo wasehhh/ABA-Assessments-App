@@ -369,17 +369,6 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
         expect(evidenceTargetOrder).toEqual(['L1_LISTENER_RESPONDING_1']);
     });
 
-    it('screen and print index objects are identical (canonical mode)', () => {
-        const profile = buildProfile(
-            makePack([
-                makeTarget('L1_LISTENER_RESPONDING_1', 'Listener 1'),
-                makeTarget('L1_MOTOR_SKILL_1', 'Motor 1'),
-                makeTarget('L1_MEMORY_SKILL_1', 'Memory 1'),
-            ])
-        );
-        expect(buildSnapshotTargetIndex(profile)).toEqual(buildSnapshotTargetIndex(profile));
-    });
-
     it('index stays identical even if CODE_MAX_BY_MODE screen/print diverge', () => {
         // If a future change intentionally diverges screen vs print CODE_MAX,
         // the index is already insulated (always print). Re-examine §6.7 if
@@ -438,6 +427,7 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
         const indexLabel = formatTargetIndexPageLabel(1, 1);
         expect(htmlWith).toContain(indexLabel);
         expect(htmlWith).toContain('data-assessment-snapshot-target-index-page="1"');
+        expect(htmlWith).toContain('data-assessment-snapshot-target-index-page-count="1"');
         // Index must not reuse evidence "Page N of N+1" style.
         expect(htmlWith).not.toContain(
             formatPrintPageLabel(planWith.totalPages + 1, planWith.totalPages + 1)

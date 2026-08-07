@@ -1,11 +1,22 @@
 import { SnapshotTargetIndex, SnapshotTargetIndexRow } from './snapshotTargetIndex';
+import {
+    TARGET_INDEX_COLUMN_ORDER,
+    TARGET_INDEX_COLUMN_WIDTH_FRACTIONS,
+} from '../../../utils/snapshotTargetIndexColumns';
 
 export const SNAPSHOT_TARGET_INDEX_TITLE = 'Target index';
 
 interface Props {
     index: SnapshotTargetIndex;
+    /** Optional row slice for multi-sheet print; defaults to the full index. */
+    rows?: SnapshotTargetIndexRow[];
     /** screen = collapsible chrome; print = appendix after evidence pages. */
     surface: 'screen' | 'print';
+    /**
+     * When false, omit the section heading (continuation index sheets).
+     * Defaults to true for print surface, false for screen (button owns the title).
+     */
+    showHeading?: boolean;
 }
 
 function formatGroupContext(id: string, title: string): string {
@@ -44,16 +55,29 @@ function IndexRow({ row }: { row: SnapshotTargetIndexRow }) {
 /**
  * Shared Target Index table markup (§6). Content-identical for screen and print/export.
  */
-export function AssessmentSnapshotTargetIndexTable({ index, surface }: Props) {
+export function AssessmentSnapshotTargetIndexTable({
+    index,
+    rows,
+    surface,
+    showHeading,
+}: Props) {
+    const displayRows = rows ?? index.rows;
+    const headingVisible =
+        showHeading ?? (surface === 'print');
+
     return (
         <section
             data-assessment-snapshot-target-index
             data-assessment-snapshot-target-index-surface={surface}
             aria-label={SNAPSHOT_TARGET_INDEX_TITLE}
         >
-            {surface === 'print' ? (
+            {headingVisible ? (
                 <h2
-                    className="mb-2 text-[11px] font-semibold tracking-tight text-black"
+                    className={
+                        surface === 'print'
+                            ? 'mb-2 text-[11px] font-semibold tracking-tight text-black'
+                            : 'text-sm font-semibold tracking-tight text-gray-900'
+                    }
                     data-assessment-snapshot-target-index-heading
                 >
                     {SNAPSHOT_TARGET_INDEX_TITLE}
@@ -68,6 +92,17 @@ export function AssessmentSnapshotTargetIndexTable({ index, surface }: Props) {
                     }
                     data-assessment-snapshot-target-index-table
                 >
+                    <colgroup>
+                        {TARGET_INDEX_COLUMN_ORDER.map((key) => (
+                            <col
+                                key={key}
+                                style={{
+                                    width: `${Math.round(TARGET_INDEX_COLUMN_WIDTH_FRACTIONS[key] * 1000) / 10}%`,
+                                }}
+                                data-assessment-snapshot-target-index-col={key}
+                            />
+                        ))}
+                    </colgroup>
                     <thead>
                         <tr>
                             <th scope="col">Displayed code</th>
@@ -78,7 +113,7 @@ export function AssessmentSnapshotTargetIndexTable({ index, surface }: Props) {
                         </tr>
                     </thead>
                     <tbody>
-                        {index.rows.map((row) => (
+                        {displayRows.map((row) => (
                             <IndexRow key={row.authoredTargetId} row={row} />
                         ))}
                     </tbody>

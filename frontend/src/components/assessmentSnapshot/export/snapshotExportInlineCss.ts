@@ -5,6 +5,8 @@
  * Includes Snapshot print composition rules (from index.css) plus minimal layout
  * so Target Threads structure remains readable offline.
  */
+import { buildTargetIndexTableColumnCss } from '../../../utils/snapshotTargetIndexColumns';
+
 export const SNAPSHOT_EXPORT_FALLBACK_CSS = `
 :root { color-scheme: light; }
 html, body {
@@ -27,21 +29,7 @@ html, body {
   break-before: page;
   page-break-before: always;
 }
-.assessment-snapshot-print [data-assessment-snapshot-target-index-table] {
-  width: 100%;
-  border-collapse: collapse;
-}
-.assessment-snapshot-print [data-assessment-snapshot-target-index-table] th,
-.assessment-snapshot-print [data-assessment-snapshot-target-index-table] td {
-  border-bottom: 1px solid #9ca3af;
-  padding: 0.2rem 0.35rem;
-  text-align: left;
-  vertical-align: top;
-}
-.assessment-snapshot-print [data-assessment-snapshot-target-index-row] {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
+${buildTargetIndexTableColumnCss()}
 .assessment-snapshot-print [data-assessment-snapshot-domain-segment],
 .assessment-snapshot-print [data-assessment-snapshot-domain-zone] {
   display: grid !important;

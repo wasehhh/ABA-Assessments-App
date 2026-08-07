@@ -10,6 +10,7 @@ export type AssessmentSnapshotStressScenarioId =
     | 'alpha-small'
     | 'production-acg'
     | 'ablls-like'
+    | 'clinic-index-544'
     | 'vb-mapp-like'
     | 'peak-184'
     | 'afls-flat'
@@ -360,6 +361,131 @@ const abllsLikePack: ContentPackData = {
     })),
 };
 
+const ABLLS_LIKE_CLINICAL_LABELS = [
+    'Looks at a person who is talking to him for 3 seconds',
+    'Takes a reinforcer when offered without prompting from an adult',
+    'Responds to his own name when called from a short distance',
+    'Imitates a motor action with an object after a model is presented',
+    'Follows a one-step instruction involving a familiar object in the room',
+    'Requests a preferred item using a single word or approximation',
+    'Matches identical objects in a field of three with no prompts',
+    'Waits appropriately for a turn during a structured group activity',
+    'Identifies a common object by pointing when the name is spoken',
+    'Completes a simple inset puzzle of at least four pieces independently',
+    'Maintains engagement in a preferred solitary play activity for two minutes',
+    'Gives an object to a peer or adult when asked during a structured task',
+];
+
+/**
+ * Clinic-shaped scale fixture for Target Index pagination QA (PR14A-4).
+ * ~544 targets · ~25 primary groups · secondary grouping on ~1/3 · 4 cycles ·
+ * ids seeded so compaction, disambiguation, and non-authored fallback all fire.
+ * Titles are sentence-length ABLLS-R–like labels so wrap-aware row costing is exercised.
+ * Additive — does not replace ablls-like.
+ */
+function buildClinicIndex544Pack(): ContentPackData {
+    const PRIMARY_COUNT = 25;
+    const TOTAL_TARGETS = 544;
+    const basePerDomain = Math.floor(TOTAL_TARGETS / PRIMARY_COUNT);
+    const remainder = TOTAL_TARGETS % PRIMARY_COUNT;
+
+    let globalIndex = 0;
+    const domains = Array.from({ length: PRIMARY_COUNT }, (_, domainIndex) => {
+        const count = basePerDomain + (domainIndex < remainder ? 1 : 0);
+        const useSecondary = domainIndex % 3 === 0;
+        const domainId = `DOM_CLINIC_${String(domainIndex + 1).padStart(2, '0')}`;
+        const domainTitle =
+            DOMAIN_NAME_SAMPLES[domainIndex % DOMAIN_NAME_SAMPLES.length] ??
+            `Clinic Domain ${domainIndex + 1}`;
+
+        const secondary_groups = useSecondary
+            ? [
+                  {
+                      secondary_group_id: `${domainId}_SG_A`,
+                      title: 'Skill Area A',
+                  },
+                  {
+                      secondary_group_id: `${domainId}_SG_B`,
+                      title: 'Skill Area B',
+                  },
+              ]
+            : undefined;
+
+        const targets: Target[] = Array.from({ length: count }, (_, targetIndex) => {
+            const g = globalIndex;
+            globalIndex += 1;
+            const seed = g % 11;
+            const clinicalLabel =
+                ABLLS_LIKE_CLINICAL_LABELS[g % ABLLS_LIKE_CLINICAL_LABELS.length]!;
+            let target_id: string;
+            let title: string;
+
+            if (seed === 0) {
+                // Non-authored fallback — UUID + title-derived clinical code.
+                const letter = String.fromCharCode(65 + (g % 26));
+                const num = (g % 90) + 1;
+                target_id = `00000000-0000-4000-a000-${String(g).padStart(12, '0')}`;
+                title = `${clinicalLabel} (${letter}${num})`;
+            } else if (seed === 1 || seed === 2) {
+                // Disambiguation — short colliding codes via DOM strip vs raw id.
+                const code = `C${domainIndex + 1}X${Math.floor(targetIndex / 2)}`;
+                target_id = seed === 1 ? `DOM_${domainIndex + 1}_${code}` : code;
+                title = clinicalLabel;
+            } else {
+                // Compaction — long structured authored id.
+                target_id = `L${(domainIndex % 3) + 1}_CLINIC_SKILL_AREA_${g + 1}`;
+                title = clinicalLabel;
+            }
+
+            const target: Target = {
+                target_id,
+                title,
+                success_criteria: 'Demonstrates skill independently.',
+                materials: '',
+                scoring: {
+                    type: 'numeric',
+                    scale: [0, 1, 2, 3, 4],
+                    scale_labels: {},
+                    no_opportunity_allowed: true,
+                },
+            };
+
+            if (useSecondary && secondary_groups) {
+                target.secondary_group_id =
+                    targetIndex < Math.ceil(count / 2)
+                        ? secondary_groups[0]!.secondary_group_id
+                        : secondary_groups[1]!.secondary_group_id;
+            }
+
+            return target;
+        });
+
+        return {
+            domain_id: domainId,
+            title: domainTitle,
+            ...(secondary_groups ? { secondary_groups } : {}),
+            targets,
+        };
+    });
+
+    return {
+        pack_id: 'pack-clinic-index-544',
+        org_id: 'org-dev-stress',
+        title: 'Clinic Index 544',
+        description:
+            'Clinic-shaped scale fixture — long labels; triggers Target Index; pagination QA.',
+        version: 'dev-stress',
+        structure_labels: {
+            primary_group: 'Domain',
+            secondary_group: 'Skill Area',
+            target: 'Target',
+        },
+        domains,
+    };
+}
+
+const clinicIndex544Pack = buildClinicIndex544Pack();
+
 const vbMappLikePack: ContentPackData = {
     pack_id: 'pack-vb-mapp-like',
     org_id: 'org-dev-stress',
@@ -449,6 +575,17 @@ export const ASSESSMENT_SNAPSHOT_STRESS_SCENARIOS: AssessmentSnapshotStressScena
         ...buildScenarioProfile({
             assessmentId: 'assess-ablls-like',
             pack: abllsLikePack,
+            cycleCount: 4,
+        }),
+    },
+    {
+        id: 'clinic-index-544',
+        label: 'Clinic Index 544',
+        description:
+            '25 domains · 544 targets · ~1/3 secondary · 4 cycles · index-triggering ids',
+        ...buildScenarioProfile({
+            assessmentId: 'assess-clinic-index-544',
+            pack: clinicIndex544Pack,
             cycleCount: 4,
         }),
     },

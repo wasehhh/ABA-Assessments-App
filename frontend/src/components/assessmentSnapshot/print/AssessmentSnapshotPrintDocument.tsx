@@ -160,7 +160,7 @@ export function AssessmentSnapshotPrintDocument({
                     </div>
                 );
             })}
-                    {targetIndex ? (
+            {targetIndex ? (
                 <AssessmentSnapshotTargetIndexPrint
                     profile={profile}
                     index={targetIndex}

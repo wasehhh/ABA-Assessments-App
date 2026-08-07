@@ -159,27 +159,8 @@
     page-break-before: always;
   }
 
-  .assessment-snapshot-print [data-assessment-snapshot-target-index-table] {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-target-index-table] th,
-  .assessment-snapshot-print [data-assessment-snapshot-target-index-table] td {
-    border-bottom: 1px solid #9ca3af;
-    padding: 0.2rem 0.35rem;
-    text-align: left;
-    vertical-align: top;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-target-index-table] th {
-    font-weight: 600;
-  }
-
-  .assessment-snapshot-print [data-assessment-snapshot-target-index-row] {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  /* Target Index table geometry is emitted from snapshotTargetIndexColumns.ts
+   * (fallback CSS + live injection) — do not restate column percentages here. */
 
   /* Segment header bands stay a CSS grid (defeats the global print `.grid { display:block }`). */
   .assessment-snapshot-print [data-assessment-snapshot-domain-segment] {
