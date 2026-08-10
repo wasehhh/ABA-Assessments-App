@@ -425,7 +425,9 @@ describe('Target Index multi-sheet pagination (PR14A-4)', () => {
         });
 
         expect(exportHtml).toContain('data-assessment-snapshot-screen-document');
-        expect(exportHtml).not.toContain('data-assessment-snapshot-print-document');
+        expect(exportHtml.slice(exportHtml.indexOf('<body'))).not.toContain(
+            'data-assessment-snapshot-print-document'
+        );
         expect(exportHtml).toContain('data-assessment-snapshot-target-index-screen');
         expect(exportHtml).toContain('data-expanded="true"');
         const exportBody = exportHtml.slice(exportHtml.indexOf('<body'));

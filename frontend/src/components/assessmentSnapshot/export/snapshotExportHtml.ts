@@ -9,7 +9,7 @@ import { buildSnapshotScreenPlanConfig } from '../../../hooks/snapshotViewport';
 import { LearnerMapDisplayContext } from '../../learnerMap/learnerMapDisplayContext';
 import { AssessmentSnapshotScreenDocument } from '../v1/AssessmentSnapshotScreenDocument';
 import { SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT } from './snapshotExportEnhancementsScript';
-import { SNAPSHOT_EXPORT_INLINE_CSS } from './snapshotExportInlineCss';
+import { SNAPSHOT_EXPORT_DOCUMENT_CSS } from './snapshotExportInlineCss';
 
 export const SNAPSHOT_EXPORT_DISCLAIMER =
     'This Assessment Snapshot is a raw clinical evidence record of assessment scores. It is not a diagnosis, treatment plan, or interpretive clinical report. Distribution and retention are governed by organization PHI policy.';
@@ -52,7 +52,7 @@ export function renderSnapshotScreenDocumentMarkup(
 }
 
 export function wrapSnapshotExportDocumentHtml(screenDocumentMarkup: string): string {
-    const safeCss = SNAPSHOT_EXPORT_INLINE_CSS.replace(/<\/style/gi, '<\\/style');
+    const safeCss = SNAPSHOT_EXPORT_DOCUMENT_CSS.replace(/<\/style/gi, '<\\/style');
     const safeScript = SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT.replace(
         /<\/script/gi,
         '<\\/script'
@@ -82,7 +82,7 @@ ${safeScript}
  * Standalone HTML for Snapshot export (PR14B HTML channel).
  *
  * Deterministic static serialization only — never reads the live preview DOM.
- * Screen RenderPlan at frozen viewport; CSS from {@link SNAPSHOT_EXPORT_INLINE_CSS}.
+ * Screen RenderPlan at frozen viewport; CSS from {@link SNAPSHOT_EXPORT_DOCUMENT_CSS}.
  */
 export function buildSnapshotExportHtml(input: BuildSnapshotExportHtmlInput): string {
     // Ensure the frozen plan is the authority used for serialization (INV-H1).

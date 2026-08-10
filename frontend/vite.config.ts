@@ -10,5 +10,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Required so `*.css?inline` returns the PostCSS/Tailwind-compiled string
+    // (HTML export inlines the app stylesheet at build time).
+    css: true,
   },
 });

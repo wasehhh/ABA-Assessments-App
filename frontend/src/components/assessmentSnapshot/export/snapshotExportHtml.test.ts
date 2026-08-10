@@ -20,6 +20,64 @@ import {
     SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
 } from './snapshotExportHtml';
 
+/**
+ * Structural class hooks used for DOM / data pairing without dedicated CSS rules.
+ * Appearance still comes from sibling Tailwind utilities on the same elements.
+ */
+const SNAPSHOT_EXPORT_STRUCTURAL_CLASS_ALLOWLIST = new Set([
+    'assessment-snapshot-domain-grid',
+    'assessment-snapshot-primary-chapter',
+    'assessment-snapshot-domain-zone-header',
+    'assessment-snapshot-count-band',
+    'assessment-snapshot-count-band--compact',
+    'assessment-snapshot-count-band--standard',
+    'assessment-snapshot-count-band--dense',
+    'assessment-snapshot-cycle-band',
+    'assessment-snapshot-cycle-band--compact',
+    'assessment-snapshot-cycle-band--standard',
+    'assessment-snapshot-cycle-band--dense',
+    'assessment-snapshot-title-band--compact',
+    'assessment-snapshot-title-band--standard',
+    'assessment-snapshot-title-band--dense',
+]);
+
+function escapeCssIdent(ident: string): string {
+    return ident.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
+function cssHasClassSelector(css: string, className: string): boolean {
+    const token = `.${escapeCssIdent(className)}`;
+    let start = 0;
+    while (start < css.length) {
+        const index = css.indexOf(token, start);
+        if (index === -1) {
+            return false;
+        }
+        const next = css[index + token.length];
+        if (next === undefined || !/[a-zA-Z0-9_-]/.test(next)) {
+            return true;
+        }
+        start = index + 1;
+    }
+    return false;
+}
+
+function extractExportClassNames(html: string): string[] {
+    const classes = new Set<string>();
+    for (const match of html.matchAll(/\bclass="([^"]*)"/g)) {
+        for (const token of match[1].split(/\s+/).filter(Boolean)) {
+            classes.add(token);
+        }
+    }
+    return [...classes].sort();
+}
+
+function extractInlineStylesheet(html: string): string {
+    const match = html.match(/<style>([\s\S]*?)<\/style>/i);
+    expect(match).not.toBeNull();
+    return match![1];
+}
+
 function makeTarget(targetId: string, scale: number[], title?: string): Target {
     return {
         target_id: targetId,
@@ -228,8 +286,9 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).toContain('data-assessment-snapshot-legend');
         expect(html).toContain('data-export-mode="full"');
         expect(html).toContain('data-export-channel="html"');
-        expect(html).not.toContain('data-assessment-snapshot-print-document');
-        expect(html).not.toContain('data-assessment-snapshot-print-page');
+        const body = html.slice(html.indexOf('<body'));
+        expect(body).not.toContain('data-assessment-snapshot-print-document');
+        expect(body).not.toContain('data-assessment-snapshot-print-page');
         expect(html).not.toMatch(/<th scope="col">Cycle/i);
         expect(html).not.toMatch(/data-assessment-snapshot-score-sheet/i);
     });
@@ -281,6 +340,43 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).toContain(
             '.assessment-snapshot-export-html [data-assessment-snapshot-target-index-table]'
         );
+    });
+
+    it('inlines compiled Tailwind layout utilities used by the screen document', () => {
+        const { profile, generatedAt } = clinicExportInput();
+        const css = extractInlineStylesheet(
+            buildSnapshotExportHtml({ profile, generatedAt })
+        );
+
+        // Legend: flex flex-wrap items-center gap-x-4
+        expect(css).toMatch(/\.flex\s*\{/);
+        expect(css).toMatch(/\.flex-wrap\s*\{/);
+        expect(css).toMatch(/\.items-center\s*\{/);
+        expect(css).toContain('.gap-x-4');
+
+        // Domain / thread rows: items-baseline gap-x-3 space-y-10 mb-4 text-base
+        expect(css).toMatch(/\.items-baseline\s*\{/);
+        expect(css).toContain('.gap-x-3');
+        expect(css).toContain('.space-y-10');
+        expect(css).toMatch(/\.mb-4\s*\{/);
+        expect(css).toMatch(/\.text-base\s*\{/);
+    });
+
+    it('class-coverage: every markup class has a matching inlined CSS rule (except structural allowlist)', () => {
+        const { profile, generatedAt } = clinicExportInput();
+        const html = buildSnapshotExportHtml({ profile, generatedAt });
+        const css = extractInlineStylesheet(html);
+        const classNames = extractExportClassNames(html);
+
+        expect(classNames.length).toBeGreaterThan(50);
+
+        const uncovered = classNames.filter(
+            (className) =>
+                !SNAPSHOT_EXPORT_STRUCTURAL_CLASS_ALLOWLIST.has(className) &&
+                !cssHasClassSelector(css, className)
+        );
+
+        expect(uncovered).toEqual([]);
     });
 
     it('omits §4.2 interpretive / movement / coverage chrome', () => {

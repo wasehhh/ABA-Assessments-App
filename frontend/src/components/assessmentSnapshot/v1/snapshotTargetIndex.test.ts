@@ -450,7 +450,9 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
         });
 
         expect(exportHtml).toContain('data-assessment-snapshot-screen-document');
-        expect(exportHtml).not.toContain('data-assessment-snapshot-print-document');
+        expect(exportHtml.slice(exportHtml.indexOf('<body'))).not.toContain(
+            'data-assessment-snapshot-print-document'
+        );
         expect(exportHtml).toContain('data-assessment-snapshot-target-index-screen');
         expect(exportHtml).toContain('data-assessment-snapshot-target-index-row');
         expect(exportHtml).toContain('data-expanded="true"');

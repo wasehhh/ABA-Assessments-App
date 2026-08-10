@@ -1,16 +1,29 @@
 /**
- * Inlined stylesheet for standalone Snapshot HTML export (PR14B HTML channel).
+ * Stylesheets for standalone Snapshot HTML export (PR14B HTML channel).
  *
- * Sole CSS authority for the offline file — no live stylesheet collection.
- * Must include screen Target Threads rules and
- * {@link buildTargetIndexScreenTableColumnCss}. Print geometry remains available
- * for shared selectors but the serialized document is the screen document only.
+ * Document CSS = compiled app stylesheet (build-time `index.css?inline`) followed
+ * by export chrome / index geometry below. Chrome comes second so index geometry
+ * and `!important` print/export rules win over utilities where they must.
+ *
+ * No live stylesheet collection. No external `<link>`.
  */
+import appStylesheetText from '../../../index.css?inline';
 import {
     buildTargetIndexScreenTableColumnCss,
     buildTargetIndexTableColumnCss,
 } from '../../../utils/snapshotTargetIndexColumns';
 
+/**
+ * Tailwind / PostCSS keep documentation URLs inside block comments. Strip
+ * comments so the offline file satisfies the existing no-`http(s):` self-
+ * containment guard. There are no `@font-face` or `url(http…)` assets in the
+ * compiled bundle (verified at implementation time).
+ */
+function stripCssComments(css: string): string {
+    return css.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/** Export chrome + Target Index geometry (cascade layer after the app bundle). */
 export const SNAPSHOT_EXPORT_INLINE_CSS = `
 :root { color-scheme: light; }
 html, body {
@@ -119,36 +132,13 @@ ${buildTargetIndexScreenTableColumnCss()}
   padding: 0.65rem 0.75rem;
   margin: 0 0 1rem;
 }
-.flex { display: flex; }
-.inline-flex { display: inline-flex; }
-.flex-wrap { flex-wrap: wrap; }
-.items-center { align-items: center; }
-.items-end { align-items: flex-end; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.shrink-0 { flex-shrink: 0; }
-.min-w-0 { min-width: 0; }
-.relative { position: relative; }
-.w-full { width: 100%; }
-.rounded-full { border-radius: 9999px; }
-.font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.font-semibold { font-weight: 600; }
-.tabular-nums { font-variant-numeric: tabular-nums; }
-.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
-.border-t { border-top-width: 1px; border-top-style: solid; }
-.border-gray-200 { border-color: #e5e7eb; }
-.border-gray-400 { border-color: #9ca3af; }
-.border-gray-500 { border-color: #6b7280; }
-.text-black { color: #000; }
-.text-gray-500 { color: #6b7280; }
-.text-gray-600 { color: #4b5563; }
-.text-gray-700 { color: #374151; }
-.text-gray-900 { color: #111827; }
-.bg-gray-300 { background-color: #d1d5db; }
-.border-dashed { border-style: dashed; }
-.space-y-5 > :not([hidden]) ~ :not([hidden]) { margin-top: 1.25rem; }
 `;
+
+/**
+ * Full inlined document stylesheet for the HTML export channel.
+ * Order: compiled `index.css` bundle, then {@link SNAPSHOT_EXPORT_INLINE_CSS}.
+ */
+export const SNAPSHOT_EXPORT_DOCUMENT_CSS = `${stripCssComments(appStylesheetText)}\n${SNAPSHOT_EXPORT_INLINE_CSS}`;
 
 /** @deprecated Alias — prefer {@link SNAPSHOT_EXPORT_INLINE_CSS}. */
 export const SNAPSHOT_EXPORT_FALLBACK_CSS = SNAPSHOT_EXPORT_INLINE_CSS;
