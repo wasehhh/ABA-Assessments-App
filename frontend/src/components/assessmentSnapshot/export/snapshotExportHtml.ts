@@ -1,13 +1,21 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
-import { buildPrintRenderPlan } from '../../../utils/snapshotPrintRenderPlan';
+import {
+    buildSnapshotRenderPlan,
+    SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
+} from '../../../utils/snapshotLayoutEngine';
+import { buildSnapshotScreenPlanConfig } from '../../../hooks/snapshotViewport';
 import { LearnerMapDisplayContext } from '../../learnerMap/learnerMapDisplayContext';
-import { AssessmentSnapshotPrintDocument } from '../print/AssessmentSnapshotPrintDocument';
-import { SNAPSHOT_EXPORT_FALLBACK_CSS } from './snapshotExportInlineCss';
+import { AssessmentSnapshotScreenDocument } from '../v1/AssessmentSnapshotScreenDocument';
+import { SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT } from './snapshotExportEnhancementsScript';
+import { SNAPSHOT_EXPORT_INLINE_CSS } from './snapshotExportInlineCss';
 
 export const SNAPSHOT_EXPORT_DISCLAIMER =
     'This Assessment Snapshot is a raw clinical evidence record of assessment scores. It is not a diagnosis, treatment plan, or interpretive clinical report. Distribution and retention are governed by organization PHI policy.';
+
+/** Frozen HTML-channel packing width — same constant as live screen fallback (PR14B §4.6). */
+export const SNAPSHOT_HTML_EXPORT_VIEWPORT_REM = SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM;
 
 export interface BuildSnapshotExportHtmlInput {
     profile: AssessmentSnapshotProfile;
@@ -24,59 +32,31 @@ function formatGeneratedAt(date: Date): string {
 }
 
 /**
- * Render the same print document used by the export preview / Print path.
- * Canonical mode `full` evidence geometry = AssessmentSnapshotPrintDocument.
+ * Render the screen-layout document used by the HTML export channel.
+ * Viewport is frozen at {@link SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}.
  */
-export function renderSnapshotPrintDocumentMarkup(
+export function renderSnapshotScreenDocumentMarkup(
     input: BuildSnapshotExportHtmlInput
 ): string {
-    const plan = buildPrintRenderPlan(input.profile, { paper: 'letter' });
     const generatedAtLabel = formatGeneratedAt(input.generatedAt);
 
     return renderToStaticMarkup(
-        createElement(AssessmentSnapshotPrintDocument, {
+        createElement(AssessmentSnapshotScreenDocument, {
             profile: input.profile,
-            plan,
-            generatedAtLabel,
             displayContext: input.displayContext,
             cycleDateLabels: input.cycleDateLabels,
+            generatedAtLabel,
+            viewportWidthRem: SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
         })
     );
 }
 
-/**
- * Collect same-origin stylesheet text from the live document for offline HTML.
- * Skips cross-origin sheets that throw on cssRules access.
- */
-export function collectAccessibleStylesheetText(): string {
-    if (typeof document === 'undefined') {
-        return '';
-    }
-
-    const chunks: string[] = [];
-
-    for (const sheet of Array.from(document.styleSheets)) {
-        try {
-            const rules = sheet.cssRules;
-            if (!rules) {
-                continue;
-            }
-            for (const rule of Array.from(rules)) {
-                chunks.push(rule.cssText);
-            }
-        } catch {
-            // Cross-origin or otherwise unreadable — skip (do not embed remote URLs).
-        }
-    }
-
-    return chunks.join('\n');
-}
-
-export function wrapSnapshotExportDocumentHtml(
-    printDocumentMarkup: string,
-    cssText: string
-): string {
-    const safeCss = cssText.replace(/<\/style/gi, '<\\/style');
+export function wrapSnapshotExportDocumentHtml(screenDocumentMarkup: string): string {
+    const safeCss = SNAPSHOT_EXPORT_INLINE_CSS.replace(/<\/style/gi, '<\\/style');
+    const safeScript = SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT.replace(
+        /<\/script/gi,
+        '<\\/script'
+    );
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -88,40 +68,46 @@ export function wrapSnapshotExportDocumentHtml(
 ${safeCss}
 </style>
 </head>
-<body class="assessment-snapshot-print" data-assessment-snapshot-export-document data-export-mode="full">
+<body class="assessment-snapshot-export-html" data-assessment-snapshot-export-document data-export-mode="full" data-export-channel="html" data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}">
 <p class="snapshot-export-disclaimer">${SNAPSHOT_EXPORT_DISCLAIMER}</p>
-${printDocumentMarkup}
+${screenDocumentMarkup}
+<script>
+${safeScript}
+</script>
 </body>
 </html>`;
 }
 
 /**
- * Standalone HTML for Snapshot export (PR14A full mode).
- * Uses PrintRenderPlan + AssessmentSnapshotPrintDocument — not a tabular fork.
- * Scores/structure come from the frozen snapshot profile (G8).
+ * Standalone HTML for Snapshot export (PR14B HTML channel).
+ *
+ * Deterministic static serialization only — never reads the live preview DOM.
+ * Screen RenderPlan at frozen viewport; CSS from {@link SNAPSHOT_EXPORT_INLINE_CSS}.
  */
 export function buildSnapshotExportHtml(input: BuildSnapshotExportHtmlInput): string {
-    const markup = renderSnapshotPrintDocumentMarkup(input);
-    return wrapSnapshotExportDocumentHtml(markup, SNAPSHOT_EXPORT_FALLBACK_CSS);
+    // Ensure the frozen plan is the authority used for serialization (INV-H1).
+    buildSnapshotRenderPlan(
+        input.profile,
+        buildSnapshotScreenPlanConfig(SNAPSHOT_HTML_EXPORT_VIEWPORT_REM)
+    );
+    const markup = renderSnapshotScreenDocumentMarkup(input);
+    return wrapSnapshotExportDocumentHtml(markup);
 }
 
 /**
- * Prefer mounted print DOM + live stylesheets so offline HTML matches the preview.
- * Falls back to renderToStaticMarkup + fallback CSS when the print root is missing.
+ * HTML-channel download entry used by the export page.
+ * Always static — output cannot depend on live DOM / collapse / stylesheet reachability.
  */
-export function buildSnapshotExportHtmlFromMountedRoot(
-    mountedRoot: ParentNode,
-    input: BuildSnapshotExportHtmlInput
+export function downloadSnapshotHtmlChannel(
+    input: BuildSnapshotExportHtmlInput,
+    assessmentId: string
 ): string {
-    const printRoot = mountedRoot.querySelector(
-        '[data-assessment-snapshot-print-document]'
+    const html = buildSnapshotExportHtml(input);
+    downloadSnapshotExportHtml(
+        html,
+        buildSnapshotExportFilename(assessmentId, input.generatedAt)
     );
-    const markup = printRoot
-        ? printRoot.outerHTML
-        : renderSnapshotPrintDocumentMarkup(input);
-    const liveCss = collectAccessibleStylesheetText();
-    const css = liveCss.trim().length > 0 ? liveCss : SNAPSHOT_EXPORT_FALLBACK_CSS;
-    return wrapSnapshotExportDocumentHtml(markup, css);
+    return html;
 }
 
 export function buildSnapshotExportFilename(

@@ -3,7 +3,7 @@
  *
  * Static `index.css` cannot import TypeScript-generated CSS. The shared emit
  * path is {@link buildTargetIndexTableColumnCss}; this module and
- * SNAPSHOT_EXPORT_FALLBACK_CSS both consume it so column % / padding cannot
+ * SNAPSHOT_EXPORT_INLINE_CSS both consume it so column % / padding cannot
  * drift from the planner.
  */
 import { buildTargetIndexTableColumnCss } from './snapshotTargetIndexColumns';

@@ -48,6 +48,9 @@ export function claimExportViewAudit(
 /**
  * Fire-and-forget PHI egress audit. Never throws; never blocks export/print.
  */
+/** Distinguishes Snapshot main-page Print from export-page PDF (PR14B §5.8). */
+export type ClinicalExportAuditSurface = 'snapshot' | 'export';
+
 export function logClinicalExportAudit(input: {
     orgId: string | null | undefined;
     userId: string | null | undefined;
@@ -56,6 +59,8 @@ export function logClinicalExportAudit(input: {
     channel: ClinicalExportAuditChannel;
     mode: string;
     event: ClinicalExportAuditEvent;
+    /** Optional; Snapshot print paths set this. Learner Map may omit. */
+    surface?: ClinicalExportAuditSurface;
 }): void {
     if (!input.orgId || !input.userId) {
         return;
@@ -73,6 +78,7 @@ export function logClinicalExportAudit(input: {
                 channel: input.channel,
                 mode: input.mode,
                 event: input.event,
+                ...(input.surface ? { surface: input.surface } : {}),
             },
         });
     } catch (err) {

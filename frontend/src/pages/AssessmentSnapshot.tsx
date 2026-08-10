@@ -119,6 +119,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
             channel: 'print',
             mode: 'full',
             event: 'print',
+            surface: 'snapshot',
         });
         window.print();
     };

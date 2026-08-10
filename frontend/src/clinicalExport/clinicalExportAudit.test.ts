@@ -106,7 +106,69 @@ describe('clinicalExportAudit event semantics', () => {
             artifact: 'snapshot',
             event: 'html_export',
         });
+        expect(entry.details).not.toHaveProperty('surface');
         expect(normalizeAuditAction(String(entry.action))).toEqual({ action: 'EXPORT' });
+    });
+
+    it('Snapshot export-page PDF uses print + surface export', async () => {
+        const logSpy = vi.spyOn(auditService, 'log').mockResolvedValue(undefined);
+
+        logClinicalExportAudit({
+            orgId: 'org-1',
+            userId: 'user-1',
+            assessmentId: 'assess-1',
+            artifact: 'snapshot',
+            channel: 'print',
+            mode: 'full',
+            event: 'print',
+            surface: 'export',
+        });
+
+        expect(logSpy.mock.calls[0][0].details).toMatchObject({
+            event: 'print',
+            channel: 'print',
+            surface: 'export',
+        });
+    });
+
+    it('Snapshot main-page Print uses print + surface snapshot', async () => {
+        const logSpy = vi.spyOn(auditService, 'log').mockResolvedValue(undefined);
+
+        logClinicalExportAudit({
+            orgId: 'org-1',
+            userId: 'user-1',
+            assessmentId: 'assess-1',
+            artifact: 'snapshot',
+            channel: 'print',
+            mode: 'full',
+            event: 'print',
+            surface: 'snapshot',
+        });
+
+        expect(logSpy.mock.calls[0][0].details).toMatchObject({
+            event: 'print',
+            surface: 'snapshot',
+        });
+    });
+
+    it('Learner Map print may omit surface', async () => {
+        const logSpy = vi.spyOn(auditService, 'log').mockResolvedValue(undefined);
+
+        logClinicalExportAudit({
+            orgId: 'org-1',
+            userId: 'user-1',
+            assessmentId: 'assess-lm',
+            artifact: 'learner-map',
+            channel: 'print',
+            mode: 'full',
+            event: 'print',
+        });
+
+        expect(logSpy.mock.calls[0][0].details).toMatchObject({
+            artifact: 'learner-map',
+            event: 'print',
+        });
+        expect(logSpy.mock.calls[0][0].details).not.toHaveProperty('surface');
     });
 
     it('both artifacts log print with EXPORT action', async () => {

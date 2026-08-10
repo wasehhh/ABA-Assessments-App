@@ -1,11 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useContainerWidthRem } from '../../hooks/useContainerWidthRem';
-import { buildSnapshotScreenPlanConfig } from '../../hooks/snapshotViewport';
 import { AssessmentSnapshotProfile } from '../../services/assessmentSnapshotProfile';
-import {
-    buildSnapshotRenderPlan,
-    SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
-} from '../../utils/snapshotLayoutEngine';
+import { SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM } from '../../utils/snapshotLayoutEngine';
 import { buildPrintRenderPlan } from '../../utils/snapshotPrintRenderPlan';
 import { AssessmentSnapshotPrintDocument } from './print/AssessmentSnapshotPrintDocument';
 import { LearnerMapDisplayContext } from '../learnerMap/learnerMapDisplayContext';
@@ -23,19 +19,12 @@ import {
 } from './concepts';
 import { AssessmentSnapshotHeader } from './AssessmentSnapshotHeader';
 import { AssessmentSnapshotLegend } from './AssessmentSnapshotLegend';
-import {
-    AssessmentSnapshotTargetThreads,
-    AssessmentSnapshotThreadsFooter,
-    AssessmentSnapshotThreadsLegend,
-} from './v1';
-import { AssessmentSnapshotCycleReference } from './v1/AssessmentSnapshotCycleReference';
-import { AssessmentSnapshotTargetIndexScreen } from './v1/AssessmentSnapshotTargetIndexScreen';
-import { buildSnapshotTargetIndex } from './v1/snapshotTargetIndex';
+import { AssessmentSnapshotScreenDocument } from './v1/AssessmentSnapshotScreenDocument';
 
 /**
  * Assessment Snapshot V1 — dual render surface.
  *
- * Screen: measured-width {@link buildSnapshotRenderPlan} → Target Threads.
+ * Screen: measured-width screen RenderPlan via {@link AssessmentSnapshotScreenDocument}.
  * Print: {@link buildPrintRenderPlan} → {@link AssessmentSnapshotPrintDocument}
  * (explicit pages / columns / domain segments). Pipelines are intentionally separate.
  */
@@ -71,40 +60,9 @@ export function AssessmentSnapshotView({
             ? measuredViewportRem
             : SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM;
 
-    const screenRenderPlan = useMemo(
-        () =>
-            isV1
-                ? buildSnapshotRenderPlan(
-                      profile,
-                      buildSnapshotScreenPlanConfig(screenViewportRem)
-                  )
-                : null,
-        [isV1, profile, screenViewportRem]
-    );
     const printRenderPlan = useMemo(
         () => (isV1 ? buildPrintRenderPlan(profile, { paper: 'letter' }) : null),
         [isV1, profile]
-    );
-    const targetIndex = useMemo(
-        () => (isV1 ? buildSnapshotTargetIndex(profile) : null),
-        [isV1, profile]
-    );
-
-    const snapshotV1Body = (plan: NonNullable<typeof screenRenderPlan>) => (
-        <>
-            <AssessmentSnapshotCycleReference
-                cycles={profile.cycles}
-                cycleDateLabels={cycleDateLabels}
-            />
-            <AssessmentSnapshotThreadsLegend />
-            <AssessmentSnapshotTargetThreads
-                profile={profile}
-                renderPlan={plan}
-                cycleDateLabels={cycleDateLabels}
-            />
-            {targetIndex ? <AssessmentSnapshotTargetIndexScreen index={targetIndex} /> : null}
-            <AssessmentSnapshotThreadsFooter profile={profile} generatedAtLabel={generatedAt} />
-        </>
     );
 
     return (
@@ -122,118 +80,126 @@ export function AssessmentSnapshotView({
         >
             <div
                 ref={isV1 && measureScreenViewport ? measureRef : undefined}
-                className={isV1 ? 'assessment-snapshot-screen-only space-y-5 print:hidden' : 'space-y-3'}
+                className={isV1 ? 'assessment-snapshot-screen-only print:hidden' : 'space-y-3'}
                 data-assessment-snapshot-measure={isV1 ? 'true' : undefined}
             >
-                <AssessmentSnapshotHeader
-                    profile={profile}
-                    generatedAtLabel={generatedAt}
-                    displayContext={displayContext}
-                    variant={isV1 ? 'compact' : 'default'}
-                />
-                {!isV1 ? (
-                <div
-                    className="space-y-2 border-l-2 border-gray-300 pl-3 text-sm text-gray-600"
-                    data-assessment-snapshot-concept-description
-                >
-                    {isCandidate ? (
-                        <>
-                            {(() => {
-                                const candidateMeta = getSnapshotCandidate(concept);
-                                return (
-                                    <>
-                                        <p>
-                                            <span className="font-semibold text-gray-800">
-                                                {candidateMeta.label}
-                                            </span>
-                                            <span className="mx-2 text-gray-400" aria-hidden>
-                                                ·
-                                            </span>
-                                            {candidateMeta.description}
-                                        </p>
-                                        <dl className="grid gap-2 text-xs text-gray-600 sm:grid-cols-2">
-                                            <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Organizing principle
-                                                </dt>
-                                                <dd>{candidateMeta.organizingPrinciple}</dd>
-                                            </div>
-                                            <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Emphasis
-                                                </dt>
-                                                <dd>{candidateMeta.emphasis}</dd>
-                                            </div>
-                                            <div className="sm:col-span-2">
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Differs from other candidates
-                                                </dt>
-                                                <dd>{candidateMeta.differsFrom}</dd>
-                                            </div>
-                                            <div className="sm:col-span-2">
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Evaluation question
-                                                </dt>
-                                                <dd className="italic text-gray-700">
-                                                    {candidateMeta.evaluationQuestion}
-                                                </dd>
-                                            </div>
-                                        </dl>
-                                    </>
-                                );
-                            })()}
-                        </>
-                    ) : (
-                        <>
-                            {(() => {
-                                const conceptMeta = getSnapshotConcept(concept);
-                                return (
-                                    <>
-                                        <p>
-                                            <span className="font-semibold text-gray-800">
-                                                {conceptMeta.label}
-                                            </span>
-                                            <span className="mx-2 text-gray-400" aria-hidden>
-                                                ·
-                                            </span>
-                                            {conceptMeta.description}
-                                        </p>
-                                        <dl className="grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                                            <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Organizing principle
-                                                </dt>
-                                                <dd>{conceptMeta.organizingPrinciple}</dd>
-                                            </div>
-                                            <div>
-                                                <dt className="font-semibold uppercase tracking-wide text-gray-500">
-                                                    Clinical reading pattern
-                                                </dt>
-                                                <dd>{conceptMeta.clinicalReadingPattern}</dd>
-                                            </div>
-                                        </dl>
-                                    </>
-                                );
-                            })()}
-                        </>
-                    )}
-                </div>
-                ) : null}
-                {!isV1 ? <AssessmentSnapshotLegend /> : null}
-                {isV1 && screenRenderPlan ? (
-                    snapshotV1Body(screenRenderPlan)
-                ) : isCandidate ? (
-                    <AssessmentSnapshotCandidateView
-                        candidate={concept}
+                {isV1 ? (
+                    <AssessmentSnapshotScreenDocument
                         profile={profile}
+                        displayContext={displayContext}
                         cycleDateLabels={cycleDateLabels}
+                        generatedAtLabel={generatedAt}
+                        viewportWidthRem={screenViewportRem}
                     />
                 ) : (
-                    <AssessmentSnapshotConceptView
-                        concept={concept}
-                        profile={profile}
-                        cycleDateLabels={cycleDateLabels}
-                    />
+                    <>
+                        <AssessmentSnapshotHeader
+                            profile={profile}
+                            generatedAtLabel={generatedAt}
+                            displayContext={displayContext}
+                            variant="default"
+                        />
+                        <div
+                            className="space-y-2 border-l-2 border-gray-300 pl-3 text-sm text-gray-600"
+                            data-assessment-snapshot-concept-description
+                        >
+                            {isCandidate ? (
+                                <>
+                                    {(() => {
+                                        const candidateMeta = getSnapshotCandidate(concept);
+                                        return (
+                                            <>
+                                                <p>
+                                                    <span className="font-semibold text-gray-800">
+                                                        {candidateMeta.label}
+                                                    </span>
+                                                    <span className="mx-2 text-gray-400" aria-hidden>
+                                                        ·
+                                                    </span>
+                                                    {candidateMeta.description}
+                                                </p>
+                                                <dl className="grid gap-2 text-xs text-gray-600 sm:grid-cols-2">
+                                                    <div>
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Organizing principle
+                                                        </dt>
+                                                        <dd>{candidateMeta.organizingPrinciple}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Emphasis
+                                                        </dt>
+                                                        <dd>{candidateMeta.emphasis}</dd>
+                                                    </div>
+                                                    <div className="sm:col-span-2">
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Differs from other candidates
+                                                        </dt>
+                                                        <dd>{candidateMeta.differsFrom}</dd>
+                                                    </div>
+                                                    <div className="sm:col-span-2">
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Evaluation question
+                                                        </dt>
+                                                        <dd className="italic text-gray-700">
+                                                            {candidateMeta.evaluationQuestion}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+                                            </>
+                                        );
+                                    })()}
+                                </>
+                            ) : (
+                                <>
+                                    {(() => {
+                                        const conceptMeta = getSnapshotConcept(concept);
+                                        return (
+                                            <>
+                                                <p>
+                                                    <span className="font-semibold text-gray-800">
+                                                        {conceptMeta.label}
+                                                    </span>
+                                                    <span className="mx-2 text-gray-400" aria-hidden>
+                                                        ·
+                                                    </span>
+                                                    {conceptMeta.description}
+                                                </p>
+                                                <dl className="grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                                                    <div>
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Organizing principle
+                                                        </dt>
+                                                        <dd>{conceptMeta.organizingPrinciple}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="font-semibold uppercase tracking-wide text-gray-500">
+                                                            Clinical reading pattern
+                                                        </dt>
+                                                        <dd>{conceptMeta.clinicalReadingPattern}</dd>
+                                                    </div>
+                                                </dl>
+                                            </>
+                                        );
+                                    })()}
+                                </>
+                            )}
+                        </div>
+                        <AssessmentSnapshotLegend />
+                        {isCandidate ? (
+                            <AssessmentSnapshotCandidateView
+                                candidate={concept}
+                                profile={profile}
+                                cycleDateLabels={cycleDateLabels}
+                            />
+                        ) : (
+                            <AssessmentSnapshotConceptView
+                                concept={concept}
+                                profile={profile}
+                                cycleDateLabels={cycleDateLabels}
+                            />
+                        )}
+                    </>
                 )}
             </div>
             {isV1 && printRenderPlan ? (

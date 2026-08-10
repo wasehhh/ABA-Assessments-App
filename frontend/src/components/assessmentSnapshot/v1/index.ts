@@ -28,6 +28,7 @@ export {
     TARGET_INDEX_RESOLUTION_MODE,
 } from './snapshotTargetIndex';
 export type { SnapshotTargetIndex, SnapshotTargetIndexRow } from './snapshotTargetIndex';
+export { AssessmentSnapshotScreenDocument } from './AssessmentSnapshotScreenDocument';
 export { AssessmentSnapshotTargetIndexScreen } from './AssessmentSnapshotTargetIndexScreen';
 export { AssessmentSnapshotTargetIndexPrint } from './AssessmentSnapshotTargetIndexPrint';
 export {

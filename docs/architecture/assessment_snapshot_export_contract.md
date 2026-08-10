@@ -1,20 +1,33 @@
-# Assessment Snapshot Export Contract (PR14A)
+# Assessment Snapshot Export Contract (PR14A / PR14B)
 
 | Field | Value |
 |-------|--------|
 | **Document type** | Product architecture specification (implementation contract) |
-| **Feature** | Assessment Snapshot — HTML export subsystem |
-| **Milestone** | PR14A |
+| **Feature** | Assessment Snapshot — export subsystem (HTML + PDF channels) |
+| **Milestone** | PR14A (base) · **PR14B amendment** (export channel semantics) |
 | **Status** | Authoritative product contract — Builder makes zero product decisions from this document |
-| **Verified against** | Commit `0c37e67` |
+| **Verified against** | Commit `0c37e67` (PR14A baseline) · contract commit `9049eb1` · PR14B amends in place |
 | **References** | [`assessment_snapshot_production_architecture.md`](./assessment_snapshot_production_architecture.md) · [`assessment_snapshot_design_manifesto.md`](./assessment_snapshot_design_manifesto.md) · [`assessment_snapshot_v1_specification.md`](../product/assessment_snapshot_v1_specification.md) · [`assessment_builder_phase_a_runtime_truth.md`](./assessment_builder_phase_a_runtime_truth.md) · [`security_and_roles.md`](./security_and_roles.md) |
-| **Non-goals** | Implementation · code · print CSS hardening at scale · Learner Map semantic changes · Phase B scoring · Builder UX · new Snapshot visual concepts |
+| **Non-goals** | Implementation · code · print CSS hardening at scale · print-path / PR14A-4 index planner changes · Learner Map semantic changes · Phase B scoring · Builder UX · new Snapshot visual concepts |
 
 This document is the authoritative product contract for the Assessment Snapshot export subsystem.
 
 It resolves semantic ambiguities so Builder implements behaviour; it does not invent behaviour.
 
-**Do not commit this document as part of an implementation PR unless separately instructed.** Founder approval of this contract precedes Builder work.
+**Do not commit this document as part of an implementation PR unless separately instructed.** Founder approval of this contract precedes Builder work. PR14A-4 (print-path / index planner) must commit before any PR14B implementation work is entangled with it.
+
+---
+
+## PR14B amendment banner (2026-08-06)
+
+**Founder-directed reversal** of the 2026-08-04 “one document for all egress paths” decision in §4.5 and §7.
+
+| Export page offers | Does not offer |
+|--------------------|----------------|
+| **HTML** — looks like on-screen Snapshot (screen RenderPlan) | A redundant **Print** button (main Snapshot page already has Print) |
+| **PDF** — looks like main Snapshot **Print** output (PrintRenderPlan + PR14A-4 index pages), via browser print-to-PDF | A PDF generation library or second layout engine |
+
+Superseded 2026-08-04 text is preserved under dated notes in §4.5 and §7 so the reversal remains visible.
 
 ---
 
@@ -37,15 +50,16 @@ Learner Map already has a production-validated export stack. Snapshot must adopt
 
 ## 1.2 Success statement
 
-After PR14A:
+After PR14A + PR14B:
 
-> A clinician can acknowledge PHI risk, open a dedicated Snapshot export surface, and obtain a standalone HTML evidence record that matches the assessment’s frozen `pack_snapshot`, includes every target and cycle, introduces no interpretation, and — when labels were compacted or otherwise abbreviated — includes a Target Index that restores full authored identity.
+> A clinician can acknowledge PHI risk, open a dedicated Snapshot export surface, and choose **HTML** or **PDF**. HTML matches the on-screen Snapshot (screen layout, frozen at the canonical export viewport). PDF matches the main Snapshot Print output (print composition + planned index pages) via browser print-to-PDF. Both channels carry the full evidence record from the frozen `pack_snapshot`, introduce no interpretation, and — when labels were compacted or otherwise abbreviated — include a Target Index appropriate to that channel.
 
 ## 1.3 What this does NOT solve
 
 | Out of scope | Owner |
 |--------------|--------|
 | Print CSS hardening / full-size pack print QA | Separate QA task (PR13.6D machinery already shipped) |
+| Changing print path or PR14A-4 index planner | Forbidden by PR14B — untouched |
 | Changing Learner Map export modes, copy, or UX semantics | Forbidden |
 | Full generalization of Learner Map export (mode/availability/estimate/appendix) | Forbidden by founder decision |
 | Phase B canonical scoring / inheritance | Separate track |
@@ -64,9 +78,10 @@ These constraints are non-negotiable for PR14A:
 |----|------------|
 | **G8** | Exports resolve Effective Scoring exclusively from the assessment’s frozen `pack_snapshot`. Never from live pack state. |
 | **Effective Scoring** | All scoring interpretation for beads/labels flows through `resolveEffectiveScoring` (Phase A). The export path introduces no independent scoring-definition logic. |
-| **Evidence only** | Snapshot export contains no clinical conclusions, recommendations, movement, coverage, or inferred progress narrative in any mode. |
+| **Evidence only** | Snapshot export contains no clinical conclusions, recommendations, movement, coverage, or inferred progress narrative in any mode or channel. |
 | **Not a publisher clone** | Export layout must not drift toward ABLLS-R / VB-MAPP / AFLS / PEAK publisher forms. IP risk. |
 | **No silent score mutation** | Do not silently clamp or mutate out-of-scale recorded scores in exports. |
+| **Mode vs channel** | Mode remains `full` only. HTML and PDF are channels, not modes (§4.5). |
 | **Competency vocabulary** | “Mastered” / “Not Yet” and related legend copy remain as currently shipped until a separate founder rename decision. Note touchpoints only (§11). |
 
 ---
@@ -243,13 +258,106 @@ Default and only lawful PR14A value: `full`. Unknown mode params coerce to `full
 
 ## 4.5 Delivery channels vs modes
 
-| Channel | Relationship to mode |
-|---------|----------------------|
-| Standalone HTML export | Serializes `full` Snapshot evidence document |
-| Browser Print / Save as PDF from export surface | Prints the same `full` document |
-| On-screen Snapshot Print control | Prints the on-screen Snapshot evidence surface (same clinical content contract as `full`, screen/print composition may differ per existing PrintRenderPlan) |
+**Restatement (binding):** Mode remains **`full` only**. Channels are **not** modes. A channel chooses *how the full evidence record is materialized for a medium*; it does not change which targets, cycles, or scores are included.
 
-Channels are not additional modes. They are egress paths for the same evidence record.
+### PR14B channel model (authoritative)
+
+| Channel | Clinician label (export page) | Layout authority | Mechanism |
+|---------|-------------------------------|------------------|-----------|
+| **HTML** | Download HTML (or equivalent) | Screen RenderPlan (`buildSnapshotRenderPlan` / on-screen Target Threads) | Standalone `.html` download |
+| **PDF** | PDF / Save as PDF (or equivalent) | PrintRenderPlan (`buildPrintRenderPlan`) + PR14A-4 planned index pages | `window.print()` → browser Save as PDF against the **print document** |
+| **Print** (main Snapshot page only) | Print | Same print document as PDF channel | `window.print()` on Snapshot page |
+
+| Rule | Detail |
+|------|--------|
+| Export page controls | Exactly **two** options: HTML and PDF. **No Print button** on the export page (avoids duplicating the main Snapshot Print control). |
+| HTML looks like | On-screen Snapshot |
+| PDF looks like | Main Snapshot Print output |
+| PDF implementation | Browser print-to-PDF only. No PDF library. No second layout engine. `snapshotPrintRenderPlan.ts` and `snapshotPrintPageProfile.ts` stay untouched. |
+
+### Why this is not the rejected pattern
+
+#### What the 2026-08-04 one-document decision got right
+
+It correctly rejected **one mode name (`full`) producing two different clinical documents depending on which button was clicked without naming the difference**. Under that defect, “full” could mean tabular download geometry on one path and Target Threads print geometry on another — same label, different records. That ambiguity is clinically and product-unsafe.
+
+#### Why PR14B is not a return to that defect
+
+PR14B allows **two named channels** with **explicit medium contracts**:
+
+| Rejected pattern (2026-08-04) | Allowed pattern (PR14B) |
+|-------------------------------|-------------------------|
+| One name (`full`) hides two documents | One mode (`full`) = complete evidence content; channels name the medium |
+| Download vs print silently disagree | HTML ↔ screen layout; PDF ↔ print layout — stated in UI and audit |
+| Clinician cannot predict output from the control label | Control label matches output medium |
+
+Two representations are coherent when each is **separately named and bound to its medium**. Two representations under one undifferentiated name were not.
+
+### Superseded text — 2026-08-04 (retained for history)
+
+> | Channel | Relationship to mode |
+> |---------|----------------------|
+> | Standalone HTML export | Serializes `full` Snapshot evidence document |
+> | Browser Print / Save as PDF from export surface | Prints the same `full` document |
+> | On-screen Snapshot Print control | Prints the on-screen Snapshot evidence surface (same clinical content contract as `full`, screen/print composition may differ per existing PrintRenderPlan) |
+>
+> Channels are not additional modes. They are egress paths for the same evidence record.
+
+**Supersession note (2026-08-06):** The 2026-08-04 reading that print and download must render **one document from one plan** is reversed. Content completeness (`full`) remains identical across channels; **layout plan** is channel-specific as in the PR14B table above.
+
+---
+
+## 4.6 HTML channel — viewport and plan freeze (PR14B)
+
+`buildSnapshotRenderPlan` is viewport-dependent. A standalone HTML file has no live app viewport at open time, and the recipient’s window width is unknown.
+
+### Decisions
+
+| Question | Decision |
+|----------|----------|
+| Serialization viewport | Freeze the screen plan at **`SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM` (96)** — the existing canonical screen fallback in `snapshotLayoutEngine.ts` |
+| Where the constant lives | Product references that existing constant by name; do not invent a parallel “export-only” width unless founder amends this contract |
+| Fixed vs reflow | The HTML artifact is a **fixed-plan clinical record**: geometry matches the plan built at that viewport. The file may allow horizontal scrolling if the recipient window is narrower; it must **not** rebuild packing to “fit” the recipient |
+| Recompute on resize? | **No.** Inline JS must **not** recompute `buildSnapshotRenderPlan` on resize. The plan is frozen at export time |
+
+### Justification
+
+1. A filed clinical evidence record must be **deterministic**: two clinicians opening the same file see the same domain packing and thread geometry.
+2. Recomputing on recipient resize would make the serialized plan disagree with the rendered result — the core defect this section exists to prevent.
+3. “Exactly as on the exporter’s live monitor” is rejected: exporter viewport is ephemeral and not part of the assessment record. The canonical default screen viewport is the shared, testable freeze point already used when measurement is unavailable.
+4. Matching “on-screen Snapshot” means Target Threads **screen** visual system and screen RenderPlan semantics — not the exporter’s incidental pixel width at click time.
+
+### Evidence completeness
+
+Plan freeze must never drop targets, cycles, beads, or index rows. Viewport choice affects packing/presentation only (data-invariant principle).
+
+---
+
+## 4.7 HTML channel — inline script and self-containment (PR14B)
+
+| Rule | Requirement |
+|------|-------------|
+| Inline `<script>` | **Permitted** for collapsible Target Index and bead hover parity with on-screen Snapshot |
+| External `src` | **Forbidden** (no CDN, no Evalis-hosted runtime fetch for behaviour) |
+| External stylesheets / fonts by URL | **Forbidden** for behaviour-critical presentation; CSS must be inlined |
+| Network at open | Standalone file opens offline; no runtime API calls |
+
+### Self-containment invariant (precise)
+
+> A Snapshot HTML export is self-contained when a recipient can open the file without network access and still see **all evidence** (every target, cycle, score/bead, metadata, and — when triggered — the full Target Index content) using only bytes inside the file. Progressive JS enhancements may add collapse/hover; they must not be required to reveal evidence or index rows.
+
+### Graceful degradation
+
+| Condition | Required behaviour |
+|-----------|-------------------|
+| JS disabled | Target Index (when present) renders **expanded** and fully readable |
+| Script stripped by mail/org gateway | Same — index content remains in HTML; collapse must not rely on “closed by default in markup” |
+| Collapse behaviour | **JS enhancement only** — never the reverse (never ship collapsed-only markup that needs JS to expand) |
+| Bead hover | Enhancement only; scores remain visible without hover |
+
+### Accepted delivery tradeoff
+
+Some organization gateways strip scripted HTML. That may remove collapse/hover polish. **Evidence and index readability must survive.** This is a known accepted tradeoff, not a defect to “fix” by externalizing scripts.
 
 ---
 
@@ -312,30 +420,43 @@ Optional query: `?mode=full` (only lawful mode).
 3. Provide actions: return to Snapshot (optionally re-open export dialog), and return to assessment overview.
 4. Do not silently acknowledge.
 
-## 5.6 On-screen `window.print()` — decision
+## 5.6 On-screen Print and export-page PDF — decision
 
 **Decision: Yes — the on-screen Snapshot Print control requires the same PHI acknowledgement gate.**
 
+**PR14B:** The export page’s **PDF** action is the same clinical egress class (browser print-to-PDF of the print document) and is covered by the same acknowledgement session. The export page does **not** host a separate Print button.
+
 ### Justification
 
-1. Print → Save as PDF is an explicit PHI egress path equal in risk to HTML download for clinical filing and sharing.
+1. Print / Save as PDF is an explicit PHI egress path equal in risk to HTML download for clinical filing and sharing.
 2. Snapshot’s only mode is full evidence; there is no “safe light print.”
 3. Aligns Snapshot with treating the artifact as a clinical document under org PHI policy (`security_and_roles.md` posture; production architecture §6.2).
-4. Avoids a product contradiction where Export is gated but Print silently ships the same PHI.
+4. Avoids a product contradiction where HTML Export is gated but Print/PDF silently ships the same PHI.
 
-### Gate mechanics for Print
+### Gate mechanics
 
 | Path | Required behaviour |
 |------|--------------------|
-| In-app **Print** button on `#/assessment/:id/snapshot` | If not acknowledged for this assessment session, open the Snapshot export/PHI dialog (or equivalent gate) before calling `window.print()` |
-| After acknowledgement in-session | Print may proceed without re-prompting |
-| Export surface Print button | Allowed only if acknowledgement already satisfied to reach that surface; may print without a second prompt |
-| Native browser print (Ctrl/Cmd+P, menu) | **Cannot be reliably blocked**; document as known limitation. Product gate covers intentional in-app Print and Export actions only |
+| In-app **Print** on `#/assessment/:id/snapshot` | If not acknowledged for this assessment session, open the Snapshot export/PHI dialog (or equivalent gate) before calling `window.print()` |
+| Export page **HTML** download | Acknowledgement already required to reach/use the export surface; download may proceed without a second prompt |
+| Export page **PDF** | Acknowledgement already required to reach the export surface; PDF may call `window.print()` on the print document without a second prompt |
+| After acknowledgement in-session | Print, HTML, and PDF proceed without re-prompting for that assessment |
+| Native browser print (Ctrl/Cmd+P, menu) | **Cannot be reliably blocked**; document as known limitation. Product gate covers intentional in-app Print, HTML, and PDF actions only |
 
-### What Print does **not** require
+### What Print / PDF do **not** require
 
-- Navigating to the HTML export route (Print may remain on the Snapshot page after acknowledgement)
 - A different acknowledgement namespace (use `snapshot-export-ack:`)
+- Re-acknowledgement when switching between HTML and PDF on the export page in the same session
+
+### PHI gate scope (unchanged by PR14B channel split)
+
+The PHI acknowledgement gate **does not** change its storage, fail-closed rules, or per-assessment session semantics. It continues to cover:
+
+1. Main Snapshot page **Print**
+2. Export page **HTML**
+3. Export page **PDF**
+
+---
 
 ## 5.7 Export availability vs acknowledgement
 
@@ -345,9 +466,44 @@ Acknowledgement is independent of Snapshot availability.
 |------|------|
 | Snapshot availability | Existing `getAssessmentSnapshotAvailability` — pack snapshot present, domains/targets exist, ≥1 cycle |
 | Unscored evidence | Allowed (unscored cells are valid raw evidence) — unchanged |
-| PHI acknowledgement | Required for Print (in-app) and Export after availability is satisfied |
+| PHI acknowledgement | Required for Print (main page), HTML, and PDF after availability is satisfied |
 
 Do not invent a “must have scored targets” export gate that Learner Map uses; Snapshot’s evidence-empty state remains printable/exportable with the existing empty-evidence notice semantics.
+
+---
+
+## 5.8 Audit trail (PR14B)
+
+Shared vocabulary in `clinicalExportAudit.ts` remains four events with **one meaning per name** across artifacts:
+
+| Event | Meaning (unchanged) |
+|-------|---------------------|
+| `acknowledgement` | Clinician confirmed PHI risk for this assessment session |
+| `export_view` | Export preview surface rendered with acknowledgement satisfied (not a file download) |
+| `html_export` | Standalone HTML document was generated and downloaded |
+| `print` | In-app Print / Save-as-PDF path invoked (`window.print()` against the print document) |
+
+| Channel field | Meaning (unchanged) |
+|---------------|---------------------|
+| `export` | Export-surface / download-oriented egress context |
+| `print` | Print / Save-as-PDF egress context |
+
+### Snapshot emissions after PR14B
+
+| User action | `event` | `channel` | Distinguishing `details` |
+|-------------|---------|-----------|---------------------------|
+| PHI ack confirmed | `acknowledgement` | `export` or `print` per dialog intent (existing pattern) | `artifact: 'snapshot'`, `mode: 'full'` |
+| Export page opens (acked + ready) | `export_view` | `export` | `artifact: 'snapshot'`, `mode: 'full'` |
+| Download HTML | `html_export` | `export` | `artifact: 'snapshot'`, `mode: 'full'` — **stays `html_export`** |
+| Export page **PDF** | `print` | `print` | `artifact: 'snapshot'`, `mode: 'full'`, **`surface: 'export'`** |
+| Main Snapshot **Print** | `print` | `print` | `artifact: 'snapshot'`, `mode: 'full'`, **`surface: 'snapshot'`** |
+
+### Rules
+
+1. Removing the export-page Print button removes that control; PDF replaces it as the print-document egress from the export page and **still emits `print`** (not `html_export`).
+2. `html_export` remains exclusively the standalone HTML download event.
+3. `surface` distinguishes Snapshot main-page Print from export-page PDF without splitting the `print` event into two vocabulary names.
+4. **Learner Map behaviour must not change.** Learner Map may omit `surface`; absence of `surface` remains lawful for `artifact: 'learner-map'`. Do not require LM call-site changes for this field.
 
 ---
 
@@ -387,11 +543,11 @@ If none of the above occur for any target, **omit** the Target Index (no empty a
 
 ## 6.4 Where it appears
 
-| Surface | Include index? | Justification |
-|---------|----------------|---------------|
-| **On-screen Snapshot** | **Yes, when triggered** | Screen has tooltips, but ABLLS-scale scanning still needs a scannable legend; place as a collapsible “Target index” section after the evidence record |
-| **Print document** | **Yes, when triggered** | Paper/PDF has no hover tooltips; index is required for clinical filing |
-| **HTML export document** | **Yes, when triggered** | Offline readers and recipients lack Evalis tooltip behaviour; same clinical need as print |
+| Surface | Include index? | Form | Justification |
+|---------|----------------|------|---------------|
+| **On-screen Snapshot** | **Yes, when triggered** | Collapsible section; **expanded by default**; collapse is JS enhancement | Screen scanning + tooltip complement |
+| **Print document / PDF channel** | **Yes, when triggered** | PR14A-4 **planned index pages** with “page N of M” numbering | Paper/PDF has no hover; planner unchanged by PR14B |
+| **HTML export document** | **Yes, when triggered** | Same collapsible pattern as on-screen: **expanded by default** in markup; inline JS may collapse; bead hover enhancement allowed (§4.7) | Offline readers need identity map; must survive script stripping |
 
 ## 6.5 Evidence vs presentational chrome
 
@@ -401,41 +557,66 @@ If none of the above occur for any target, **omit** the Target Index (no empty a
 |-------------|------|
 | Clinical meaning | Index does not add interpretation; it restores identity for display codes |
 | RenderPlan / PrintRenderPlan | Index is **outside** domain/thread/bead evidence planning |
-| Composition | Evidence pages compose via existing `snapshotPrintRenderPlan`; index is appended as document chrome after evidence |
+| Print/PDF composition | Evidence pages compose via existing `snapshotPrintRenderPlan`; index pages append per PR14A-4 — **planner unaffected by this amendment** |
+| HTML composition | Index follows evidence in document order; not part of screen RenderPlan geometry |
 | Data invariance | Including/excluding the index never changes scores, order of evidence threads, or bead values |
 
-## 6.6 Print / export pagination and placement
+## 6.6 Print / PDF pagination and placement
 
-When the index is triggered:
+When the index is triggered for the **print/PDF** channel:
 
 1. Complete all evidence pages first (existing PrintRenderPlan rules unchanged).
 2. Start the Target Index on a **new page** (do not interleave mid-domain).
 3. Title the section clearly, e.g. “Target index”.
-4. Allow the index itself to paginate across multiple pages if needed.
+4. Allow the index itself to paginate across multiple pages if needed (“page N of M” per PR14A-4).
 5. Repeat a minimal document header on index continuation pages if print chrome already supports repeating headers; do not invent Learner Map–style multi-page prose.
 
-HTML export follows the same logical order: evidence document body, then index appendix when triggered.
+**PR14B confirmation:** `snapshotPrintRenderPlan.ts` / `snapshotPrintPageProfile.ts` and the PR14A-4 index planner remain untouched by the HTML/PDF channel split.
 
-## 6.7 On-screen placement
+## 6.7 On-screen and HTML placement
 
 - After the Target Threads evidence view
-- Collapsible; default **expanded when triggered** on first paint of a session view is acceptable; do not hide solely behind hover
-- `no-print` vs print-only: on-screen collapsible may be screen-oriented if print uses the dedicated print index section — both must stay content-identical when triggered
+- Collapsible; **expanded by default** when triggered (HTML must ship expanded in markup — §4.7)
+- Do not hide solely behind hover
+- Screen may use `no-print` for the collapsible block while print/PDF uses planned index pages; **row content** (codes ↔ authored identity) must remain equivalent when both are triggered
+- No truncation or omission of evidence or index rows in any channel
 
 ---
 
 # 7. Export document contract
 
-## 7.1 Format
+## 7.0 PR14B dual-document rule (authoritative)
 
-| Property | Requirement |
-|----------|-------------|
-| Primary format | Standalone HTML file |
-| Offline | Opens without Evalis login or network |
-| Self-contained | Inline CSS; scores visible in DOM; no runtime API calls |
-| Read-only | No editing affordances |
-| PDF | Browser Print → Save as PDF of the same document; no dedicated PDF engine in PR14A |
-| Filename | Includes assessment identity + date; must not look like a publisher form name |
+| Channel | Document | Must match |
+|---------|----------|------------|
+| HTML | Screen-layout Snapshot document | On-screen Snapshot (Target Threads + screen RenderPlan at frozen export viewport §4.6) |
+| PDF | Print-layout Snapshot document | Main Snapshot **Print** output (PrintRenderPlan + PR14A-4 index pages) |
+
+Both documents are mode **`full`** (complete evidence). They differ in **layout plan and chrome**, not in which scores exist.
+
+### Superseded text — 2026-08-04 (retained for history)
+
+> | Property | Requirement |
+> |----------|-------------|
+> | Primary format | Standalone HTML file |
+> | … | … |
+> | PDF | Browser Print → Save as PDF of **the same document**; no dedicated PDF engine in PR14A |
+>
+> … Exported HTML evidence must match the production Snapshot evidence meaning …
+> layout may use print/export composition tiers already defined …
+
+**Supersession note (2026-08-06):** “Same document for HTML and PDF” is reversed. See §4.5 for why this is not a return to unnamed dual outputs under one control.
+
+## 7.1 Formats
+
+| Property | HTML channel | PDF channel |
+|----------|--------------|-------------|
+| Primary mechanism | Standalone `.html` download | Browser print-to-PDF via `window.print()` |
+| Offline | Opens without Evalis login or network | PDF filing is offline once saved |
+| Self-contained | Inline CSS + permitted inline JS (§4.7); no external `src` | N/A (print document in-app / printed bytes) |
+| Read-only | No editing affordances | No editing affordances |
+| PDF engine | — | **None** — browser Save as PDF only |
+| Layout | Screen RenderPlan @ `SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM` | PrintRenderPlan (existing) |
 
 ## 7.2 Data authority
 
@@ -446,14 +627,20 @@ HTML export follows the same logical order: evidence document body, then index a
 | Effective Scoring for display | `resolveEffectiveScoring` only |
 | Profile assembly | Existing Snapshot profile path (`buildAssessmentSnapshotProfile` over production learner-map production data) — no forked scoring meaning |
 
+Applies to **both** channels.
+
 ## 7.3 Parity
 
-Exported HTML evidence must match the production Snapshot evidence meaning for the same assessment:
+| Channel | Parity requirement |
+|---------|-------------------|
+| HTML | Same targets, order, cycles, recorded scores, Effective Scoring–derived bead labels as on-screen Snapshot; screen packing frozen per §4.6 |
+| PDF / main Print | Same targets, order, cycles, scores, labels as each other; print composition may paginate/factor per existing print rules without dropping marks |
 
-- same targets, same order, same cycles, same recorded scores, same Effective Scoring-derived bead labels
-- layout may use print/export composition tiers already defined; presentation factoring must not drop marks
+Presentation factoring must not drop marks in either channel. No truncation or omission of evidence or index rows.
 
 ## 7.4 Minimum metadata block
+
+Both channels include:
 
 - Learner name (org policy)
 - Assessment / pack name and version
@@ -462,12 +649,30 @@ Exported HTML evidence must match the production Snapshot evidence meaning for t
 - Structure-label legend copy as already defined for Snapshot
 - Evidence-only disclaimer (non-interpretive)
 
-## 7.5 Route and entry points
+## 7.5 Export page composition (PR14B)
+
+| Element | Requirement |
+|---------|-------------|
+| Preview | **Screen-layout** preview only (matches HTML). Do **not** preview print layout beside an HTML control — that would mislead. |
+| Print document on export page | May exist as a print-only / off-screen surface for the PDF action (same pattern as main Snapshot print surface); must not be presented as the interactive preview of the HTML option |
+| Actions | **HTML** and **PDF** only — no Print button |
+| PHI | Unchanged (§5.6) |
+
+## 7.6 Filenames
+
+| Channel | Convention |
+|---------|------------|
+| HTML | `buildSnapshotExportFilename` (or successor) — includes assessment identity + date; `.html`; must not resemble a publisher form name |
+| PDF | Browser Save as PDF controls the file name; set a clear **document title** so the suggested PDF name reflects Snapshot + assessment identity + date where the browser allows |
+
+## 7.7 Route and entry points
 
 | Entry | Behaviour |
 |-------|-----------|
-| Snapshot page **Export** control (to be added) | Opens dialog → acknowledgement → `#/assessment/:id/snapshot/export?mode=full` |
-| Snapshot page **Print** control | Acknowledgement gate (§5.6) then `window.print()` on Snapshot print surface |
+| Snapshot page **Export** | Opens dialog → acknowledgement → `#/assessment/:id/snapshot/export?mode=full` |
+| Snapshot page **Print** | Acknowledgement gate (§5.6) then `window.print()` on Snapshot print surface; audit `surface: 'snapshot'` |
+| Export page **HTML** | Download screen-layout standalone HTML; audit `html_export` |
+| Export page **PDF** | `window.print()` on print document; audit `print` + `surface: 'export'` |
 | Direct hash navigation | Acknowledgement enforced (§5.5) |
 
 Dialog may be simpler than Learner Map’s (single mode) but must still collect acknowledgement before continue.
@@ -521,39 +726,59 @@ QA may test these directly without reading implementation plans.
 - [ ] **INV-S3** Learner Map Full ack still uses storage key prefix `learner-map-full-export-ack:`.
 - [ ] **INV-S4** Snapshot ack uses `snapshot-export-ack:` and does not clear/satisfy Learner Map ack.
 
-### Snapshot modes
+### Snapshot modes and channels
 
-- [ ] **INV-M1** PR14A Snapshot export offers only mode `full`.
-- [ ] **INV-M2** Full export includes all domains, targets, and cycles from the assessment snapshot.
-- [ ] **INV-M3** Export contains no movement, coverage, recommendations, or interpretive narrative.
+- [ ] **INV-M1** Snapshot export offers only mode `full`.
+- [ ] **INV-M2** Full content includes all domains, targets, and cycles from the assessment snapshot in **both** HTML and PDF channels.
+- [ ] **INV-M3** Neither channel contains movement, coverage, recommendations, or interpretive narrative.
 - [ ] **INV-M4** Unknown mode query params do not create a partial export; they coerce to `full` or fail closed without partial content.
+- [ ] **INV-C1** Export page offers exactly two actions: HTML and PDF — **no Print button**.
+- [ ] **INV-C2** HTML output uses screen RenderPlan geometry (Target Threads on-screen look), not PrintRenderPlan pagination.
+- [ ] **INV-C3** PDF output matches main Snapshot Print output (PrintRenderPlan + PR14A-4 index pages when triggered).
+- [ ] **INV-C4** Channels are not modes: switching HTML ↔ PDF never changes which scores exist, only layout/chrome.
+
+### HTML viewport / script
+
+- [ ] **INV-H1** HTML export serializes screen plan at `SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM` (96).
+- [ ] **INV-H2** Exported HTML does not recompute RenderPlan on recipient resize.
+- [ ] **INV-H3** No external script `src`; inline script only (if present).
+- [ ] **INV-H4** With JS disabled/stripped, all evidence and (when triggered) full Target Index rows remain visible and expanded.
+- [ ] **INV-H5** Collapse/hover are enhancements only — never required to reveal evidence.
 
 ### PHI gate
 
 - [ ] **INV-P1** Export route without acknowledgement does not render the exportable document.
 - [ ] **INV-P2** In-app Snapshot Print without acknowledgement does not call print until acknowledgement succeeds.
-- [ ] **INV-P3** After acknowledgement in-session for an assessment, Export and Print proceed without re-prompt for that assessment.
+- [ ] **INV-P3** After acknowledgement in-session for an assessment, HTML, PDF, and main Print proceed without re-prompt for that assessment.
 - [ ] **INV-P4** When `sessionStorage` is unavailable, acknowledgement fails closed.
 - [ ] **INV-P5** Snapshot acknowledgement is per `assessmentId`.
 
+### Audit
+
+- [ ] **INV-U1** HTML download emits `event: 'html_export'` (not `print`).
+- [ ] **INV-U2** Export-page PDF emits `event: 'print'` with `surface: 'export'`.
+- [ ] **INV-U3** Main Snapshot Print emits `event: 'print'` with `surface: 'snapshot'`.
+- [ ] **INV-U4** Four-event vocabulary meanings unchanged; Learner Map call sites need no change for `surface`.
+
 ### G8 / scoring
 
-- [ ] **INV-G8** Changing the live content pack after assessment creation does not change scores/scales shown in Snapshot export for that assessment.
-- [ ] **INV-E1** Export bead labels/maxima match on-screen Snapshot for the same assessment (Effective Scoring authority).
-- [ ] **INV-E2** Out-of-scale recorded scores are not silently clamped in export.
+- [ ] **INV-G8** Changing the live content pack after assessment creation does not change scores/scales shown in Snapshot HTML or PDF for that assessment.
+- [ ] **INV-E1** Bead labels/maxima match Effective Scoring authority for both channels.
+- [ ] **INV-E2** Out-of-scale recorded scores are not silently clamped in either channel.
 
 ### Target index
 
-- [ ] **INV-I1** When any visible code was compacted, disambiguated, or non-authored-fallback, Target Index appears on screen, print, and HTML export.
-- [ ] **INV-I2** When no such abbreviation occurred, Target Index is omitted.
+- [ ] **INV-I1** When any visible code was compacted, disambiguated, or non-authored-fallback, Target Index appears on screen, in HTML (collapsible, expanded by default), and in print/PDF (planned pages).
+- [ ] **INV-I2** When no such abbreviation occurred, Target Index is omitted in all channels.
 - [ ] **INV-I3** Every index row includes displayed code, authored target id, authored title, primary group context, and secondary group context when applicable.
 - [ ] **INV-I4** Index order matches authored evidence order.
-- [ ] **INV-I5** Print/export place the index after evidence, starting on a new page.
+- [ ] **INV-I5** Print/PDF place the index after evidence on new planned pages (“page N of M”); planner unchanged by PR14B.
 - [ ] **INV-I6** Index presence does not change evidence thread scores or order.
+- [ ] **INV-I7** No truncation or omission of evidence or index rows in any channel.
 
 ### Artifact boundary
 
-- [ ] **INV-A1** Export is not visually positioned as a publisher grid clone.
+- [ ] **INV-A1** Neither channel is visually positioned as a publisher grid clone.
 - [ ] **INV-A2** Competency legend vocabulary remains unchanged from current Snapshot shipping strings pending founder rename (§11).
 
 ### Learner Map regression
@@ -566,13 +791,17 @@ QA may test these directly without reading implementation plans.
 
 | Risk | Severity | Mitigation in contract |
 |------|----------|------------------------|
-| Partial Snapshot exports filed as complete | High | Single `full` mode only in PR14A |
-| Print bypasses PHI gate while Export is gated | High | Gate in-app Print with same ack |
+| Partial Snapshot exports filed as complete | High | Single `full` mode only |
+| Unnamed dual documents under one control | High | Named HTML vs PDF channels (§4.5); rejected pattern documented |
+| Print bypasses PHI gate while HTML is gated | High | Gate main Print + HTML + PDF with same ack |
 | Native Ctrl/Cmd+P ungated | Medium | Documented limitation; gate intentional controls |
+| HTML plan disagrees with recipient window | Medium | Freeze at `SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM`; no resize recompute |
+| Gateway strips script → hidden index | High | Expanded-by-default markup; JS enhancement only |
+| Preview shows print layout next to HTML | High | Screen-layout preview only (§7.5) |
 | Shared extraction accidentally changes LM keys | High | Exact prefix freeze + regression §8 |
 | Target Index omitted when disambiguation-only | Medium | Trigger includes disambiguation and non-authored fallbacks |
-| Index treated as evidence → RenderPlan churn | Medium | Explicit chrome / outside PrintRenderPlan |
-| Competency rename mid-export | Low/Med | §11 touchpoints; no rename in PR14A |
+| Index treated as evidence → RenderPlan churn | Medium | Explicit chrome / outside evidence plans |
+| Competency rename mid-export | Low/Med | §11 touchpoints; no rename in PR14A/B |
 | Publisher-like export chrome creep | High | Binding constraint + INV-A1 |
 
 ---
@@ -581,7 +810,7 @@ QA may test these directly without reading implementation plans.
 
 Founder decision on “Mastered” / “Not Yet” (and related competency labels) is **unresolved**.
 
-PR14A must:
+PR14A / PR14B must:
 
 - Keep current Snapshot legend and bead accessibility strings as shipped
 - Not design export-specific synonyms
@@ -590,7 +819,7 @@ PR14A must:
 **Future rename touchpoints on the export path** (for a later decision only):
 
 - Snapshot visual system legend labels (`snapshotVisualSystem` and equivalents)
-- Bead/`aria-label` / tooltip competency phrases reused by print and export serialization
+- Bead/`aria-label` / tooltip competency phrases reused by print, PDF, and HTML serialization
 - Any export metadata legend that reprints competency colour meanings
 - QA fixtures asserting legend copy
 
@@ -608,37 +837,54 @@ Anything below is **not** decided by this contract and must not be silently assu
 | **OQ-2** | Whether org policy requires logging acknowledgement events to `audit_logs` | Not required by current Learner Map pattern; Alpha posture may defer |
 | **OQ-3** | Competency vocabulary rename | Explicitly unresolved (§11) |
 | **OQ-4** | Post-PR14A partial export (selected primary groups / cycle range) filename and banner standards | Deferred; do not stub UI |
-| **OQ-5** | Whether standalone HTML should embed a machine-readable JSON audit block alongside DOM evidence | Optional enhancement; not required for PR14A acceptance if DOM evidence is complete |
+| **OQ-5** | Whether standalone HTML should embed a machine-readable JSON audit block alongside DOM evidence | Optional enhancement; not required for acceptance if DOM evidence is complete |
+| **OQ-6** | Exact clinician-facing labels for the two export-page buttons (“Download HTML” / “Save as PDF” vs alternatives) | Semantics fixed; wording can be founder-approved without changing channels |
+| **OQ-7** | Whether HTML export should offer an optional “use my current viewport width” advanced override | **Default under this contract: no** — freeze at canonical default. Escalate only if founder wants a documented exception |
 
 If Builder encounters a product choice not covered here and not listed above, **stop and escalate** — do not invent policy.
 
 ---
 
-# 13. Acceptance criteria for PR14A completion
+# 13. Acceptance criteria
+
+## 13.1 PR14A completion (base)
 
 PR14A is complete only when:
 
 1. Shared `clinicalExport` three-module extraction exists and Learner Map uses it without semantic drift (§8, INV-L*).
-2. Snapshot export route + dialog + HTML serializer ship mode `full` only (§4).
+2. Snapshot export route + dialog ship mode `full` only (§4).
 3. PHI acknowledgement gates Export and in-app Print (§5; INV-P*).
-4. Target Index appears per trigger on screen, print, and export; omitted otherwise (§6; INV-I*).
-5. G8 and Effective Scoring invariants hold for export (§2; INV-G8, INV-E*).
+4. Target Index appears per trigger; omitted otherwise (§6; INV-I*).
+5. G8 and Effective Scoring invariants hold (§2; INV-G8, INV-E*).
 6. Print CSS hardening at scale is **not** treated as a PR14A blocker (separate QA).
 7. No competency rename and no Snapshot visual redesign landed under this milestone.
-8. QA checklist in §9 is green.
+
+## 13.2 PR14B completion (channel amendment)
+
+PR14B is complete only when:
+
+1. Export page offers **HTML** and **PDF** only — Print button removed from export page (INV-C1).
+2. HTML matches on-screen Snapshot semantics with frozen viewport plan (INV-C2, INV-H*).
+3. PDF matches main Print via browser print-to-PDF; print planner untouched (INV-C3).
+4. Audit events match §5.8 (INV-U*).
+5. PHI gate still covers main Print + HTML + PDF without semantic change to storage rules.
+6. QA checklist in §9 is green for amended invariants.
+7. Implementation of this amendment is **not** entangled with PR14A-4 print-path commit.
 
 ---
 
 # 14. Closing contract statement
 
-**PR14A Snapshot export:**
+**Snapshot export (PR14A + PR14B):**
 
 1. Extract only acknowledgement, errors, and generic export-state helpers into `clinicalExport/`.
-2. Snapshot exports a single mode — **full evidence** — not a Learner Map mode mirror.
-3. PHI acknowledgement is mandatory for Snapshot Export and in-app Print; fail closed; per assessment session.
-4. Target Index is conditional presentational chrome mapping displayed codes to authored identity; outside evidence RenderPlan; after evidence in print/export.
-5. Runtime scoring remains Phase A Effective Scoring from frozen `pack_snapshot` (G8).
-6. Learner Map export behaviour remains unchanged and regression-verified.
-7. Unresolved founder items stay in §12 — Builder does not decide them.
+2. Mode is **`full` only** — complete evidence. **Channels are not modes.**
+3. Export page: **HTML** (screen layout, frozen at `SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM`) and **PDF** (print layout via browser print-to-PDF). No export-page Print button.
+4. The 2026-08-04 one-document rule correctly rejected unnamed dual outputs under one label; PR14B allows two **named** medium-bound channels — not a return to that defect (§4.5).
+5. PHI acknowledgement is mandatory for main Print, HTML, and PDF; fail closed; per assessment session.
+6. Target Index is conditional presentational chrome; collapsible/expanded-by-default on screen and HTML; planned pages on print/PDF (PR14A-4 planner unchanged).
+7. Runtime scoring remains Phase A Effective Scoring from frozen `pack_snapshot` (G8).
+8. Learner Map export behaviour remains unchanged and regression-verified.
+9. Unresolved founder items stay in §12 — Builder does not decide them.
 
 This is the implementation contract for Builder, QA, and Overseer for Assessment Snapshot export.

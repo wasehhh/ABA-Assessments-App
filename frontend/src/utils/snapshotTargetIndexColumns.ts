@@ -4,7 +4,7 @@
  * Single source of truth for:
  * - wrap-cost estimation in {@link buildTargetIndexRenderPlan}
  * - `<colgroup>` widths on the print table
- * - print CSS emitted into SNAPSHOT_EXPORT_FALLBACK_CSS and injected for live print
+ * - print CSS emitted into SNAPSHOT_EXPORT_INLINE_CSS and injected for live print
  *
  * Fractions sum to 1. Authored label is widest (full clinical titles wrap here);
  * displayed code is narrowest.
@@ -138,5 +138,66 @@ ${nthRules}
 .assessment-snapshot-print [data-assessment-snapshot-target-index-row] {
   break-inside: avoid;
   page-break-inside: avoid;
+}`;
+}
+
+/**
+ * Same geometry/chrome for HTML-channel / screen-document index tables.
+ * Kept separate so print CSS emission stays byte-stable with PR14A-4.
+ */
+export function buildTargetIndexScreenTableColumnCss(): string {
+    const widths = TARGET_INDEX_COLUMN_ORDER.map(
+        (key) => fractionPercent(TARGET_INDEX_COLUMN_WIDTH_FRACTIONS[key])
+    );
+    const roots = [
+        '.assessment-snapshot-export-html',
+        '[data-assessment-snapshot-screen-document]',
+    ];
+
+    const tableSelectors = roots
+        .map((root) => `${root} [data-assessment-snapshot-target-index-table]`)
+        .join(',\n');
+
+    const nthRules = widths
+        .map((width, index) => {
+            const cellSelectors = roots
+                .map(
+                    (root) =>
+                        `${root} [data-assessment-snapshot-target-index-table] th:nth-child(${index + 1}),\n${root} [data-assessment-snapshot-target-index-table] td:nth-child(${index + 1})`
+                )
+                .join(',\n');
+            return `${cellSelectors} {
+  width: ${width};
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}`;
+        })
+        .join('\n');
+
+    const thTdSelectors = roots
+        .map(
+            (root) =>
+                `${root} [data-assessment-snapshot-target-index-table] th,\n${root} [data-assessment-snapshot-target-index-table] td`
+        )
+        .join(',\n');
+
+    const thSelectors = roots
+        .map((root) => `${root} [data-assessment-snapshot-target-index-table] th`)
+        .join(',\n');
+
+    return `${tableSelectors} {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+${nthRules}
+${thTdSelectors} {
+  border-bottom: ${TARGET_INDEX_CELL_BORDER_BOTTOM};
+  padding: ${TARGET_INDEX_CELL_PADDING_Y_REM}rem ${TARGET_INDEX_CELL_PADDING_X_REM}rem;
+  text-align: left;
+  vertical-align: top;
+}
+${thSelectors} {
+  font-weight: 600;
 }`;
 }

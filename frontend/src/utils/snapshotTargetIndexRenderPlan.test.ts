@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { getAssessmentSnapshotStressScenario } from '../pages/dev/assessmentSnapshotMockData';
-import { SNAPSHOT_EXPORT_FALLBACK_CSS } from '../components/assessmentSnapshot/export/snapshotExportInlineCss';
+import { SNAPSHOT_EXPORT_INLINE_CSS } from '../components/assessmentSnapshot/export/snapshotExportInlineCss';
 import { buildPrintRenderPlan } from './snapshotPrintRenderPlan';
 import {
     buildTargetIndexTableColumnCss,
@@ -167,13 +167,13 @@ describe('Target Index multi-sheet pagination (PR14A-4)', () => {
     it('emits geometry from one path; index.css does not restate column percentages', () => {
         const indexCss = readFileSync(resolve(__dirname, '../index.css'), 'utf8');
         const generated = buildTargetIndexTableColumnCss();
-        const fallback = SNAPSHOT_EXPORT_FALLBACK_CSS;
+        const inlineCss = SNAPSHOT_EXPORT_INLINE_CSS;
 
         expect(indexCss).not.toMatch(
             /target-index-table\] th:nth-child\(\d+\)[\s\S]*?width:\s*\d/
         );
-        expect(fallback).toContain(generated);
-        expect(extractNthChildWidths(fallback)).toEqual(extractNthChildWidths(generated));
+        expect(inlineCss).toContain(generated);
+        expect(extractNthChildWidths(inlineCss)).toEqual(extractNthChildWidths(generated));
         expect(generated).toContain('overflow-wrap: anywhere');
         expect(generated).not.toMatch(/text-overflow:\s*ellipsis/);
         expect(generated).not.toMatch(/white-space:\s*nowrap/);
@@ -415,7 +415,7 @@ describe('Target Index multi-sheet pagination (PR14A-4)', () => {
         expect(indexStart).toBeGreaterThan(evidenceEnd);
     });
 
-    it('export HTML carries all index sheets via the shared print document', () => {
+    it('export HTML carries screen index; print path retains planned index pages', () => {
         const profile = clinicSnapshotProfile();
         const index = buildSnapshotTargetIndex(profile)!;
         const plan = buildTargetIndexRenderPlan(index, { paper: 'letter' });
@@ -424,14 +424,27 @@ describe('Target Index multi-sheet pagination (PR14A-4)', () => {
             generatedAt: new Date('2026-08-01T12:00:00.000Z'),
         });
 
-        expect(exportHtml).toContain('data-assessment-snapshot-print-document');
+        expect(exportHtml).toContain('data-assessment-snapshot-screen-document');
+        expect(exportHtml).not.toContain('data-assessment-snapshot-print-document');
+        expect(exportHtml).toContain('data-assessment-snapshot-target-index-screen');
+        expect(exportHtml).toContain('data-expanded="true"');
+        const exportBody = exportHtml.slice(exportHtml.indexOf('<body'));
+        const exportIndexRows = [
+            ...exportBody.matchAll(
+                /data-assessment-snapshot-target-index-row[^>]*data-target-id="([^"]+)"/g
+            ),
+        ];
+        expect(exportIndexRows).toHaveLength(544);
+
+        const printHtml = renderPrintHtml(profile);
         for (let pageNumber = 1; pageNumber <= plan.totalPages; pageNumber += 1) {
-            expect(exportHtml).toContain(
+            expect(printHtml).toContain(
                 `data-assessment-snapshot-target-index-page="${pageNumber}"`
             );
+            expect(printHtml).toContain(formatTargetIndexPageLabel(pageNumber, plan.totalPages));
         }
-        expect(exportHtml).toContain('table-layout: fixed');
-        expect(exportHtml).toContain('overflow-wrap: anywhere');
+        expect(printHtml).toContain('table-layout: fixed');
+        expect(printHtml).toContain('overflow-wrap: anywhere');
         expect(exportHtml).toContain(
             'Looks at a person who is talking to him for 3 seconds'
         );

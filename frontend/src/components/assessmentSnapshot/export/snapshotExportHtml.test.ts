@@ -1,13 +1,23 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ContentPackData, Target } from '../../../types';
 import { buildLearnerMapProfile } from '../../../services/learnerMapProfile';
 import { buildAssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { resolveEffectiveScoring } from '../../../utils/effectiveScoring';
+import { SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM } from '../../../utils/snapshotLayoutEngine';
+import { buildTargetIndexScreenTableColumnCss } from '../../../utils/snapshotTargetIndexColumns';
 import { auditService } from '../../../services/audit';
 import { logClinicalExportAudit } from '../../../clinicalExport/clinicalExportAudit';
+import { getAssessmentSnapshotStressScenario } from '../../../pages/dev/assessmentSnapshotMockData';
+import { buildSnapshotTargetIndex } from '../v1/snapshotTargetIndex';
+import { SNAPSHOT_EXPORT_INLINE_CSS } from './snapshotExportInlineCss';
+import * as snapshotExportHtmlModule from './snapshotExportHtml';
 import {
     buildSnapshotExportHtml,
     downloadSnapshotExportHtml,
+    downloadSnapshotHtmlChannel,
+    SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
 } from './snapshotExportHtml';
 
 function makeTarget(targetId: string, scale: number[], title?: string): Target {
@@ -104,12 +114,103 @@ function buildHtmlForPack(pack: ContentPackData, scores: number | null = 0.5) {
     });
 }
 
+/** Strip inline scripts to simulate mail-gateway / JS-disabled reading. */
+function htmlWithoutScripts(html: string): string {
+    return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+}
+
+function clinicExportInput() {
+    const scenario = getAssessmentSnapshotStressScenario('clinic-index-544');
+    const profile = buildAssessmentSnapshotProfile(scenario.profile);
+    return {
+        profile,
+        generatedAt: new Date('2026-08-01T12:00:00.000Z'),
+        assessmentId: 'clinic-index-544',
+    };
+}
+
+function assertIndexRowsVisibleWithoutScript(html: string, expectedIds: string[]) {
+    const degraded = htmlWithoutScripts(html);
+    const body = degraded.slice(degraded.indexOf('<body'));
+
+    expect(body).toContain('data-expanded="true"');
+    expect(body).not.toMatch(
+        /data-assessment-snapshot-target-index-panel[^>]*\bhidden\b/
+    );
+    expect(body).not.toMatch(
+        /data-assessment-snapshot-target-index-panel[^>]*aria-hidden=["']true["']/
+    );
+    expect(body).not.toMatch(
+        /data-assessment-snapshot-target-index-panel[^>]*style=["'][^"']*display\s*:\s*none/
+    );
+
+    const indexIds = [
+        ...body.matchAll(
+            /data-assessment-snapshot-target-index-row[^>]*data-target-id="([^"]+)"/g
+        ),
+    ].map((match) => match[1]);
+    expect(indexIds).toHaveLength(expectedIds.length);
+    expect(indexIds).toEqual(expectedIds);
+}
+
+function captureHtmlDownload(run: () => string): string {
+    let captured = '';
+    const click = vi.fn();
+    const remove = vi.fn();
+    const anchor = {
+        click,
+        remove,
+        href: '',
+        download: '',
+        rel: '',
+    };
+    const createObjectURL = vi.fn(() => 'blob:mock');
+    const revokeObjectURL = vi.fn();
+    const appendChild = vi.fn((node: unknown) => node);
+
+    vi.stubGlobal('URL', {
+        createObjectURL,
+        revokeObjectURL,
+    });
+    vi.stubGlobal('document', {
+        createElement: (tag: string) => {
+            if (tag === 'a') {
+                return anchor;
+            }
+            throw new Error(`unexpected createElement(${tag})`);
+        },
+        body: { appendChild },
+        styleSheets: [
+            // Simulate live stylesheets that omit screen index geometry —
+            // download must ignore these and use inlined constants.
+            {
+                cssRules: [
+                    {
+                        cssText:
+                            '.assessment-snapshot-print { color: #000; } /* live, incomplete */',
+                    },
+                ],
+            },
+        ],
+    });
+
+    try {
+        captured = run();
+        expect(createObjectURL).toHaveBeenCalled();
+        expect(click).toHaveBeenCalled();
+    } finally {
+        vi.unstubAllGlobals();
+    }
+
+    return captured;
+}
+
 describe('snapshotExportHtml Target Threads geometry', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
 
-    it('serializes AssessmentSnapshotPrintDocument Target Threads, not a score table', () => {
+    it('serializes screen document Target Threads at frozen viewport, not print plan', () => {
         const pack = makePack(
             [makeTarget('T1', [0, 0.5, 1]), makeTarget('T2', [0, 0.5, 1])],
             'Threads Pack',
@@ -117,12 +218,18 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         );
         const html = buildHtmlForPack(pack, 0.5);
 
-        expect(html).toContain('data-assessment-snapshot-print-document');
+        expect(SNAPSHOT_HTML_EXPORT_VIEWPORT_REM).toBe(SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM);
+        expect(html).toContain('data-assessment-snapshot-screen-document');
+        expect(html).toContain(
+            `data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM}"`
+        );
         expect(html).toContain('data-assessment-snapshot-target-thread');
         expect(html).toContain('data-assessment-snapshot-evidence-bead');
         expect(html).toContain('data-assessment-snapshot-legend');
         expect(html).toContain('data-export-mode="full"');
-        // Score-sheet fork is forbidden; Target Index table (§6) is allowed when triggered.
+        expect(html).toContain('data-export-channel="html"');
+        expect(html).not.toContain('data-assessment-snapshot-print-document');
+        expect(html).not.toContain('data-assessment-snapshot-print-page');
         expect(html).not.toMatch(/<th scope="col">Cycle/i);
         expect(html).not.toMatch(/data-assessment-snapshot-score-sheet/i);
     });
@@ -147,7 +254,7 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(targetIds).toEqual(['ALPHA', 'BETA', 'GAMMA']);
     });
 
-    it('embeds no external stylesheet, script, or http(s) asset URLs', () => {
+    it('is self-contained: no external script/stylesheet/http(s) assets; inline script permitted', () => {
         const pack = makePack([makeTarget('T1', [0, 1])], 'Offline', [0, 1]);
         const html = buildHtmlForPack(pack, 1);
 
@@ -155,6 +262,25 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).not.toMatch(/<script\s[^>]*src=/i);
         expect(html).not.toMatch(/https?:\/\//i);
         expect(html).toContain('<style>');
+        const inlineScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map(
+            (match) => match[1] ?? ''
+        );
+        expect(inlineScripts.length).toBeGreaterThan(0);
+        expect(inlineScripts.some((script) => script.includes('evidence-bead'))).toBe(true);
+    });
+
+    it('inlines screen index geometry CSS (no live stylesheet collection)', () => {
+        const { profile, generatedAt } = clinicExportInput();
+        const html = buildSnapshotExportHtml({ profile, generatedAt });
+        const screenCss = buildTargetIndexScreenTableColumnCss();
+
+        expect(SNAPSHOT_EXPORT_INLINE_CSS).toContain(screenCss);
+        expect(html).toContain(screenCss);
+        expect(html).toContain('table-layout: fixed');
+        expect(html).toContain('overflow-wrap: anywhere');
+        expect(html).toContain(
+            '.assessment-snapshot-export-html [data-assessment-snapshot-target-index-table]'
+        );
     });
 
     it('omits §4.2 interpretive / movement / coverage chrome', () => {
@@ -195,43 +321,127 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).not.toContain('0.5/4');
     });
 
+    it('degrades without scripts: clinic index rows and bead scores remain readable', () => {
+        const { profile, generatedAt } = clinicExportInput();
+        const index = buildSnapshotTargetIndex(profile);
+        expect(index).not.toBeNull();
+        expect(index!.rows.length).toBe(544);
+
+        const html = buildSnapshotExportHtml({ profile, generatedAt });
+        const degraded = htmlWithoutScripts(html);
+        const degradedBody = degraded.slice(degraded.indexOf('<body'));
+
+        expect(degraded).not.toMatch(/<script\b/i);
+        assertIndexRowsVisibleWithoutScript(
+            html,
+            index!.rows.map((row) => row.authoredTargetId)
+        );
+
+        const evidenceIds = [
+            ...degradedBody.matchAll(
+                /data-assessment-snapshot-target-thread[^>]*data-target-id="([^"]+)"/g
+            ),
+        ].map((match) => match[1]);
+        expect(evidenceIds).toHaveLength(544);
+        expect(new Set(evidenceIds).size).toBe(544);
+        expect(degradedBody).toMatch(/data-assessment-snapshot-evidence-bead[^>]*>[^<]+</);
+        expect(degradedBody).toContain('data-raw-score');
+    });
+
+    it('download path ignores collapsed preview DOM: all 544 index rows stay visible without script', () => {
+        const { profile, generatedAt, assessmentId } = clinicExportInput();
+        const index = buildSnapshotTargetIndex(profile)!;
+        expect(index.rows).toHaveLength(544);
+
+        // What the live preview would look like after collapse (old mounted path
+        // would bake this into the download via outerHTML).
+        const collapsedPreviewOuterHtml = `
+          <div data-assessment-snapshot-screen-document>
+            <div data-assessment-snapshot-target-index-screen data-expanded="false">
+              <button data-assessment-snapshot-target-index-heading aria-expanded="false">Target index</button>
+              <div data-assessment-snapshot-target-index-panel hidden aria-hidden="true" style="display:none"></div>
+            </div>
+          </div>
+        `;
+        expect(collapsedPreviewOuterHtml).toMatch(
+            /data-assessment-snapshot-target-index-panel[^>]*\bhidden\b/
+        );
+
+        // Real export-page download entry — must not read the collapsed preview.
+        const exported = captureHtmlDownload(() =>
+            downloadSnapshotHtmlChannel({ profile, generatedAt }, assessmentId)
+        );
+
+        assertIndexRowsVisibleWithoutScript(
+            exported,
+            index.rows.map((row) => row.authoredTargetId)
+        );
+        expect(exported).not.toContain('data-expanded="false"');
+        expect(exported).not.toContain(collapsedPreviewOuterHtml.trim());
+        // Guard: incomplete live stylesheets must not become the export stylesheet.
+        expect(exported).not.toContain('live, incomplete');
+        expect(exported).toContain(buildTargetIndexScreenTableColumnCss());
+    });
+
+    it('exported HTML is byte-identical across repeats and independent of live UI state', () => {
+        const { profile, generatedAt, assessmentId } = clinicExportInput();
+        const input = { profile, generatedAt };
+
+        const a = buildSnapshotExportHtml(input);
+        const b = buildSnapshotExportHtml(input);
+        expect(a).toBe(b);
+
+        const afterCollapseSim = captureHtmlDownload(() =>
+            downloadSnapshotHtmlChannel(input, assessmentId)
+        );
+        const afterAgain = captureHtmlDownload(() =>
+            downloadSnapshotHtmlChannel(input, assessmentId)
+        );
+        expect(afterCollapseSim).toBe(a);
+        expect(afterAgain).toBe(a);
+    });
+
+    it('buildSnapshotExportHtmlFromMountedRoot and collectAccessibleStylesheetText no longer exist', () => {
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshotExportHtmlModule,
+                'buildSnapshotExportHtmlFromMountedRoot'
+            )
+        ).toBe(false);
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                snapshotExportHtmlModule,
+                'collectAccessibleStylesheetText'
+            )
+        ).toBe(false);
+
+        const moduleSource = readFileSync(
+            resolve(__dirname, './snapshotExportHtml.ts'),
+            'utf8'
+        );
+        const pageSource = readFileSync(
+            resolve(__dirname, '../../../pages/AssessmentSnapshotExport.tsx'),
+            'utf8'
+        );
+        expect(moduleSource).not.toContain('buildSnapshotExportHtmlFromMountedRoot');
+        expect(moduleSource).not.toContain('collectAccessibleStylesheetText');
+        expect(pageSource).not.toContain('buildSnapshotExportHtmlFromMountedRoot');
+        expect(pageSource).toContain('downloadSnapshotHtmlChannel');
+    });
+
     it('completes HTML download even when audit logging fails', () => {
         vi.spyOn(auditService, 'log').mockImplementation(() => {
             throw new Error('audit unavailable');
-        });
-
-        const click = vi.fn();
-        const remove = vi.fn();
-        const anchor = {
-            click,
-            remove,
-            href: '',
-            download: '',
-            rel: '',
-        };
-        const createObjectURL = vi.fn(() => 'blob:mock');
-        const revokeObjectURL = vi.fn();
-        const appendChild = vi.fn((node: unknown) => node);
-
-        vi.stubGlobal('URL', {
-            createObjectURL,
-            revokeObjectURL,
-        });
-        vi.stubGlobal('document', {
-            createElement: (tag: string) => {
-                if (tag === 'a') {
-                    return anchor;
-                }
-                throw new Error(`unexpected createElement(${tag})`);
-            },
-            body: { appendChild },
         });
 
         const pack = makePack([makeTarget('T1', [0, 1])], 'AuditFail', [0, 1]);
         const html = buildHtmlForPack(pack, 1);
 
         expect(() => {
-            downloadSnapshotExportHtml(html, 'test.html');
+            captureHtmlDownload(() => {
+                downloadSnapshotExportHtml(html, 'test.html');
+                return html;
+            });
             logClinicalExportAudit({
                 orgId: 'org-1',
                 userId: 'user-1',
@@ -242,11 +452,5 @@ describe('snapshotExportHtml Target Threads geometry', () => {
                 event: 'html_export',
             });
         }).not.toThrow();
-
-        expect(createObjectURL).toHaveBeenCalled();
-        expect(click).toHaveBeenCalled();
-        expect(remove).toHaveBeenCalled();
-
-        vi.unstubAllGlobals();
     });
 });

@@ -158,7 +158,9 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
             generatedAt: new Date('2026-08-01T12:00:00.000Z'),
         });
         expect(exportHtml).toContain('data-assessment-snapshot-target-index');
-        expect(exportHtml).toContain('data-assessment-snapshot-target-index-page');
+        expect(exportHtml).toContain('data-assessment-snapshot-target-index-screen');
+        expect(exportHtml).toContain('data-expanded="true"');
+        expect(exportHtml).not.toContain('data-assessment-snapshot-target-index-page');
     });
 
     it('INV-I1: triggers on disambiguation alone (no compaction / no fallback)', () => {
@@ -325,7 +327,7 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
         expect(evidenceOrder).toEqual(expectedOrder);
     });
 
-    it('INV-I5: print/export place index after evidence on a new page', () => {
+    it('INV-I5: print places index after evidence on a new page; HTML uses screen index', () => {
         const profile = buildProfile(
             makePack([makeTarget('L1_LISTENER_RESPONDING_1', 'Listener 1')])
         );
@@ -339,9 +341,12 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
             profile,
             generatedAt: new Date('2026-08-01T12:00:00.000Z'),
         });
-        const exportEvidence = exportHtml.lastIndexOf('data-assessment-snapshot-print-page="1"');
-        const exportIndex = exportHtml.indexOf('data-assessment-snapshot-target-index-page');
+        const exportBody = exportHtml.slice(exportHtml.indexOf('<body'));
+        const exportEvidence = exportBody.lastIndexOf('data-assessment-snapshot-target-thread');
+        const exportIndex = exportBody.indexOf('data-assessment-snapshot-target-index-screen');
         expect(exportIndex).toBeGreaterThan(exportEvidence);
+        expect(exportBody).not.toContain('data-assessment-snapshot-target-index-page');
+        expect(exportBody).toContain('data-expanded="true"');
     });
 
     it('INV-I6: PrintRenderPlan is unchanged by index presence (outside plan)', () => {
@@ -434,7 +439,7 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
         );
     });
 
-    it('export HTML carries index via shared print document (no export-only path)', () => {
+    it('export HTML carries index via screen document (collapsible, expanded by default)', () => {
         const profile = buildProfile(
             makePack([makeTarget('L1_LISTENER_RESPONDING_1', 'Listener 1')])
         );
@@ -444,25 +449,28 @@ describe('Snapshot Target Index (PR14A-2 / contract §6)', () => {
             generatedAt: new Date('2026-08-01T12:00:00.000Z'),
         });
 
-        expect(exportHtml).toContain('data-assessment-snapshot-print-document');
-        expect(exportHtml).toContain('data-assessment-snapshot-target-index-page');
+        expect(exportHtml).toContain('data-assessment-snapshot-screen-document');
+        expect(exportHtml).not.toContain('data-assessment-snapshot-print-document');
+        expect(exportHtml).toContain('data-assessment-snapshot-target-index-screen');
         expect(exportHtml).toContain('data-assessment-snapshot-target-index-row');
-        // Index lives inside the print document body (after evidence pages), not a
-        // parallel export-only serializer — CSS may mention the attribute earlier.
+        expect(exportHtml).toContain('data-expanded="true"');
+        expect(exportHtml).not.toContain('data-assessment-snapshot-target-index-page');
+
         const bodyStart = exportHtml.indexOf('<body');
-        const printDocInBody = exportHtml.indexOf(
-            'data-assessment-snapshot-print-document',
+        const screenDocInBody = exportHtml.indexOf(
+            'data-assessment-snapshot-screen-document',
             bodyStart
         );
         const indexInBody = exportHtml.indexOf(
-            'data-assessment-snapshot-target-index-page',
+            'data-assessment-snapshot-target-index-screen',
             bodyStart
         );
-        expect(printDocInBody).toBeGreaterThan(bodyStart);
-        expect(indexInBody).toBeGreaterThan(printDocInBody);
+        expect(screenDocInBody).toBeGreaterThan(bodyStart);
+        expect(indexInBody).toBeGreaterThan(screenDocInBody);
         expect(printHtml).toContain('data-assessment-snapshot-target-index-page');
         expect(exportHtml).not.toMatch(/https?:\/\//i);
         expect(exportHtml).not.toMatch(/<link\s[^>]*rel=["']stylesheet["']/i);
         expect(exportHtml).not.toMatch(/<script\s[^>]*src=/i);
+        expect(exportHtml).toMatch(/<script>/i);
     });
 });

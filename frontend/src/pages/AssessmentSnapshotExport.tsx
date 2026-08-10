@@ -1,17 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Download, FileText } from 'lucide-react';
 import {
     claimExportViewAudit,
     logClinicalExportAudit,
 } from '../clinicalExport/clinicalExportAudit';
 import { readHashSearch } from '../clinicalExport/clinicalExportState';
-import { AssessmentSnapshotPrintDocument } from '../components/assessmentSnapshot/print/AssessmentSnapshotPrintDocument';
+import { AssessmentSnapshotView } from '../components/assessmentSnapshot';
+import { SNAPSHOT_V1_ID } from '../components/assessmentSnapshot/concepts';
 import { isSnapshotExportAcknowledged } from '../components/assessmentSnapshot/export/snapshotExportAcknowledgment';
 import { resolveSnapshotExportLoadError } from '../components/assessmentSnapshot/export/snapshotExportErrors';
 import {
-    buildSnapshotExportFilename,
-    buildSnapshotExportHtmlFromMountedRoot,
-    downloadSnapshotExportHtml,
+    downloadSnapshotHtmlChannel,
+    SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
 } from '../components/assessmentSnapshot/export/snapshotExportHtml';
 import {
     buildSnapshotRouteHash,
@@ -22,11 +22,14 @@ import { getAssessmentSnapshotAvailability } from '../services/assessmentSnapsho
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { buildSnapshotCycleDateLabels } from '../components/assessmentSnapshot/v1/snapshotCycleReference';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
-import { buildPrintRenderPlan } from '../utils/snapshotPrintRenderPlan';
 
 interface Props {
     assessmentId: string;
 }
+
+/** OQ-6: placeholder labels — founder approves final clinician-facing copy. */
+export const HTML_CHANNEL_BUTTON_LABEL = 'HTML';
+export const PDF_CHANNEL_BUTTON_LABEL = 'PDF';
 
 function ExportStatusPanel({
     title,
@@ -104,7 +107,6 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
     const exportViewLogged = useRef(false);
-    const previewRootRef = useRef<HTMLDivElement>(null);
 
     const exportParams = useMemo(
         () => parseSnapshotExportPreviewParams(readHashSearch()),
@@ -179,11 +181,6 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         [productionData]
     );
 
-    const printPlan = useMemo(
-        () => (snapshotProfile ? buildPrintRenderPlan(snapshotProfile, { paper: 'letter' }) : null),
-        [snapshotProfile]
-    );
-
     const generatedAt = useMemo(() => new Date(), [snapshotProfile?.metadata.generatedAt]);
 
     useEffect(() => {
@@ -235,7 +232,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         );
     }
 
-    if (loadError || !productionData || !snapshotProfile || !printPlan) {
+    if (loadError || !productionData || !snapshotProfile) {
         const errorDisplay = resolveSnapshotExportLoadError(loadError);
 
         return (
@@ -263,24 +260,16 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
     }
 
     const { displayContext } = productionData;
-    const generatedAtLabel = generatedAt.toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    });
 
     const handleDownloadHtml = () => {
-        const htmlInput = {
-            profile: snapshotProfile,
-            displayContext,
-            cycleDateLabels,
-            generatedAt,
-        };
-        const html = previewRootRef.current
-            ? buildSnapshotExportHtmlFromMountedRoot(previewRootRef.current, htmlInput)
-            : buildSnapshotExportHtmlFromMountedRoot(document, htmlInput);
-        downloadSnapshotExportHtml(
-            html,
-            buildSnapshotExportFilename(assessmentId, generatedAt)
+        downloadSnapshotHtmlChannel(
+            {
+                profile: snapshotProfile,
+                displayContext,
+                cycleDateLabels,
+                generatedAt,
+            },
+            assessmentId
         );
         logClinicalExportAudit({
             orgId: profile?.org_id,
@@ -293,7 +282,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         });
     };
 
-    const handlePrint = () => {
+    const handlePdf = () => {
         logClinicalExportAudit({
             orgId: profile?.org_id,
             userId: user?.id,
@@ -302,14 +291,16 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
             channel: 'print',
             mode: 'full',
             event: 'print',
+            surface: 'export',
         });
         window.print();
     };
 
     return (
         <div
-            ref={previewRootRef}
             className="snapshot-export-preview-page min-h-screen bg-slate-200"
+            data-snapshot-export-page
+            data-snapshot-html-export-viewport-rem={SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}
         >
             <div className="no-print sticky top-0 z-30 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-sm">
                 <div className="mx-auto max-w-6xl px-4 py-4">
@@ -330,38 +321,48 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
                             </h1>
                             <p className="mt-1 text-sm text-gray-600">
                                 Full evidence record — every domain, target, and cycle from the
-                                frozen pack snapshot.
+                                frozen pack snapshot. Preview matches the HTML channel (screen
+                                layout).
                             </p>
                         </div>
-                        <div className="no-print flex shrink-0 flex-wrap items-start gap-2">
+                        <div
+                            className="no-print flex shrink-0 flex-wrap items-start gap-2"
+                            data-snapshot-export-actions
+                        >
                             <button
                                 type="button"
                                 onClick={handleDownloadHtml}
+                                data-snapshot-export-action="html"
                                 className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50"
                             >
                                 <Download className="h-4 w-4" aria-hidden />
-                                Download HTML
+                                {HTML_CHANNEL_BUTTON_LABEL}
                             </button>
                             <button
                                 type="button"
-                                onClick={handlePrint}
+                                onClick={handlePdf}
+                                data-snapshot-export-action="pdf"
                                 className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-emerald-700"
                             >
-                                <Printer className="h-4 w-4" aria-hidden />
-                                Print / Save PDF
+                                <FileText className="h-4 w-4" aria-hidden />
+                                {PDF_CHANNEL_BUTTON_LABEL}
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="mx-auto max-w-6xl px-2 py-4 sm:px-4">
-                <AssessmentSnapshotPrintDocument
+            <div className="mx-auto max-w-6xl px-0 py-4 sm:px-4">
+                {/*
+                  Screen preview (HTML channel). Print surface inside the view is
+                  print-only for the PDF channel — not shown as the interactive preview.
+                */}
+                <AssessmentSnapshotView
                     profile={snapshotProfile}
-                    plan={printPlan}
-                    generatedAtLabel={generatedAtLabel}
                     displayContext={displayContext}
                     cycleDateLabels={cycleDateLabels}
+                    concept={SNAPSHOT_V1_ID}
+                    measureScreenViewport={false}
                 />
             </div>
         </div>
