@@ -157,7 +157,7 @@ export function estimateTargetIndexRowCostRem(
  *
  * Uses the same Letter/A4 usable height, continuation header, and footer
  * furniture as the evidence profile. Index sheets always render a footer —
- * so footerRem is subtracted (unlike the evidence column-capacity estimator).
+ * so footerRem is subtracted (same reservation as evidence column capacity).
  */
 export function computeTargetIndexContentHeightRem(
     profile: PrintCompositionProfile,

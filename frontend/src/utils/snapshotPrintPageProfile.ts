@@ -18,6 +18,13 @@ export const PRINT_IN_TO_REM = 6;
 export const PRINT_PAGE_MARGIN_REM = 0.5 * PRINT_IN_TO_REM; // 3rem
 
 /**
+ * Named `@page` for Snapshot print only.
+ * Must not alter the unnamed `@page` — Learner Map and other surfaces keep
+ * the browser default page box (STOP CONDITION: no cross-artifact regression).
+ */
+export const SNAPSHOT_PRINT_PAGE_NAME = 'snapshot-print';
+
+/**
  * Document header block on page 1: assessment title, learner/pack metadata,
  * Cycle Reference and legend. Consumes vertical space above the first columns.
  */
@@ -33,10 +40,19 @@ export const PRINT_CHAPTER_HEADER_REM = 2.5;
 export const PRINT_SEGMENT_HEADER_REM = 4;
 
 /**
- * Compact repeated page-footer chrome (PR13.6C). Not subtracted from column
- * capacity estimates — intentional estimator conservatism.
+ * Compact repeated page-footer chrome (PR13.6C). Reserved in
+ * {@link computeColumnRowCapacity} so pinned footer + column content fit the
+ * printable page box.
  */
 export const PRINT_FOOTER_REM = 2.5;
+
+/**
+ * Page-box tolerance so the flex page container cannot equal the `@page`
+ * content box exactly (exact equality overflows a trailing blank sheet).
+ * 0.25rem (4px) covers footer border-t, fractional rem resolution, print-dialog
+ * scaling, and A4's fractional usable height — still well below one thread row.
+ */
+export const PRINT_PAGE_BOX_TOLERANCE_REM = 0.25;
 
 /** Inter-column gutter — matches the screen domain gap for visual consistency. */
 export const PRINT_COLUMN_GAP_REM = 1.25;
@@ -110,6 +126,52 @@ export function resolvePrintCompositionProfile(
 }
 
 /**
+ * Flex page-container height: `@page` content box minus
+ * {@link PRINT_PAGE_BOX_TOLERANCE_REM} so min-height cannot equal the printable
+ * area exactly. Sole source for CSS emission and column-capacity budgeting.
+ */
+export function resolvePrintPageContainerHeightRem(
+    profile: Pick<PrintCompositionProfile, 'usableHeightRem'>
+): number {
+    return profile.usableHeightRem - PRINT_PAGE_BOX_TOLERANCE_REM;
+}
+
+/**
+ * Named `@page` + print-page box CSS derived from {@link PRINT_PAGE_MARGIN_REM}
+ * and the Letter composition profile (production Snapshot paper).
+ *
+ * Cascade: assign `page: snapshot-print` only to Snapshot planned pages so
+ * Learner Map (no `page` property) is unaffected.
+ */
+export function buildSnapshotPrintPageCss(): string {
+    const profile = PRINT_COMPOSITION_PROFILES[DEFAULT_PRINT_PAGE_PROFILE_ID];
+    const marginIn = PRINT_PAGE_MARGIN_REM / PRINT_IN_TO_REM;
+    const widthIn = profile.pageWidthRem / PRINT_IN_TO_REM;
+    const heightIn = profile.pageHeightRem / PRINT_IN_TO_REM;
+    const containerHeightRem = resolvePrintPageContainerHeightRem(profile);
+
+    return `@page ${SNAPSHOT_PRINT_PAGE_NAME} {
+  size: ${widthIn}in ${heightIn}in;
+  margin: ${marginIn}in;
+}
+
+@media print {
+  .assessment-snapshot-print .assessment-snapshot-print-page {
+    page: ${SNAPSHOT_PRINT_PAGE_NAME};
+    box-sizing: border-box;
+    min-height: ${containerHeightRem}rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .assessment-snapshot-print [data-assessment-snapshot-footer] {
+    margin-top: auto !important;
+  }
+}
+`;
+}
+
+/**
  * How many fixed-width columns fit side by side within the usable page width,
  * accounting for inter-column gutters. `n` columns need
  * `n * columnWidth + (n - 1) * gutter <= usableWidth`.
@@ -150,8 +212,9 @@ export function resolvePageHeaderReserveRem(
 
 /**
  * Estimated number of target rows a single column can hold on a page with the
- * given header context. The footer is deliberately excluded (rendered once at
- * document end), keeping pages well-utilized per §10.
+ * given header context. Budgets against {@link resolvePrintPageContainerHeightRem}
+ * (same height the CSS emits) and reserves footer furniture so pinned footer +
+ * column content fit inside the container.
  */
 export function computeColumnRowCapacity(
     profile: PrintCompositionProfile,
@@ -159,9 +222,10 @@ export function computeColumnRowCapacity(
     headerMode: PrintPageHeaderMode
 ): number {
     const usable =
-        profile.usableHeightRem -
+        resolvePrintPageContainerHeightRem(profile) -
         resolvePageHeaderReserveRem(profile, headerMode) -
-        profile.segmentHeaderRem;
+        profile.segmentHeaderRem -
+        profile.footerRem;
     return Math.max(1, Math.floor(usable / estimateThreadRowHeightRem(tier)));
 }
 

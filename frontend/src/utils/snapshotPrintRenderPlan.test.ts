@@ -185,8 +185,9 @@ describe('buildPrintRenderPlan — large flat fixtures', () => {
             (c) => c.segment.targetEndOrdinal - c.segment.targetStartOrdinal + 1
         );
 
-        // Final page holds the 61 remaining targets balanced across two columns.
-        expect(lastSizes).toEqual([31, 30]);
+        // Final page holds the 73 remaining targets balanced across two columns
+        // (first-page capacity 33 after container-height budgeting).
+        expect(lastSizes).toEqual([37, 36]);
         expect(flattenPrintPlanTargetIds(plan)).toHaveLength(205);
     });
 

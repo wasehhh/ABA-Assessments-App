@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import './styles/learnerMapPrint.css';
 import './utils/injectTargetIndexTableGeometry';
+import './utils/injectSnapshotPrintPageCss';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

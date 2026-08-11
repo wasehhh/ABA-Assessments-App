@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ContentPackData, Target } from '../../../types';
 import { buildAssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { buildLearnerMapProfile } from '../../../services/learnerMapProfile';
+import { PrintDocumentFooter } from './PrintDocumentFooter';
 import {
     formatPrintPageLabel,
     formatTargetIndexPageLabel,
@@ -96,5 +101,61 @@ describe('printClinicalChrome', () => {
         expect(SNAPSHOT_PRINT_CONFIDENTIALITY.toLowerCase()).toContain('confidential');
         expect(SNAPSHOT_PRINT_CLINICAL_NOTE.length).toBeGreaterThan(20);
         expect(SNAPSHOT_PRINT_CLINICAL_NOTE.length).toBeLessThan(160);
+    });
+
+    it('footer preserves every information field in a compact layout', () => {
+        const profile = makeProfile();
+        const generatedAtLabel = 'Jul 6, 2026, 8:00 AM';
+
+        const pageFooter = renderToStaticMarkup(
+            createElement(PrintDocumentFooter, {
+                profile,
+                generatedAtLabel,
+                pageNumber: 1,
+                totalPages: 2,
+                isDocumentEnd: false,
+            })
+        );
+        expect(pageFooter).toContain(SNAPSHOT_PRINT_PRODUCT_NAME);
+        expect(pageFooter).toContain(SNAPSHOT_PRINT_CONFIDENTIALITY);
+        expect(pageFooter).toContain(`Generated ${generatedAtLabel}`);
+        expect(pageFooter).toContain('Page 1 of 2');
+        expect(pageFooter).not.toContain(SNAPSHOT_PRINT_CLINICAL_NOTE);
+        expect(pageFooter).not.toContain('data-assessment-snapshot-print-pack-meta');
+
+        const endFooter = renderToStaticMarkup(
+            createElement(PrintDocumentFooter, {
+                profile,
+                generatedAtLabel,
+                pageNumber: 2,
+                totalPages: 2,
+                isDocumentEnd: true,
+            })
+        );
+        expect(endFooter).toContain(SNAPSHOT_PRINT_PRODUCT_NAME);
+        expect(endFooter).toContain(SNAPSHOT_PRINT_CONFIDENTIALITY);
+        expect(endFooter).toContain('Alpha Pack v2.1');
+        expect(endFooter).toMatch(/1 target/i);
+        expect(endFooter).toContain('2 cycles');
+        expect(endFooter).toContain(`Generated ${generatedAtLabel}`);
+        expect(endFooter).toContain('Page 2 of 2');
+        expect(endFooter).toContain(SNAPSHOT_PRINT_CLINICAL_NOTE);
+        expect(endFooter).toContain('data-assessment-snapshot-print-confidentiality');
+        expect(endFooter).toContain('data-assessment-snapshot-print-pack-meta');
+        expect(endFooter).toContain('data-assessment-snapshot-print-target-count');
+        expect(endFooter).toContain('data-assessment-snapshot-print-cycle-count');
+        expect(endFooter).toContain('data-assessment-snapshot-print-generated-at');
+        expect(endFooter).toContain('data-assessment-snapshot-print-page-label');
+        expect(endFooter).toContain('data-assessment-snapshot-print-clinical-note');
+    });
+
+    it('print CSS clears Snapshot card chrome without deleting global .bg-white', () => {
+        const indexCss = readFileSync(resolve(__dirname, '../../../index.css'), 'utf8');
+        expect(indexCss).toMatch(/\.bg-white\s*\{[\s\S]*?border:\s*1px solid #eee/);
+        expect(indexCss).toMatch(
+            /\.assessment-snapshot-print\.bg-white\s*\{[\s\S]*?border:\s*none/
+        );
+        expect(indexCss).toContain('[data-assessment-snapshot-production]');
+        expect(indexCss).toContain('background: #fff !important');
     });
 });

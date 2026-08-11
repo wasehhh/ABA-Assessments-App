@@ -107,11 +107,62 @@
     color: #000 !important;
     background: #fff !important;
     border: none !important;
+    margin: 0 !important;
     margin-bottom: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
     box-shadow: none !important;
     page-break-inside: auto !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /*
+   * Defeat global print `.bg-white` card chrome on the Snapshot container without
+   * deleting that rule (Learner Map / Report surfaces still use it).
+   */
+  .assessment-snapshot-print.bg-white {
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+    page-break-inside: auto !important;
+    background: #fff !important;
+  }
+
+  /*
+   * Full-bleed white: kill app-shell / page grey backdrops that print as a
+   * card-on-sheet. Sources: Layout `bg-gray-50`, Snapshot `bg-slate-50`,
+   * export preview `bg-slate-200`.
+   */
+  body:has([data-assessment-snapshot-print-document]) {
+    background: #fff !important;
+  }
+
+  body:has([data-assessment-snapshot-print-document]) > div.min-h-screen {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+
+  body:has([data-assessment-snapshot-print-document]) main > div {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:has([data-assessment-snapshot-print-document]) > div.min-h-screen > footer {
+    display: none !important;
+  }
+
+  [data-assessment-snapshot-production],
+  .snapshot-export-preview-page {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+
+  .snapshot-export-preview-page > div.mx-auto {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .assessment-snapshot-screen-only {
@@ -244,7 +295,7 @@
   }
 
   .assessment-snapshot-print [data-assessment-snapshot-footer] {
-    margin-top: 0.5rem !important;
+    margin-top: auto !important;
     padding-top: 0.25rem !important;
     break-inside: avoid;
     page-break-inside: avoid;

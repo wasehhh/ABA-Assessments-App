@@ -20,7 +20,7 @@ interface Props {
 
 /**
  * Repeated page footer with page numbering. Final page adds a quiet clinical note.
- * Compact so it does not create a mostly empty trailing sheet.
+ * Single primary row (plus clinical note on document end) so chrome stays compact.
  */
 export function PrintDocumentFooter({
     profile,
@@ -33,21 +33,50 @@ export function PrintDocumentFooter({
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
     const label = pageLabel ?? formatPrintPageLabel(pageNumber, totalPages);
+    const cycleLabel = `${profile.cycles.length} cycle${profile.cycles.length === 1 ? '' : 's'}`;
 
     return (
         <footer
-            className="mt-2.5 border-t border-gray-400 pt-1 text-[7.5px] leading-snug text-black"
+            className="mt-2.5 border-t border-gray-400 pt-1 text-[7.5px] leading-tight text-black"
             data-assessment-snapshot-footer
             data-assessment-snapshot-print-footer={isDocumentEnd ? 'document' : 'page'}
             data-print-page-end={isDocumentEnd ? 'true' : undefined}
         >
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0">
                 <p className="min-w-0 flex-1">
                     <span className="font-semibold">{SNAPSHOT_PRINT_PRODUCT_NAME}</span>
                     <span className="mx-1 text-gray-500" aria-hidden>
                         ·
                     </span>
-                    <span>{SNAPSHOT_PRINT_CONFIDENTIALITY}</span>
+                    <span data-assessment-snapshot-print-confidentiality>
+                        {SNAPSHOT_PRINT_CONFIDENTIALITY}
+                    </span>
+                    {isDocumentEnd ? (
+                        <>
+                            <span className="mx-1 text-gray-400" aria-hidden>
+                                ·
+                            </span>
+                            <span data-assessment-snapshot-print-pack-meta>
+                                {profile.metadata.packTitle} v{profile.metadata.packVersion}
+                            </span>
+                            <span className="mx-1 text-gray-400" aria-hidden>
+                                ·
+                            </span>
+                            <span data-assessment-snapshot-print-target-count>
+                                {targetCountLabel}
+                            </span>
+                            <span className="mx-1 text-gray-400" aria-hidden>
+                                ·
+                            </span>
+                            <span data-assessment-snapshot-print-cycle-count>{cycleLabel}</span>
+                        </>
+                    ) : null}
+                    <span className="mx-1 text-gray-400" aria-hidden>
+                        ·
+                    </span>
+                    <span className="tabular-nums" data-assessment-snapshot-print-generated-at>
+                        Generated {generatedAtLabel}
+                    </span>
                 </p>
                 <p
                     className="shrink-0 font-medium tabular-nums"
@@ -58,35 +87,14 @@ export function PrintDocumentFooter({
             </div>
 
             {isDocumentEnd ? (
-                <div
-                    className="mt-0.5 space-y-0.5 text-gray-700"
+                <p
+                    className="mt-0.5 text-gray-700"
                     data-assessment-snapshot-print-footer-end
+                    data-assessment-snapshot-print-clinical-note
                 >
-                    <p>
-                        {profile.metadata.packTitle} v{profile.metadata.packVersion}
-                        <span className="mx-1 text-gray-400" aria-hidden>
-                            ·
-                        </span>
-                        {targetCountLabel}
-                        <span className="mx-1 text-gray-400" aria-hidden>
-                            ·
-                        </span>
-                        {profile.cycles.length} cycle
-                        {profile.cycles.length === 1 ? '' : 's'}
-                        <span className="mx-1 text-gray-400" aria-hidden>
-                            ·
-                        </span>
-                        Generated {generatedAtLabel}
-                    </p>
-                    <p data-assessment-snapshot-print-clinical-note>
-                        {SNAPSHOT_PRINT_CLINICAL_NOTE}
-                    </p>
-                </div>
-            ) : (
-                <p className="mt-0.5 tabular-nums text-gray-700">
-                    Generated {generatedAtLabel}
+                    {SNAPSHOT_PRINT_CLINICAL_NOTE}
                 </p>
-            )}
+            ) : null}
         </footer>
     );
 }
