@@ -1,5 +1,6 @@
 import { CompetencyState } from '../../../utils/scoreInterpretation';
 import { SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
+import { STATE_DISPLAY_LABELS } from '../../assessment/domainProfile/stateDisplay';
 
 /** En dash for clinical ranges (Targets 47–92). */
 export const SNAPSHOT_EN_DASH = '–';
@@ -121,10 +122,10 @@ export interface SnapshotLegendCopy {
 export function resolveSnapshotLegendCopy(): SnapshotLegendCopy {
     return {
         states: [
-            { key: 'not_yet', label: 'Not Yet' },
-            { key: 'in_progress', label: 'Emerging' },
-            { key: 'at_maximum', label: 'Mastered' },
-            { key: 'unscored', label: 'Unscored' },
+            { key: 'not_yet', label: STATE_DISPLAY_LABELS.not_yet },
+            { key: 'in_progress', label: STATE_DISPLAY_LABELS.in_progress },
+            { key: 'at_maximum', label: STATE_DISPLAY_LABELS.at_maximum },
+            { key: 'unscored', label: STATE_DISPLAY_LABELS.unscored },
         ],
         scoreHint: SNAPSHOT_LEGEND_SCORE_HINT,
         maxHint: SNAPSHOT_LEGEND_MAX_HINT,
@@ -146,7 +147,7 @@ export function beadNumeralClass(state: CompetencyState | 'unscored'): string {
 
 /**
  * Hollow ceiling marker — green outline only.
- * Distinct from Mastered evidence beads (solid green fill).
+ * Distinct from Demonstrated evidence beads (solid green fill).
  */
 export function maxRingSurfaceClass(): string {
     return 'assessment-snapshot-max-ring rounded-full border-2 border-green-700 bg-white font-mono font-medium tabular-nums text-green-900';

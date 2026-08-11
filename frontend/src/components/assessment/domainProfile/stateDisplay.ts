@@ -3,9 +3,9 @@ import { CompetencyState } from '../../../utils/scoreInterpretation';
 /** User-facing score band labels (display only; internal enum values unchanged). */
 export const STATE_DISPLAY_LABELS: Record<CompetencyState, string> = {
     unscored: 'Unscored',
-    not_yet: 'Not Yet',
+    not_yet: 'Not Demonstrated',
     in_progress: 'Emerging',
-    at_maximum: 'Mastered',
+    at_maximum: 'Demonstrated',
 };
 
 export interface StateBucketDisplay {

@@ -46,12 +46,12 @@ describe('snapshotVisualSystem', () => {
         expect(codesShareVisiblePrefix(['A1', 'B1', 'C1'], 2)).toBe(false);
     });
 
-    it('uses clinical legend reminder copy', () => {
+    it('uses clinical legend reminder copy from STATE_DISPLAY_LABELS', () => {
         const legend = resolveSnapshotLegendCopy();
         expect(legend.states.map((state) => state.label)).toEqual([
-            'Not Yet',
+            'Not Demonstrated',
             'Emerging',
-            'Mastered',
+            'Demonstrated',
             'Unscored',
         ]);
         expect(legend.scoreHint).toBe('Number inside each bead = score for that cycle');
@@ -66,10 +66,10 @@ describe('snapshotVisualSystem', () => {
         expect(beadNumeralClass('unscored')).toContain('text-gray-900');
     });
 
-    it('uses a hollow green-outline max ring, distinct from solid Mastered beads', () => {
+    it('uses a hollow green-outline max ring, distinct from solid Demonstrated beads', () => {
         const maxClass = maxRingSurfaceClass();
         const legendSwatch = maxRingLegendSwatchClass();
-        const masteredFill = snapshotCellClass('at_maximum');
+        const demonstratedFill = snapshotCellClass('at_maximum');
 
         expect(maxClass).toContain('border-green-700');
         expect(maxClass).toContain('bg-white');
@@ -77,7 +77,7 @@ describe('snapshotVisualSystem', () => {
         expect(maxClass).not.toMatch(/bg-green/);
         expect(legendSwatch).toContain('border-green-700');
         expect(legendSwatch).toContain('bg-white');
-        expect(masteredFill).toContain('bg-green-600');
+        expect(demonstratedFill).toContain('bg-green-600');
         expect(maxRingAccessibleLabel('Mand 1', '4')).toBe('Mand 1 · Maximum 4');
         expect(maxRingAccessibleLabel('Mand 1', '4')).not.toMatch(/master/i);
     });

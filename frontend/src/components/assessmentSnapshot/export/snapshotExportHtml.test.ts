@@ -284,6 +284,12 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(html).toContain('data-assessment-snapshot-target-thread');
         expect(html).toContain('data-assessment-snapshot-evidence-bead');
         expect(html).toContain('data-assessment-snapshot-legend');
+        expect(html).toContain('Not Demonstrated');
+        expect(html).toContain('Emerging');
+        expect(html).toContain('Demonstrated');
+        expect(html).toContain('Unscored');
+        expect(html).not.toMatch(/>Not Yet</);
+        expect(html).not.toMatch(/>Mastered</);
         expect(html).toContain('data-export-mode="full"');
         expect(html).toContain('data-export-channel="html"');
         const body = html.slice(html.indexOf('<body'));
