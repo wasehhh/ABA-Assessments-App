@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext';
 import { getAssessmentSnapshotAvailability } from '../services/assessmentSnapshotAvailability';
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { buildSnapshotCycleDateLabels } from '../components/assessmentSnapshot/v1/snapshotCycleReference';
+import { readSnapshotShowScores } from '../components/assessmentSnapshot/v1/snapshotShowScores';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
 
 interface Props {
@@ -116,6 +117,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         assessmentId,
         exportParams.exportMode
     );
+    const showScores = readSnapshotShowScores(assessmentId);
 
     useEffect(() => {
         if (!exportAcknowledged) {
@@ -268,6 +270,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
                 displayContext,
                 cycleDateLabels,
                 generatedAt,
+                showScores,
             },
             assessmentId
         );
@@ -363,6 +366,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
                     cycleDateLabels={cycleDateLabels}
                     concept={SNAPSHOT_V1_ID}
                     measureScreenViewport={false}
+                    showScores={showScores}
                 />
             </div>
         </div>

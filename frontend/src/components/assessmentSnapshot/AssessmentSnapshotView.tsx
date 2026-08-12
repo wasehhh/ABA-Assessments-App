@@ -35,6 +35,8 @@ interface Props {
     concept?: AssessmentSnapshotConceptId;
     /** When true (default for V1), screen packing uses measured container width. */
     measureScreenViewport?: boolean;
+    /** When false, evidence-bead numerals are visually suppressed (scan view). */
+    showScores?: boolean;
 }
 
 export function AssessmentSnapshotView({
@@ -43,6 +45,7 @@ export function AssessmentSnapshotView({
     cycleDateLabels,
     concept = SNAPSHOT_V1_ID,
     measureScreenViewport = true,
+    showScores = true,
 }: Props) {
     const generatedAt = new Date(profile.metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -90,6 +93,7 @@ export function AssessmentSnapshotView({
                         cycleDateLabels={cycleDateLabels}
                         generatedAtLabel={generatedAt}
                         viewportWidthRem={screenViewportRem}
+                        showScores={showScores}
                     />
                 ) : (
                     <>
@@ -214,6 +218,7 @@ export function AssessmentSnapshotView({
                         generatedAtLabel={generatedAt}
                         displayContext={displayContext}
                         cycleDateLabels={cycleDateLabels}
+                        showScores={showScores}
                     />
                 </div>
             ) : null}

@@ -11,6 +11,7 @@ import { auditService } from '../../../services/audit';
 import { logClinicalExportAudit } from '../../../clinicalExport/clinicalExportAudit';
 import { getAssessmentSnapshotStressScenario } from '../../../pages/dev/assessmentSnapshotMockData';
 import { buildSnapshotTargetIndex } from '../v1/snapshotTargetIndex';
+import { SNAPSHOT_LEGEND_SCORE_HINT, SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN } from '../v1/snapshotVisualSystem';
 import { SNAPSHOT_EXPORT_INLINE_CSS } from './snapshotExportInlineCss';
 import * as snapshotExportHtmlModule from './snapshotExportHtml';
 import {
@@ -126,7 +127,11 @@ function makePack(
     };
 }
 
-function buildHtmlForPack(pack: ContentPackData, scores: number | null = 0.5) {
+function buildHtmlForPack(
+    pack: ContentPackData,
+    scores: number | null = 0.5,
+    showScores = true
+) {
     const learnerMapProfile = buildLearnerMapProfile({
         assessment: {
             id: 'assess-export',
@@ -169,6 +174,7 @@ function buildHtmlForPack(pack: ContentPackData, scores: number | null = 0.5) {
             organizationName: 'Org',
         },
         generatedAt: new Date('2026-08-01T12:00:00.000Z'),
+        showScores,
     });
 }
 
@@ -554,5 +560,40 @@ describe('snapshotExportHtml Target Threads geometry', () => {
                 event: 'html_export',
             });
         }).not.toThrow();
+    });
+
+    it('HTML export honours hidden numerals, states the suppression, and keeps every target and cycle', () => {
+        const pack = makePack(
+            [makeTarget('T1', [0, 1, 2]), makeTarget('T2', [0, 1, 2])],
+            'Scan Pack',
+            [0, 1, 2]
+        );
+        const shown = buildHtmlForPack(pack, 2, true);
+        const hidden = buildHtmlForPack(pack, 2, false);
+
+        expect(shown).toContain('data-assessment-snapshot-show-scores="true"');
+        expect(hidden).toContain('data-assessment-snapshot-show-scores="false"');
+        expect(hidden).toContain(SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN);
+        expect(hidden).toContain('data-assessment-snapshot-numerals-hidden');
+        expect(shown).not.toContain('data-assessment-snapshot-numerals-hidden');
+        expect(hidden).not.toContain(SNAPSHOT_LEGEND_SCORE_HINT);
+        expect(shown).toContain(SNAPSHOT_LEGEND_SCORE_HINT);
+        expect(hidden).toContain('data-raw-score="2"');
+        expect(shown).toContain('data-raw-score="2"');
+
+        const hiddenBody = hidden.slice(hidden.indexOf('<body'));
+        const shownBody = shown.slice(shown.indexOf('<body'));
+        const count = (html: string, token: string) => html.split(token).length - 1;
+        expect(count(hiddenBody, 'data-assessment-snapshot-target-thread')).toBe(
+            count(shownBody, 'data-assessment-snapshot-target-thread')
+        );
+        expect(count(hiddenBody, 'data-assessment-snapshot-evidence-bead')).toBe(
+            count(shownBody, 'data-assessment-snapshot-evidence-bead')
+        );
+        expect(count(hiddenBody, 'data-assessment-snapshot-target-thread')).toBe(2);
+
+        const stylesheet = extractInlineStylesheet(hidden);
+        expect(stylesheet).toContain("[data-assessment-snapshot-show-scores='false']");
+        expect(stylesheet).toContain(':focus-visible');
     });
 });

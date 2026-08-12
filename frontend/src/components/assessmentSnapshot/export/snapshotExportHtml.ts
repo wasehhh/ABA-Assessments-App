@@ -22,6 +22,7 @@ export interface BuildSnapshotExportHtmlInput {
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
     generatedAt: Date;
+    showScores?: boolean;
 }
 
 function formatGeneratedAt(date: Date): string {
@@ -40,6 +41,8 @@ export function renderSnapshotScreenDocumentMarkup(
 ): string {
     const generatedAtLabel = formatGeneratedAt(input.generatedAt);
 
+    const showScores = input.showScores !== false;
+
     return renderToStaticMarkup(
         createElement(AssessmentSnapshotScreenDocument, {
             profile: input.profile,
@@ -47,11 +50,15 @@ export function renderSnapshotScreenDocumentMarkup(
             cycleDateLabels: input.cycleDateLabels,
             generatedAtLabel,
             viewportWidthRem: SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
+            showScores,
         })
     );
 }
 
-export function wrapSnapshotExportDocumentHtml(screenDocumentMarkup: string): string {
+export function wrapSnapshotExportDocumentHtml(
+    screenDocumentMarkup: string,
+    showScores = true
+): string {
     const safeCss = SNAPSHOT_EXPORT_DOCUMENT_CSS.replace(/<\/style/gi, '<\\/style');
     const safeScript = SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT.replace(
         /<\/script/gi,
@@ -68,7 +75,7 @@ export function wrapSnapshotExportDocumentHtml(screenDocumentMarkup: string): st
 ${safeCss}
 </style>
 </head>
-<body class="assessment-snapshot-export-html" data-assessment-snapshot-export-document data-export-mode="full" data-export-channel="html" data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}">
+<body class="assessment-snapshot-export-html" data-assessment-snapshot-export-document data-export-mode="full" data-export-channel="html" data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}" data-assessment-snapshot-show-scores="${showScores ? 'true' : 'false'}">
 <p class="snapshot-export-disclaimer">${SNAPSHOT_EXPORT_DISCLAIMER}</p>
 ${screenDocumentMarkup}
 <script>
@@ -91,7 +98,7 @@ export function buildSnapshotExportHtml(input: BuildSnapshotExportHtmlInput): st
         buildSnapshotScreenPlanConfig(SNAPSHOT_HTML_EXPORT_VIEWPORT_REM)
     );
     const markup = renderSnapshotScreenDocumentMarkup(input);
-    return wrapSnapshotExportDocumentHtml(markup);
+    return wrapSnapshotExportDocumentHtml(markup, input.showScores !== false);
 }
 
 /**

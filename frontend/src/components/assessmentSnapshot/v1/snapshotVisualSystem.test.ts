@@ -59,6 +59,15 @@ describe('snapshotVisualSystem', () => {
         expect(legend.scoreHint).not.toMatch(/colour|competency state/i);
     });
 
+    it('swaps the score hint when bead numerals are hidden', () => {
+        const hidden = resolveSnapshotLegendCopy({ showScores: false });
+        expect(hidden.scoreHint).toBe(
+            'Bead numerals visually suppressed — scores remain in this record'
+        );
+        expect(hidden.scoreHint).not.toBe('Number inside each bead = score for that cycle');
+        expect(hidden.maxHint).toBe('Hollow mark = target maximum');
+    });
+
     it('keeps dark numerals on light bead fills', () => {
         expect(beadNumeralClass('not_yet')).toContain('text-gray-900');
         expect(beadNumeralClass('in_progress')).toContain('text-gray-900');

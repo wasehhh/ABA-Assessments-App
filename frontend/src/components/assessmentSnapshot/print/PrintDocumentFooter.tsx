@@ -1,5 +1,8 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
-import { formatStructureCount } from '../v1/snapshotVisualSystem';
+import {
+    formatStructureCount,
+    SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN,
+} from '../v1/snapshotVisualSystem';
 import {
     formatPrintPageLabel,
     SNAPSHOT_PRINT_CLINICAL_NOTE,
@@ -16,6 +19,7 @@ interface Props {
     isDocumentEnd?: boolean;
     /** When set, replaces the default "Page N of M" evidence label. */
     pageLabel?: string;
+    showScores?: boolean;
 }
 
 /**
@@ -29,6 +33,7 @@ export function PrintDocumentFooter({
     totalPages,
     isDocumentEnd = false,
     pageLabel,
+    showScores = true,
 }: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
@@ -85,6 +90,12 @@ export function PrintDocumentFooter({
                     {label}
                 </p>
             </div>
+
+            {showScores ? null : (
+                <p className="mt-0.5 text-gray-700" data-assessment-snapshot-numerals-hidden>
+                    {SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN}
+                </p>
+            )}
 
             {isDocumentEnd ? (
                 <p

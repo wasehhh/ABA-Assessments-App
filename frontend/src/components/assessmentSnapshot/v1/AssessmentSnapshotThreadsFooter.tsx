@@ -1,12 +1,17 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
-import { formatStructureCount } from './snapshotVisualSystem';
+import { formatStructureCount, SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN } from './snapshotVisualSystem';
 
 interface Props {
     profile: AssessmentSnapshotProfile;
     generatedAtLabel: string;
+    showScores?: boolean;
 }
 
-export function AssessmentSnapshotThreadsFooter({ profile, generatedAtLabel }: Props) {
+export function AssessmentSnapshotThreadsFooter({
+    profile,
+    generatedAtLabel,
+    showScores = true,
+}: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
 
@@ -32,6 +37,14 @@ export function AssessmentSnapshotThreadsFooter({ profile, generatedAtLabel }: P
                 ·
             </span>
             Generated {generatedAtLabel}
+            {showScores ? null : (
+                <p
+                    className="mt-1 text-gray-500 print:text-black"
+                    data-assessment-snapshot-numerals-hidden
+                >
+                    {SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN}
+                </p>
+            )}
         </footer>
     );
 }

@@ -12,6 +12,7 @@ interface Props {
     generatedAtLabel: string;
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
+    showScores?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export function PrintDocumentHeader({
     generatedAtLabel,
     displayContext,
     cycleDateLabels,
+    showScores = true,
 }: Props) {
     const identity = resolveSnapshotPrintIdentity(profile, displayContext);
 
@@ -97,7 +99,7 @@ export function PrintDocumentHeader({
                 cycles={profile.cycles}
                 cycleDateLabels={cycleDateLabels}
             />
-            <AssessmentSnapshotThreadsLegend />
+            <AssessmentSnapshotThreadsLegend showScores={showScores} />
         </div>
     );
 }

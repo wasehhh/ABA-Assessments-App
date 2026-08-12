@@ -24,6 +24,7 @@ interface Props {
      * {@link SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM}; live Snapshot may measure.
      */
     viewportWidthRem?: number;
+    showScores?: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ export function AssessmentSnapshotScreenDocument({
     cycleDateLabels,
     generatedAtLabel,
     viewportWidthRem = SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
+    showScores = true,
 }: Props) {
     const renderPlan = useMemo(
         () =>
@@ -57,6 +59,7 @@ export function AssessmentSnapshotScreenDocument({
             data-assessment-snapshot-layout-tier={renderPlan.tier}
             data-assessment-snapshot-topology={renderPlan.topology}
             data-assessment-snapshot-has-target-index={targetIndex ? 'true' : undefined}
+            data-assessment-snapshot-show-scores={showScores ? 'true' : 'false'}
         >
             <AssessmentSnapshotHeader
                 profile={profile}
@@ -68,7 +71,7 @@ export function AssessmentSnapshotScreenDocument({
                 cycles={profile.cycles}
                 cycleDateLabels={cycleDateLabels}
             />
-            <AssessmentSnapshotThreadsLegend />
+            <AssessmentSnapshotThreadsLegend showScores={showScores} />
             <AssessmentSnapshotTargetThreads
                 profile={profile}
                 renderPlan={renderPlan}
@@ -80,6 +83,7 @@ export function AssessmentSnapshotScreenDocument({
             <AssessmentSnapshotThreadsFooter
                 profile={profile}
                 generatedAtLabel={generatedAtLabel}
+                showScores={showScores}
             />
         </div>
     );

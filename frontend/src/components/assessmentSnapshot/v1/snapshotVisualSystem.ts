@@ -6,6 +6,9 @@ import { STATE_DISPLAY_LABELS } from '../../assessment/domainProfile/stateDispla
 export const SNAPSHOT_EN_DASH = '–';
 
 export const SNAPSHOT_LEGEND_SCORE_HINT = 'Number inside each bead = score for that cycle';
+/** Scan-view legend/footer line when bead numerals are hidden. */
+export const SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN =
+    'Bead numerals visually suppressed — scores remain in this record';
 export const SNAPSHOT_LEGEND_MAX_HINT = 'Hollow mark = target maximum';
 
 export function formatStructureCount(count: number, singularLabel: string): string {
@@ -119,7 +122,11 @@ export interface SnapshotLegendCopy {
     maxHint: string;
 }
 
-export function resolveSnapshotLegendCopy(): SnapshotLegendCopy {
+export function resolveSnapshotLegendCopy(options?: {
+    showScores?: boolean;
+}): SnapshotLegendCopy {
+    const showScores = options?.showScores !== false;
+
     return {
         states: [
             { key: 'not_yet', label: STATE_DISPLAY_LABELS.not_yet },
@@ -127,7 +134,7 @@ export function resolveSnapshotLegendCopy(): SnapshotLegendCopy {
             { key: 'at_maximum', label: STATE_DISPLAY_LABELS.at_maximum },
             { key: 'unscored', label: STATE_DISPLAY_LABELS.unscored },
         ],
-        scoreHint: SNAPSHOT_LEGEND_SCORE_HINT,
+        scoreHint: showScores ? SNAPSHOT_LEGEND_SCORE_HINT : SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN,
         maxHint: SNAPSHOT_LEGEND_MAX_HINT,
     };
 }

@@ -18,6 +18,7 @@ interface Props {
     generatedAtLabel: string;
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
+    showScores?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export function AssessmentSnapshotPrintDocument({
     generatedAtLabel,
     displayContext,
     cycleDateLabels,
+    showScores = true,
 }: Props) {
     const layout = resolveThreadsLayoutFromPlan({
         tier: plan.tier,
@@ -53,6 +55,7 @@ export function AssessmentSnapshotPrintDocument({
             data-assessment-snapshot-print-pages={plan.totalPages}
             data-assessment-snapshot-columns-per-page={plan.columnsPerPage}
             data-assessment-snapshot-has-target-index={targetIndex ? 'true' : undefined}
+            data-assessment-snapshot-show-scores={showScores ? 'true' : 'false'}
         >
             {plan.pages.map((page) => {
                 const isDocumentPage =
@@ -74,6 +77,7 @@ export function AssessmentSnapshotPrintDocument({
                                 generatedAtLabel={generatedAtLabel}
                                 displayContext={displayContext}
                                 cycleDateLabels={cycleDateLabels}
+                                showScores={showScores}
                             />
                         ) : (
                             <PrintRunningHeader
@@ -156,6 +160,7 @@ export function AssessmentSnapshotPrintDocument({
                             pageNumber={page.pageNumber}
                             totalPages={plan.totalPages}
                             isDocumentEnd={isDocumentEnd}
+                            showScores={showScores}
                         />
                     </div>
                 );

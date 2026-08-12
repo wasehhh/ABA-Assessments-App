@@ -17,6 +17,11 @@ import {
 } from '../services/assessmentSnapshotAvailability';
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { buildSnapshotCycleDateLabels } from '../components/assessmentSnapshot/v1/snapshotCycleReference';
+import {
+    readSnapshotShowScores,
+    writeSnapshotShowScores,
+} from '../components/assessmentSnapshot/v1/snapshotShowScores';
+import { SnapshotShowScoresToggle } from '../components/assessmentSnapshot/v1/SnapshotShowScoresToggle';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
 
 interface Props {
@@ -33,6 +38,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
     const [gateIntent, setGateIntent] = useState<SnapshotGateIntent>(null);
+    const [showScores, setShowScores] = useState(() => readSnapshotShowScores(assessmentId));
 
     useEffect(() => {
         let cancelled = false;
@@ -74,6 +80,10 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
         if (shouldOpenSnapshotExportDialog(readHashSearch())) {
             setGateIntent('export');
         }
+    }, [assessmentId]);
+
+    useEffect(() => {
+        setShowScores(readSnapshotShowScores(assessmentId));
     }, [assessmentId]);
 
     const snapshotProfile = useMemo(
@@ -216,6 +226,13 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <SnapshotShowScoresToggle
+                            checked={showScores}
+                            onChange={(next) => {
+                                setShowScores(next);
+                                writeSnapshotShowScores(assessmentId, next);
+                            }}
+                        />
                         <button
                             type="button"
                             onClick={handleExportClick}
@@ -258,6 +275,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                     cycleDateLabels={cycleDateLabels}
                     concept={SNAPSHOT_V1_ID}
                     measureScreenViewport
+                    showScores={showScores}
                 />
             </div>
 

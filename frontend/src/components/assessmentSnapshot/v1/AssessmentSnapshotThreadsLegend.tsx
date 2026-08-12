@@ -4,8 +4,12 @@ import {
 } from './snapshotVisualSystem';
 import { scoredBeadClass, unscoredBeadClass } from './targetThreadsShared';
 
-export function AssessmentSnapshotThreadsLegend() {
-    const legend = resolveSnapshotLegendCopy();
+interface Props {
+    showScores?: boolean;
+}
+
+export function AssessmentSnapshotThreadsLegend({ showScores = true }: Props) {
+    const legend = resolveSnapshotLegendCopy({ showScores });
 
     return (
         <div

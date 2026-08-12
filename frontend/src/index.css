@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Snapshot "Show scores" off: colour-only beads. Numerals stay in the DOM
+ * (aria-label, title, data-raw-score unchanged) and reappear on hover/focus.
+ * Print never reveals them — paper has no hover/focus.
+ */
+[data-assessment-snapshot-show-scores='false'] [data-assessment-snapshot-evidence-bead]:not(:hover):not(:focus):not(:focus-visible) {
+  color: transparent !important;
+}
+
 @media print {
 
   /* Global Hide */
@@ -270,6 +279,14 @@
   .assessment-snapshot-print [data-assessment-snapshot-evidence-bead] {
     border-width: 1.5px !important;
     border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Scan view: keep numerals hidden on paper even if a UA applies :hover. */
+  [data-assessment-snapshot-show-scores='false'] [data-assessment-snapshot-evidence-bead],
+  [data-assessment-snapshot-show-scores='false'] [data-assessment-snapshot-evidence-bead]:hover,
+  [data-assessment-snapshot-show-scores='false'] [data-assessment-snapshot-evidence-bead]:focus,
+  [data-assessment-snapshot-show-scores='false'] [data-assessment-snapshot-evidence-bead]:focus-visible {
+    color: transparent !important;
   }
 
   .assessment-snapshot-print [data-assessment-snapshot-evidence-bead][data-is-unscored='true'] {
