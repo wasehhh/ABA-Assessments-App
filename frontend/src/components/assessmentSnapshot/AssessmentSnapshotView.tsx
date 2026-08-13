@@ -37,6 +37,8 @@ interface Props {
     measureScreenViewport?: boolean;
     /** When false, evidence-bead numerals are visually suppressed (scan view). */
     showScores?: boolean;
+    /** Unfiltered assessment cycle count for Cycles metadata (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 export function AssessmentSnapshotView({
@@ -46,6 +48,7 @@ export function AssessmentSnapshotView({
     concept = SNAPSHOT_V1_ID,
     measureScreenViewport = true,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
     const generatedAt = new Date(profile.metadata.generatedAt).toLocaleString(undefined, {
         dateStyle: 'medium',
@@ -94,6 +97,7 @@ export function AssessmentSnapshotView({
                         generatedAtLabel={generatedAt}
                         viewportWidthRem={screenViewportRem}
                         showScores={showScores}
+                        assessmentCycleCount={assessmentCycleCount}
                     />
                 ) : (
                     <>
@@ -219,6 +223,7 @@ export function AssessmentSnapshotView({
                         displayContext={displayContext}
                         cycleDateLabels={cycleDateLabels}
                         showScores={showScores}
+                        assessmentCycleCount={assessmentCycleCount}
                     />
                 </div>
             ) : null}

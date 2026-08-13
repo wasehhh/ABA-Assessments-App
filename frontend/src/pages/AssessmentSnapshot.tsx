@@ -17,6 +17,14 @@ import {
 } from '../services/assessmentSnapshotAvailability';
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { buildSnapshotCycleDateLabels } from '../components/assessmentSnapshot/v1/snapshotCycleReference';
+import { applyCycleScopeToProfile } from '../components/assessmentSnapshot/v1/applyCycleScope';
+import {
+    readSnapshotCycleScope,
+    resolveIncludedCycleIds,
+    writeSnapshotCycleScope,
+    type SnapshotCycleScope,
+} from '../components/assessmentSnapshot/v1/snapshotCycleScope';
+import { SnapshotCycleScopeControl } from '../components/assessmentSnapshot/v1/SnapshotCycleScopeControl';
 import {
     readSnapshotShowScores,
     writeSnapshotShowScores,
@@ -39,6 +47,9 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
     > | null>(null);
     const [gateIntent, setGateIntent] = useState<SnapshotGateIntent>(null);
     const [showScores, setShowScores] = useState(() => readSnapshotShowScores(assessmentId));
+    const [cycleScope, setCycleScope] = useState<SnapshotCycleScope>(() =>
+        readSnapshotCycleScope(assessmentId)
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -84,6 +95,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
 
     useEffect(() => {
         setShowScores(readSnapshotShowScores(assessmentId));
+        setCycleScope(readSnapshotCycleScope(assessmentId));
     }, [assessmentId]);
 
     const snapshotProfile = useMemo(
@@ -93,6 +105,33 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                 : null,
         [productionData]
     );
+
+    const assessmentCycleCount = snapshotProfile?.cycles.length ?? 0;
+
+    const scopedSnapshotProfile = useMemo(() => {
+        if (!snapshotProfile) {
+            return null;
+        }
+        const includedIds = resolveIncludedCycleIds(cycleScope, snapshotProfile.cycles);
+        return applyCycleScopeToProfile(snapshotProfile, includedIds);
+    }, [snapshotProfile, cycleScope]);
+
+    const isPartialCycleScopeActive = Boolean(
+        scopedSnapshotProfile &&
+            assessmentCycleCount > 0 &&
+            scopedSnapshotProfile.cycles.length < assessmentCycleCount
+    );
+
+    useEffect(() => {
+        if (!isPartialCycleScopeActive) {
+            return;
+        }
+        const previousTitle = document.title;
+        document.title = 'Assessment Snapshot — partial';
+        return () => {
+            document.title = previousTitle;
+        };
+    }, [isPartialCycleScopeActive]);
 
     const availability = useMemo(
         () =>
@@ -162,7 +201,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
         );
     }
 
-    if (error || !productionData || !snapshotProfile) {
+    if (error || !productionData || !snapshotProfile || !scopedSnapshotProfile) {
         return (
             <div className="mx-auto max-w-3xl px-4 py-12" data-assessment-snapshot-error>
                 <button
@@ -226,6 +265,14 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <SnapshotCycleScopeControl
+                            cycles={snapshotProfile.cycles}
+                            scope={cycleScope}
+                            onChange={(next) => {
+                                setCycleScope(next);
+                                writeSnapshotCycleScope(assessmentId, next);
+                            }}
+                        />
                         <SnapshotShowScoresToggle
                             checked={showScores}
                             onChange={(next) => {
@@ -270,12 +317,13 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
 
             <div className="mx-auto max-w-6xl px-0 sm:px-4 sm:py-4">
                 <AssessmentSnapshotView
-                    profile={snapshotProfile}
+                    profile={scopedSnapshotProfile}
                     displayContext={displayContext}
                     cycleDateLabels={cycleDateLabels}
                     concept={SNAPSHOT_V1_ID}
                     measureScreenViewport
                     showScores={showScores}
+                    assessmentCycleCount={assessmentCycleCount}
                 />
             </div>
 
@@ -286,6 +334,7 @@ export function AssessmentSnapshot({ assessmentId }: Props) {
                 userId={user?.id}
                 onClose={() => setGateIntent(null)}
                 auditChannel={gateIntent === 'print' ? 'print' : 'export'}
+                isPartialCycleScope={isPartialCycleScopeActive}
                 continueLabel={
                     gateIntent === 'print' ? 'Acknowledge and Print' : 'Continue to Export'
                 }

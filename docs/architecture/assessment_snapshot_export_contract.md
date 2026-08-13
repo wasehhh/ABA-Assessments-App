@@ -31,6 +31,16 @@ Superseded 2026-08-04 text is preserved under dated notes in §4.5 and §7 so th
 
 ---
 
+## Cycle filtering amendment banner (2026-08-12)
+
+**Founder-directed Alpha feature** (clinical advisor 2026-07-18; founder reduction 2026-08-12): clinician-selected **cycle scope** is lawful on Assessment Snapshot egress paths.
+
+Authoritative product meaning for cycle filtering — scope taxonomy, cycle scope line, structural omission, `partial` filename, and INV-CF\* — lives in [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md). That contract’s §10 lists the amendments applied below.
+
+Superseded pre-cycle-filtering text is preserved under dated notes in §4.1, §4.3, and §12 (OQ-4) so the absolute “never omit cycles” posture remains visible as considered-and-amended, not never held.
+
+---
+
 # 1. Goals
 
 ## 1.1 What this solves
@@ -65,7 +75,8 @@ After PR14A + PR14B:
 | Phase B canonical scoring / inheritance | Separate track |
 | Assessment Builder UX | Forbidden |
 | New Snapshot visual geometries | Target Threads v1 is settled |
-| Selected-domain / cycle-range / de-identified Snapshot export | Deferred (§3.4) |
+| Selected-domain / de-identified Snapshot export | Deferred (selected primary groups / de-identified remain out of this export milestone) |
+| Cycle-range / cycle-scoped Snapshot export | **No longer deferred-only** — ships under [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) (orthogonal scope; amends §4 / §7 / §9 / §10) |
 | Competency vocabulary rename (“Mastered” / “Not Yet”) | Unresolved founder decision — do not rename (§11) |
 
 ---
@@ -81,7 +92,7 @@ These constraints are non-negotiable for PR14A:
 | **Evidence only** | Snapshot export contains no clinical conclusions, recommendations, movement, coverage, or inferred progress narrative in any mode or channel. |
 | **Not a publisher clone** | Export layout must not drift toward ABLLS-R / VB-MAPP / AFLS / PEAK publisher forms. IP risk. |
 | **No silent score mutation** | Do not silently clamp or mutate out-of-scale recorded scores in exports. |
-| **Mode vs channel** | Mode remains `full` only. HTML and PDF are channels, not modes (§4.5). |
+| **Mode vs channel vs scope** | Mode remains `full` only (**structural** completeness of domains/targets in authored order). HTML and PDF are channels, not modes (§4.5). **Scope** is orthogonal: `complete` \| `cycles` ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §6.2). Channels do not change mode or scope. |
 | **Competency vocabulary** | “Mastered” / “Not Yet” and related legend copy remain as currently shipped until a separate founder rename decision. Note touchpoints only (§11). |
 
 ---
@@ -209,23 +220,38 @@ No second extraction pass should be required for acknowledgement, load-error kin
 
 Learner Map modes (`standard` / `selected-domains` / `full`) exist because Learner Map is an **interpretive supervision artifact**: Standard can omit appendix detail and still answer “Should I sign off?” for many workflows.
 
-Snapshot is a different artifact. It is an **evidence record**. A Snapshot that omits domains or cycles is an incomplete permanent record and is clinically dangerous if filed or shared as “the Snapshot.”
+Snapshot is a different artifact. It is an **evidence record**. Snapshot modes must **not** mirror Learner Map by default.
 
-Therefore Snapshot modes must **not** mirror Learner Map by default.
+**Cycle scope (binding — 2026-08-12):** Clinician-selected cycle scope is lawful for a document still named Assessment Snapshot when all of the following hold ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §2.3):
+
+1. Non-selected cycles are **structurally absent** (not CSS-hidden)
+2. The **cycle scope line** in the Cycles metadata field states included cycles **and** assessment total
+3. HTML filename carries the `partial` token (and document title includes `partial` when scoped, for PDF suggested-name parity)
+
+Silent omission of cycles from a document that appears complete remains clinically dangerous. Lawful partial scope is not silent omission.
+
+### Superseded text — pre–cycle-filtering §4.1 (2026-08-12, retained for history)
+
+> Snapshot is a different artifact. It is an **evidence record**. A Snapshot that omits domains or cycles is an incomplete permanent record and is clinically dangerous if filed or shared as “the Snapshot.”
+>
+> Therefore Snapshot modes must **not** mirror Learner Map by default.
+
+**Supersession note (2026-08-12):** Absolute “omitting cycles is clinically dangerous if filed as the Snapshot” is replaced by the cycle-filtering posture above. Domain / selected-primary-group omission remains out of Alpha mode set and still requires the generalized scope-line + structural-omission pattern when later designed — not a return to silent incomplete files.
 
 ## 4.2 Decision — reduce relative to Learner Map
 
 | Decision | Detail |
 |----------|--------|
 | **V1 / PR14A mode set** | Exactly one production mode: **`full`** |
-| **Meaning of `full`** | Entire assessment evidence record: every primary group, every secondary group, every target, every included cycle, in authored order |
-| **Not shipped in PR14A** | `standard`, `selected-domains`, cycle-range, de-identified |
+| **Meaning of `full`** | Structural completeness: every primary group, every secondary group, every target, in authored order. **Cycles follow the active scope** (`complete` = every assessment cycle; `cycles` = clinician-selected subset per [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md)) |
+| **Cycle filtering** | Ships under the cycle-filtering contract (orthogonal **scope**, not a second mode value) |
+| **Not shipped in PR14A mode union** | `standard`, `selected-domains`, de-identified as mode values |
 
 ### What `full` includes
 
-- Snapshot chrome metadata (learner display name per org policy, assessment/pack name, pack version if available, cycle range, generated timestamp)
+- Snapshot chrome metadata (learner display name per org policy, assessment/pack name, pack version if available, Cycles field per §7.4 / cycle-filtering §5.1, generated timestamp)
 - Structure legend / clinical chrome already defined for Snapshot print (evidence-only; no movement/coverage)
-- Complete Target Threads evidence geometry for all domains/groups/targets/cycles from the frozen `pack_snapshot`
+- Complete Target Threads evidence geometry for all domains/groups/targets from the frozen `pack_snapshot`, with **cycle columns per active scope**
 - Target Index when the trigger condition in §6 is met
 - Minimal PHI / clinical-document disclaimer (raw evidence ≠ diagnosis/treatment) — shorter than Learner Map export prose; no interpretive narrative
 
@@ -242,9 +268,17 @@ Therefore Snapshot modes must **not** mirror Learner Map by default.
 
 ## 4.3 Why not selected-domains in PR14A
 
-Selected primary groups can be valuable later for large packs, but only with an unmistakable **partial-record** banner and filename signalling. Shipping that without the banner discipline would create incomplete evidence files that look complete.
+Selected primary groups can be valuable later for large packs, but only with honest scope signalling and structural omission of out-of-scope evidence. Shipping partial domain files without that discipline would create incomplete evidence files that look complete.
 
-**Defer** selected primary groups and cycle-range to a post-PR14A milestone. Do not leave stubs that imply partial export is available.
+**Defer** selected primary groups to a post-PR14A milestone. When designed, they **must reuse** the cycle-filtering pattern: scope statement in existing metadata (included **and** full-set size) + structural omission ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.1 / §5.3 / §14) — **not** the withdrawn banner / distinct-title / running-header stack. Do not leave stubs that imply selected-domain export is available.
+
+### Superseded text — cycle-range deferral (2026-08-12, retained for history)
+
+> Selected primary groups can be valuable later for large packs, but only with an unmistakable **partial-record** banner and filename signalling. Shipping that without the banner discipline would create incomplete evidence files that look complete.
+>
+> **Defer** selected primary groups and cycle-range to a post-PR14A milestone. Do not leave stubs that imply partial export is available.
+
+**Supersession note (2026-08-12):** Cycle-range / cycle scope is **no longer deferred** — it ships under the cycle-filtering contract. Selected primary groups remain deferred as above. Banner-centric “unmistakable” ceremony for cycles was reduced by founder; the reusable pattern is scope-line + omission, not banners.
 
 ## 4.4 Mode persistence in shared state
 
@@ -254,11 +288,13 @@ Even with one mode, Snapshot export state still carries `exportMode: 'full'` so:
 - future modes can extend the Snapshot-owned union without reshaping the shared three
 - URL preview params can include `mode=full` for symmetry with Learner Map routing patterns
 
-Default and only lawful PR14A value: `full`. Unknown mode params coerce to `full` (not to a partial mode).
+Default and only lawful PR14A **mode** value: `full`. Unknown **mode** params coerce to `full` (not to a partial mode).
+
+**Scope ≠ mode** ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §6.2–§6.3): cycle selection is an orthogonal **scope** axis (`complete` \| `cycles`). Unknown or malformed scope coerces to **`complete`**. Partial cycle scope is never expressed as a mode enum value.
 
 ## 4.5 Delivery channels vs modes
 
-**Restatement (binding):** Mode remains **`full` only**. Channels are **not** modes. A channel chooses *how the full evidence record is materialized for a medium*; it does not change which targets, cycles, or scores are included.
+**Restatement (binding):** Mode remains **`full` only**. Channels are **not** modes. A channel chooses *how the evidence record is materialized for a medium*; it does not change which targets or scores are included, and it does **not** change **scope** (cycle selection). Switching HTML ↔ PDF never changes mode or scope (INV-C4; cycle-filtering INV-CF6).
 
 ### PR14B channel model (authoritative)
 
@@ -287,7 +323,7 @@ PR14B allows **two named channels** with **explicit medium contracts**:
 
 | Rejected pattern (2026-08-04) | Allowed pattern (PR14B) |
 |-------------------------------|-------------------------|
-| One name (`full`) hides two documents | One mode (`full`) = complete evidence content; channels name the medium |
+| One name (`full`) hides two documents | One mode (`full`) = structural completeness of domains/targets; channels name the medium; **scope** (complete vs cycles) is orthogonal and unchanged by channel switch |
 | Download vs print silently disagree | HTML ↔ screen layout; PDF ↔ print layout — stated in UI and audit |
 | Clinician cannot predict output from the control label | Control label matches output medium |
 
@@ -303,7 +339,7 @@ Two representations are coherent when each is **separately named and bound to it
 >
 > Channels are not additional modes. They are egress paths for the same evidence record.
 
-**Supersession note (2026-08-06):** The 2026-08-04 reading that print and download must render **one document from one plan** is reversed. Content completeness (`full`) remains identical across channels; **layout plan** is channel-specific as in the PR14B table above.
+**Supersession note (2026-08-06):** The 2026-08-04 reading that print and download must render **one document from one plan** is reversed. Content completeness under mode `full` (all domains/targets) remains identical across channels; **layout plan** is channel-specific as in the PR14B table above. **Cycle scope** is also identical across channels for a given session (cycle-filtering amendment 2026-08-12) — channel switch must not alter scope.
 
 ---
 
@@ -592,7 +628,7 @@ When the index is triggered for the **print/PDF** channel:
 | HTML | Screen-layout Snapshot document | On-screen Snapshot (Target Threads + screen RenderPlan at frozen export viewport §4.6) |
 | PDF | Print-layout Snapshot document | Main Snapshot **Print** output (PrintRenderPlan + PR14A-4 index pages) |
 
-Both documents are mode **`full`** (complete evidence). They differ in **layout plan and chrome**, not in which scores exist.
+Both documents are mode **`full`** (structural completeness of domains/targets). They differ in **layout plan and chrome**, not in which scores exist for the **active scope**. Cycle scope is shared across HTML and PDF for the session ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §4).
 
 ### Superseded text — 2026-08-04 (retained for history)
 
@@ -633,10 +669,10 @@ Applies to **both** channels.
 
 | Channel | Parity requirement |
 |---------|-------------------|
-| HTML | Same targets, order, cycles, recorded scores, Effective Scoring–derived bead labels as on-screen Snapshot; screen packing frozen per §4.6 |
-| PDF / main Print | Same targets, order, cycles, scores, labels as each other; print composition may paginate/factor per existing print rules without dropping marks |
+| HTML | Same targets, order, **in-scope** cycles, recorded scores, Effective Scoring–derived bead labels as on-screen Snapshot **for the active scope**; screen packing frozen per §4.6 |
+| PDF / main Print | Same targets, order, **in-scope** cycles, scores, labels as each other **within the active scope**; print composition may paginate/factor per existing print rules without dropping marks |
 
-Presentation factoring must not drop marks in either channel. No truncation or omission of evidence or index rows.
+Presentation factoring must not drop marks **within the declared active scope** in either channel. No truncation or omission of evidence or index rows **within that scope**. Lawful cycle omission is only under conforming partial scope ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.3; INV-I7).
 
 ## 7.4 Minimum metadata block
 
@@ -644,10 +680,21 @@ Both channels include:
 
 - Learner name (org policy)
 - Assessment / pack name and version
-- Cycle range
+- **Cycles** field (cycle scope line — formats below)
 - Generated timestamp
 - Structure-label legend copy as already defined for Snapshot
 - Evidence-only disclaimer (non-interpretive)
+
+### Cycles field formats (amends “cycle range”; normative per cycle-filtering §5.1)
+
+| Scope | Label | Value |
+|-------|-------|-------|
+| **Complete** | `Cycles` | Decimal integer = assessment cycle count (unchanged from shipped count-only rendering) |
+| **Partial** | `Cycles` | `C` + cycleNumber for each **included** cycle, comma+space separated, ascending `cycleNumber` order, then ` of ` + assessment total cycle count |
+
+Examples (partial): `C1, C2 of 6`; `C1, C4 of 6`; `C3 of 6`.
+
+**Rules:** Total is mandatory under partial scope. No en-dash / range elision in this field (never `C1–C4`). Use real assessment `cycleNumber` values. When included count equals assessment total, use complete-scope format. Full normative detail: [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.1.
 
 ## 7.5 Export page composition (PR14B)
 
@@ -657,13 +704,15 @@ Both channels include:
 | Print document on export page | May exist as a print-only / off-screen surface for the PDF action (same pattern as main Snapshot print surface); must not be presented as the interactive preview of the HTML option |
 | Actions | **HTML** and **PDF** only — no Print button |
 | PHI | Unchanged (§5.6) |
+| Dialog / helper copy | When active scope is **partial**, must **not** claim that export always includes every cycle. Complete-scope copy may keep completeness language ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.5) |
 
 ## 7.6 Filenames
 
 | Channel | Convention |
 |---------|------------|
-| HTML | `buildSnapshotExportFilename` (or successor) — includes assessment identity + date; `.html`; must not resemble a publisher form name |
-| PDF | Browser Save as PDF controls the file name; set a clear **document title** so the suggested PDF name reflects Snapshot + assessment identity + date where the browser allows |
+| HTML (complete scope) | `assessment-snapshot-${safeId}-${date}.html` via `buildSnapshotExportFilename` (or successor) — assessment identity + date; must not resemble a publisher form name |
+| HTML (partial scope) | `assessment-snapshot-partial-${safeId}-${date}.html` — token `partial` as its own hyphen-delimited segment immediately after `assessment-snapshot` ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.2) |
+| PDF | Browser Save as PDF controls the file name; set a clear **document title** so the suggested PDF name reflects Snapshot + assessment identity + date where the browser allows. Under **partial** scope, the document title **must include `partial`** analogously so the suggested name is not indistinguishable from a complete Snapshot |
 
 ## 7.7 Route and entry points
 
@@ -728,14 +777,14 @@ QA may test these directly without reading implementation plans.
 
 ### Snapshot modes and channels
 
-- [ ] **INV-M1** Snapshot export offers only mode `full`.
-- [ ] **INV-M2** Full content includes all domains, targets, and cycles from the assessment snapshot in **both** HTML and PDF channels.
+- [ ] **INV-M1** Snapshot export offers only mode `full` (structural completeness of domains/targets). Mode `full` is **not** the cycle-scope axis — scope is orthogonal (`complete` \| `cycles`).
+- [ ] **INV-M2** **Complete scope:** all domains, targets, and cycles from the assessment snapshot in **both** HTML and PDF channels. **Partial scope:** exactly the selected cycles plus all domains/targets in authored order; cycle scope line required (§7.4 / cycle-filtering §5.1).
 - [ ] **INV-M3** Neither channel contains movement, coverage, recommendations, or interpretive narrative.
-- [ ] **INV-M4** Unknown mode query params do not create a partial export; they coerce to `full` or fail closed without partial content.
+- [ ] **INV-M4** Unknown mode query params do not create a partial **mode**; they coerce to `full` or fail closed without inventing a partial mode value. Partial cycle scope is **not** a mode value (malformed scope → `complete`).
 - [ ] **INV-C1** Export page offers exactly two actions: HTML and PDF — **no Print button**.
 - [ ] **INV-C2** HTML output uses screen RenderPlan geometry (Target Threads on-screen look), not PrintRenderPlan pagination.
 - [ ] **INV-C3** PDF output matches main Snapshot Print output (PrintRenderPlan + PR14A-4 index pages when triggered).
-- [ ] **INV-C4** Channels are not modes: switching HTML ↔ PDF never changes which scores exist, only layout/chrome.
+- [ ] **INV-C4** Channels are not modes: switching HTML ↔ PDF never changes which scores exist **or scope** — only layout/chrome.
 
 ### HTML viewport / script
 
@@ -774,7 +823,7 @@ QA may test these directly without reading implementation plans.
 - [ ] **INV-I4** Index order matches authored evidence order.
 - [ ] **INV-I5** Print/PDF place the index after evidence on new planned pages (“page N of M”); planner unchanged by PR14B.
 - [ ] **INV-I6** Index presence does not change evidence thread scores or order.
-- [ ] **INV-I7** No truncation or omission of evidence or index rows in any channel.
+- [ ] **INV-I7** No truncation or omission of evidence or index rows **within the declared active scope** in any channel. Lawful cycle omission is only under conforming partial scope ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §5.3).
 
 ### Artifact boundary
 
@@ -785,13 +834,17 @@ QA may test these directly without reading implementation plans.
 
 - [ ] **INV-L1** Learner Map export modes/ack/routes/content unchanged per §8.
 
+### Cycle filtering (cross-link — do not renumber export INV-*)
+
+Cycle-scope QA invariants **INV-CF1–INV-CF17** are owned by [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) §9. Export INV-\* IDs above are not renumbered; CF invariants complement them for cycle filtering.
+
 ---
 
 # 10. Risks
 
 | Risk | Severity | Mitigation in contract |
 |------|----------|------------------------|
-| Partial Snapshot exports filed as complete | High | Single `full` mode only |
+| Partial Snapshot treated as complete history by skim reader | Medium | Default scope `complete` + cycle scope line (included **and** total) + structural omission + HTML `partial` filename ([`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md)); residual skim-reader under-count accepted at Medium |
 | Unnamed dual documents under one control | High | Named HTML vs PDF channels (§4.5); rejected pattern documented |
 | Print bypasses PHI gate while HTML is gated | High | Gate main Print + HTML + PDF with same ack |
 | Native Ctrl/Cmd+P ungated | Medium | Documented limitation; gate intentional controls |
@@ -836,10 +889,16 @@ Anything below is **not** decided by this contract and must not be silently assu
 | **OQ-1** | Final clinician-facing PHI acknowledgement microcopy for Snapshot | Contract defines meaning (§5.2); exact sentences can be founder/UX approved later without changing gate semantics |
 | **OQ-2** | Whether org policy requires logging acknowledgement events to `audit_logs` | Not required by current Learner Map pattern; Alpha posture may defer |
 | **OQ-3** | Competency vocabulary rename | Explicitly unresolved (§11) |
-| **OQ-4** | Post-PR14A partial export (selected primary groups / cycle range) filename and banner standards | Deferred; do not stub UI |
+| **OQ-4** | Post-PR14A selected primary groups: filename / scope-signalling standards | **Cycle** filename/`partial`/cycle-scope-line standards: **superseded** by [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md). Selected primary groups remain open (must reuse scope-line + omission pattern, not withdrawn banner stack) |
 | **OQ-5** | Whether standalone HTML should embed a machine-readable JSON audit block alongside DOM evidence | Optional enhancement; not required for acceptance if DOM evidence is complete |
 | **OQ-6** | Exact clinician-facing labels for the two export-page buttons (“Download HTML” / “Save as PDF” vs alternatives) | Semantics fixed; wording can be founder-approved without changing channels |
 | **OQ-7** | Whether HTML export should offer an optional “use my current viewport width” advanced override | **Default under this contract: no** — freeze at canonical default. Escalate only if founder wants a documented exception |
+
+### Superseded text — OQ-4 pre–cycle-filtering (2026-08-12, retained for history)
+
+> | **OQ-4** | Post-PR14A partial export (selected primary groups / cycle range) filename and banner standards | Deferred; do not stub UI |
+
+**Supersession note (2026-08-12):** Cycle filename / banner / cycle-scope-line standards are owned by the cycle-filtering contract. Selected primary groups remain an open founder question.
 
 If Builder encounters a product choice not covered here and not listed above, **stop and escalate** — do not invent policy.
 

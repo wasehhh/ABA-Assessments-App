@@ -11,6 +11,7 @@ import { auditService } from '../../../services/audit';
 import { logClinicalExportAudit } from '../../../clinicalExport/clinicalExportAudit';
 import { getAssessmentSnapshotStressScenario } from '../../../pages/dev/assessmentSnapshotMockData';
 import { buildSnapshotTargetIndex } from '../v1/snapshotTargetIndex';
+import { applyCycleScopeToProfile } from '../v1/applyCycleScope';
 import { SNAPSHOT_LEGEND_SCORE_HINT, SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN } from '../v1/snapshotVisualSystem';
 import { SNAPSHOT_EXPORT_INLINE_CSS } from './snapshotExportInlineCss';
 import * as snapshotExportHtmlModule from './snapshotExportHtml';
@@ -454,6 +455,55 @@ describe('snapshotExportHtml Target Threads geometry', () => {
         expect(new Set(evidenceIds).size).toBe(544);
         expect(degradedBody).toMatch(/data-assessment-snapshot-evidence-bead[^>]*>[^<]+</);
         expect(degradedBody).toContain('data-raw-score');
+    });
+
+    it('degrades without scripts: partial cycle scope line remains in document markup (§5.1)', () => {
+        // Ownership duplicate of snapshotCycleScope structural-omission strip assert —
+        // export-HTML guarantees belong in this suite beside the mail-gateway harness.
+        const pack = makePack([makeTarget('T1', [0, 1, 2, 3, 4])], 'Scope Pack', [0, 1, 2, 3, 4]);
+        const learnerMapProfile = buildLearnerMapProfile({
+            assessment: { id: 'assess-partial-scope', pack_snapshot: pack },
+            cycles: Array.from({ length: 6 }, (_, index) => {
+                const n = index + 1;
+                return {
+                    cycle: { id: `c${n}`, cycle_number: n, status: 'closed' as const },
+                    scores:
+                        n === 1 || n === 4
+                            ? [
+                                  {
+                                      id: `s${n}`,
+                                      assessment_id: 'assess-partial-scope',
+                                      assessment_cycle_id: `c${n}`,
+                                      client_id: 'cl',
+                                      pack_snapshot_id: 'p',
+                                      target_id: 'T1',
+                                      domain_id: 'A',
+                                      score: n === 1 ? 2 : 3,
+                                      note: null,
+                                      evidence_files: [],
+                                      assessor_user_id: 'u',
+                                      scored_at: '',
+                                      created_at: '',
+                                      updated_at: '',
+                                  },
+                              ]
+                            : [],
+                };
+            }),
+            generatedAt: new Date('2026-08-01T12:00:00.000Z'),
+        });
+        const profile = buildAssessmentSnapshotProfile(learnerMapProfile);
+        const scoped = applyCycleScopeToProfile(profile, ['c1', 'c4']);
+        const html = buildSnapshotExportHtml({
+            profile: scoped,
+            generatedAt: new Date('2026-08-01T12:00:00.000Z'),
+            assessmentCycleCount: 6,
+            isPartialCycleScope: true,
+        });
+        const degraded = htmlWithoutScripts(html);
+        expect(degraded).not.toMatch(/<script\b/i);
+        expect(degraded).toContain('C1, C4 of 6');
+        expect(degraded).toContain('data-assessment-snapshot-cycle-scope');
     });
 
     it('download path ignores collapsed preview DOM: all 544 index rows stay visible without script', () => {

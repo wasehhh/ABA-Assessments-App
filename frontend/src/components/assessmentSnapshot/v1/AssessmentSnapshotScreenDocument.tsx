@@ -25,6 +25,8 @@ interface Props {
      */
     viewportWidthRem?: number;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count for Cycles metadata (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 /**
@@ -40,6 +42,7 @@ export function AssessmentSnapshotScreenDocument({
     generatedAtLabel,
     viewportWidthRem = SNAPSHOT_DEFAULT_VIEWPORT_SCREEN_REM,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
     const renderPlan = useMemo(
         () =>
@@ -66,6 +69,7 @@ export function AssessmentSnapshotScreenDocument({
                 generatedAtLabel={generatedAtLabel}
                 displayContext={displayContext}
                 variant="compact"
+                assessmentCycleCount={assessmentCycleCount}
             />
             <AssessmentSnapshotCycleReference
                 cycles={profile.cycles}
@@ -84,6 +88,7 @@ export function AssessmentSnapshotScreenDocument({
                 profile={profile}
                 generatedAtLabel={generatedAtLabel}
                 showScores={showScores}
+                assessmentCycleCount={assessmentCycleCount}
             />
         </div>
     );

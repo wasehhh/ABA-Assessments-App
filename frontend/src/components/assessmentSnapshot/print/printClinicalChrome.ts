@@ -1,5 +1,6 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { LearnerMapDisplayContext } from '../../learnerMap/learnerMapDisplayContext';
+import { formatCycleScopeLineValue } from '../v1/snapshotCycleScope';
 
 /**
  * PR13.6C — Shared clinical chrome for the printed Snapshot.
@@ -28,12 +29,16 @@ export interface SnapshotPrintIdentity {
     packTitle: string;
     packVersion: string;
     packLabel: string;
+    /** Cycles metadata value — count or partial scope line (§5.1). */
+    cycleCountLabel: string;
+    /** @deprecated Prefer cycleCountLabel; retained for callers that need the included count. */
     cycleCount: number;
 }
 
 export function resolveSnapshotPrintIdentity(
     profile: AssessmentSnapshotProfile,
-    displayContext?: LearnerMapDisplayContext
+    displayContext?: LearnerMapDisplayContext,
+    assessmentCycleCount?: number
 ): SnapshotPrintIdentity {
     const learnerName = displayContext?.learnerName?.trim() || '—';
     const assessmentName =
@@ -44,6 +49,7 @@ export function resolveSnapshotPrintIdentity(
         organizationRaw && organizationRaw !== '—' ? organizationRaw : null;
     const packTitle = profile.metadata.packTitle?.trim() || '—';
     const packVersion = profile.metadata.packVersion?.trim() || '—';
+    const totalCycles = assessmentCycleCount ?? profile.cycles.length;
 
     return {
         learnerName,
@@ -52,6 +58,7 @@ export function resolveSnapshotPrintIdentity(
         packTitle,
         packVersion,
         packLabel: `${packTitle} (v${packVersion})`,
+        cycleCountLabel: formatCycleScopeLineValue(profile.cycles, totalCycles),
         cycleCount: profile.cycles.length,
     };
 }

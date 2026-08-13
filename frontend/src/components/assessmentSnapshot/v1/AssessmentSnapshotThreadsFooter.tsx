@@ -1,19 +1,28 @@
 import { AssessmentSnapshotProfile } from '../../../services/assessmentSnapshotProfile';
 import { formatStructureCount, SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN } from './snapshotVisualSystem';
+import { formatCycleScopeLineValue, isPartialCycleScope } from './snapshotCycleScope';
 
 interface Props {
     profile: AssessmentSnapshotProfile;
     generatedAtLabel: string;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count — required under partial scope (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 export function AssessmentSnapshotThreadsFooter({
     profile,
     generatedAtLabel,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
+    const totalCycles = assessmentCycleCount ?? profile.cycles.length;
+    const includedIds = profile.cycles.map((cycle) => cycle.cycleId);
+    const cycleLabel = isPartialCycleScope(includedIds, totalCycles)
+        ? formatCycleScopeLineValue(profile.cycles, totalCycles)
+        : `${profile.cycles.length} cycle${profile.cycles.length === 1 ? '' : 's'}`;
 
     return (
         <footer
@@ -32,7 +41,7 @@ export function AssessmentSnapshotThreadsFooter({
             <span className="mx-1.5 text-gray-300" aria-hidden>
                 ·
             </span>
-            {profile.cycles.length} cycle{profile.cycles.length === 1 ? '' : 's'}
+            <span data-assessment-snapshot-cycle-scope-footer>{cycleLabel}</span>
             <span className="mx-1.5 text-gray-300" aria-hidden>
                 ·
             </span>

@@ -56,8 +56,9 @@ export function formatSnapshotCycleReferenceEntry(
 }
 
 /**
- * One entry per assessment cycle, in profile order.
- * Missing dates get a neutral fallback — cycles are never omitted.
+ * One entry per cycle in the provided list, in list order.
+ * Under partial Snapshot scope the caller passes included cycles only
+ * (contract §5.4); omitted cycles are not re-listed here.
  */
 export function buildSnapshotCycleReferenceEntries(
     cycles: Array<Pick<LearnerMapCycleSummary, 'cycleId' | 'cycleNumber'>>,

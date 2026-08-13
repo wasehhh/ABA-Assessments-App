@@ -13,6 +13,7 @@ import {
     downloadSnapshotHtmlChannel,
     SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
 } from '../components/assessmentSnapshot/export/snapshotExportHtml';
+import { SnapshotExportPageIntro } from '../components/assessmentSnapshot/export/snapshotExportChromeCopy';
 import {
     buildSnapshotRouteHash,
     parseSnapshotExportPreviewParams,
@@ -21,6 +22,12 @@ import { useAuth } from '../context/AuthContext';
 import { getAssessmentSnapshotAvailability } from '../services/assessmentSnapshotAvailability';
 import { buildAssessmentSnapshotProfile } from '../services/assessmentSnapshotProfile';
 import { buildSnapshotCycleDateLabels } from '../components/assessmentSnapshot/v1/snapshotCycleReference';
+import { applyCycleScopeToProfile } from '../components/assessmentSnapshot/v1/applyCycleScope';
+import {
+    isPartialCycleScope,
+    readSnapshotCycleScope,
+    resolveIncludedCycleIds,
+} from '../components/assessmentSnapshot/v1/snapshotCycleScope';
 import { readSnapshotShowScores } from '../components/assessmentSnapshot/v1/snapshotShowScores';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
 
@@ -118,6 +125,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         exportParams.exportMode
     );
     const showScores = readSnapshotShowScores(assessmentId);
+    const cycleScope = readSnapshotCycleScope(assessmentId);
 
     useEffect(() => {
         if (!exportAcknowledged) {
@@ -166,6 +174,23 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         [productionData]
     );
 
+    const assessmentCycleCount = snapshotProfile?.cycles.length ?? 0;
+
+    const scopedSnapshotProfile = useMemo(() => {
+        if (!snapshotProfile) {
+            return null;
+        }
+        const includedIds = resolveIncludedCycleIds(cycleScope, snapshotProfile.cycles);
+        return applyCycleScopeToProfile(snapshotProfile, includedIds);
+    }, [snapshotProfile, cycleScope]);
+
+    const isPartial =
+        scopedSnapshotProfile !== null &&
+        isPartialCycleScope(
+            scopedSnapshotProfile.cycles.map((cycle) => cycle.cycleId),
+            assessmentCycleCount
+        );
+
     const availability = useMemo(
         () =>
             getAssessmentSnapshotAvailability({
@@ -184,6 +209,17 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
     );
 
     const generatedAt = useMemo(() => new Date(), [snapshotProfile?.metadata.generatedAt]);
+
+    useEffect(() => {
+        if (!isPartial) {
+            return;
+        }
+        const previousTitle = document.title;
+        document.title = 'Assessment Snapshot Export — partial';
+        return () => {
+            document.title = previousTitle;
+        };
+    }, [isPartial]);
 
     useEffect(() => {
         if (
@@ -234,7 +270,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
         );
     }
 
-    if (loadError || !productionData || !snapshotProfile) {
+    if (loadError || !productionData || !snapshotProfile || !scopedSnapshotProfile) {
         const errorDisplay = resolveSnapshotExportLoadError(loadError);
 
         return (
@@ -266,11 +302,13 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
     const handleDownloadHtml = () => {
         downloadSnapshotHtmlChannel(
             {
-                profile: snapshotProfile,
+                profile: scopedSnapshotProfile,
                 displayContext,
                 cycleDateLabels,
                 generatedAt,
                 showScores,
+                assessmentCycleCount,
+                isPartialCycleScope: isPartial,
             },
             assessmentId
         );
@@ -322,11 +360,7 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
                             <h1 className="text-base font-semibold text-gray-900">
                                 Assessment Snapshot Export
                             </h1>
-                            <p className="mt-1 text-sm text-gray-600">
-                                Full evidence record — every domain, target, and cycle from the
-                                frozen pack snapshot. Preview matches the HTML channel (screen
-                                layout).
-                            </p>
+                            <SnapshotExportPageIntro isPartialCycleScope={isPartial} />
                         </div>
                         <div
                             className="no-print flex shrink-0 flex-wrap items-start gap-2"
@@ -361,12 +395,13 @@ export function AssessmentSnapshotExport({ assessmentId }: Props) {
                   print-only for the PDF channel — not shown as the interactive preview.
                 */}
                 <AssessmentSnapshotView
-                    profile={snapshotProfile}
+                    profile={scopedSnapshotProfile}
                     displayContext={displayContext}
                     cycleDateLabels={cycleDateLabels}
                     concept={SNAPSHOT_V1_ID}
                     measureScreenViewport={false}
                     showScores={showScores}
+                    assessmentCycleCount={assessmentCycleCount}
                 />
             </div>
         </div>

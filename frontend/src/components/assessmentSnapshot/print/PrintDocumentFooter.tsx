@@ -3,6 +3,7 @@ import {
     formatStructureCount,
     SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN,
 } from '../v1/snapshotVisualSystem';
+import { formatCycleScopeLineValue, isPartialCycleScope } from '../v1/snapshotCycleScope';
 import {
     formatPrintPageLabel,
     SNAPSHOT_PRINT_CLINICAL_NOTE,
@@ -20,6 +21,8 @@ interface Props {
     /** When set, replaces the default "Page N of M" evidence label. */
     pageLabel?: string;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count — required under partial scope (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 /**
@@ -34,11 +37,16 @@ export function PrintDocumentFooter({
     isDocumentEnd = false,
     pageLabel,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
     const totalTargets = profile.domains.reduce((sum, domain) => sum + domain.targets.length, 0);
     const targetCountLabel = formatStructureCount(totalTargets, profile.structureLabels.target);
     const label = pageLabel ?? formatPrintPageLabel(pageNumber, totalPages);
-    const cycleLabel = `${profile.cycles.length} cycle${profile.cycles.length === 1 ? '' : 's'}`;
+    const totalCycles = assessmentCycleCount ?? profile.cycles.length;
+    const includedIds = profile.cycles.map((cycle) => cycle.cycleId);
+    const cycleLabel = isPartialCycleScope(includedIds, totalCycles)
+        ? formatCycleScopeLineValue(profile.cycles, totalCycles)
+        : `${profile.cycles.length} cycle${profile.cycles.length === 1 ? '' : 's'}`;
 
     return (
         <footer

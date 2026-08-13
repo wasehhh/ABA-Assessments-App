@@ -13,6 +13,8 @@ interface Props {
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count for the Cycles metadata field (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 /**
@@ -25,8 +27,13 @@ export function PrintDocumentHeader({
     displayContext,
     cycleDateLabels,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
-    const identity = resolveSnapshotPrintIdentity(profile, displayContext);
+    const identity = resolveSnapshotPrintIdentity(
+        profile,
+        displayContext,
+        assessmentCycleCount
+    );
 
     return (
         <div
@@ -84,7 +91,9 @@ export function PrintDocumentHeader({
                     </div>
                     <div className="inline-flex gap-1 tabular-nums">
                         <dt className="font-medium text-gray-600">Cycles</dt>
-                        <dd className="font-medium">{identity.cycleCount}</dd>
+                        <dd className="font-medium" data-assessment-snapshot-cycle-scope>
+                            {identity.cycleCountLabel}
+                        </dd>
                     </div>
                 </dl>
 

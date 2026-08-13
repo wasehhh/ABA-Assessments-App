@@ -23,6 +23,10 @@ export interface BuildSnapshotExportHtmlInput {
     cycleDateLabels?: Record<string, string>;
     generatedAt: Date;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count for Cycles metadata (§5.1). */
+    assessmentCycleCount?: number;
+    /** When true, filename and document title carry the `partial` token (§5.2). */
+    isPartialCycleScope?: boolean;
 }
 
 function formatGeneratedAt(date: Date): string {
@@ -51,14 +55,20 @@ export function renderSnapshotScreenDocumentMarkup(
             generatedAtLabel,
             viewportWidthRem: SNAPSHOT_HTML_EXPORT_VIEWPORT_REM,
             showScores,
+            assessmentCycleCount: input.assessmentCycleCount,
         })
     );
 }
 
 export function wrapSnapshotExportDocumentHtml(
     screenDocumentMarkup: string,
-    showScores = true
+    options: { showScores?: boolean; isPartialCycleScope?: boolean } = {}
 ): string {
+    const showScores = options.showScores !== false;
+    const isPartial = options.isPartialCycleScope === true;
+    const documentTitle = isPartial
+        ? 'Assessment Snapshot Export — partial'
+        : 'Assessment Snapshot Export';
     const safeCss = SNAPSHOT_EXPORT_DOCUMENT_CSS.replace(/<\/style/gi, '<\\/style');
     const safeScript = SNAPSHOT_EXPORT_ENHANCEMENTS_SCRIPT.replace(
         /<\/script/gi,
@@ -70,12 +80,12 @@ export function wrapSnapshotExportDocumentHtml(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Assessment Snapshot Export</title>
+<title>${documentTitle}</title>
 <style>
 ${safeCss}
 </style>
 </head>
-<body class="assessment-snapshot-export-html" data-assessment-snapshot-export-document data-export-mode="full" data-export-channel="html" data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}" data-assessment-snapshot-show-scores="${showScores ? 'true' : 'false'}">
+<body class="assessment-snapshot-export-html" data-assessment-snapshot-export-document data-export-mode="full" data-export-channel="html" data-assessment-snapshot-screen-viewport-rem="${SNAPSHOT_HTML_EXPORT_VIEWPORT_REM}" data-assessment-snapshot-show-scores="${showScores ? 'true' : 'false'}"${isPartial ? ' data-assessment-snapshot-cycle-scope="partial"' : ''}>
 <p class="snapshot-export-disclaimer">${SNAPSHOT_EXPORT_DISCLAIMER}</p>
 ${screenDocumentMarkup}
 <script>
@@ -98,7 +108,10 @@ export function buildSnapshotExportHtml(input: BuildSnapshotExportHtmlInput): st
         buildSnapshotScreenPlanConfig(SNAPSHOT_HTML_EXPORT_VIEWPORT_REM)
     );
     const markup = renderSnapshotScreenDocumentMarkup(input);
-    return wrapSnapshotExportDocumentHtml(markup, input.showScores !== false);
+    return wrapSnapshotExportDocumentHtml(markup, {
+        showScores: input.showScores !== false,
+        isPartialCycleScope: input.isPartialCycleScope === true,
+    });
 }
 
 /**
@@ -112,17 +125,23 @@ export function downloadSnapshotHtmlChannel(
     const html = buildSnapshotExportHtml(input);
     downloadSnapshotExportHtml(
         html,
-        buildSnapshotExportFilename(assessmentId, input.generatedAt)
+        buildSnapshotExportFilename(assessmentId, input.generatedAt, {
+            isPartialCycleScope: input.isPartialCycleScope === true,
+        })
     );
     return html;
 }
 
 export function buildSnapshotExportFilename(
     assessmentId: string,
-    generatedAt: Date = new Date()
+    generatedAt: Date = new Date(),
+    options?: { isPartialCycleScope?: boolean }
 ): string {
     const date = generatedAt.toISOString().slice(0, 10);
     const safeId = assessmentId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'assessment';
+    if (options?.isPartialCycleScope) {
+        return `assessment-snapshot-partial-${safeId}-${date}.html`;
+    }
     return `assessment-snapshot-${safeId}-${date}.html`;
 }
 

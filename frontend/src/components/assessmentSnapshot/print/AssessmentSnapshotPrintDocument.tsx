@@ -19,6 +19,8 @@ interface Props {
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
     showScores?: boolean;
+    /** Unfiltered assessment cycle count for Cycles metadata (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 /**
@@ -36,6 +38,7 @@ export function AssessmentSnapshotPrintDocument({
     displayContext,
     cycleDateLabels,
     showScores = true,
+    assessmentCycleCount,
 }: Props) {
     const layout = resolveThreadsLayoutFromPlan({
         tier: plan.tier,
@@ -78,6 +81,7 @@ export function AssessmentSnapshotPrintDocument({
                                 displayContext={displayContext}
                                 cycleDateLabels={cycleDateLabels}
                                 showScores={showScores}
+                                assessmentCycleCount={assessmentCycleCount}
                             />
                         ) : (
                             <PrintRunningHeader
@@ -161,6 +165,7 @@ export function AssessmentSnapshotPrintDocument({
                             totalPages={plan.totalPages}
                             isDocumentEnd={isDocumentEnd}
                             showScores={showScores}
+                            assessmentCycleCount={assessmentCycleCount}
                         />
                     </div>
                 );

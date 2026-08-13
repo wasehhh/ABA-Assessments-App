@@ -1,11 +1,14 @@
 import { AssessmentSnapshotProfile } from '../../services/assessmentSnapshotProfile';
 import { LearnerMapDisplayContext } from '../learnerMap/learnerMapDisplayContext';
+import { formatCycleScopeLineValue } from './v1/snapshotCycleScope';
 
 interface Props {
     profile: AssessmentSnapshotProfile;
     generatedAtLabel: string;
     displayContext?: LearnerMapDisplayContext;
     variant?: 'default' | 'compact';
+    /** Unfiltered assessment cycle count for the Cycles metadata field (§5.1). */
+    assessmentCycleCount?: number;
 }
 
 export function AssessmentSnapshotHeader({
@@ -13,11 +16,14 @@ export function AssessmentSnapshotHeader({
     generatedAtLabel,
     displayContext,
     variant = 'default',
+    assessmentCycleCount,
 }: Props) {
     const learnerName = displayContext?.learnerName ?? '—';
     const assessmentName =
         displayContext?.assessmentName ?? `Assessment ${profile.metadata.assessmentId}`;
     const packLabel = `${profile.metadata.packTitle} (v${profile.metadata.packVersion})`;
+    const totalCycles = assessmentCycleCount ?? profile.cycles.length;
+    const cyclesValue = formatCycleScopeLineValue(profile.cycles, totalCycles);
 
     if (variant === 'compact') {
         return (
@@ -56,7 +62,9 @@ export function AssessmentSnapshotHeader({
                     </div>
                     <div className="inline-flex gap-1.5 tabular-nums">
                         <dt className="text-gray-400">Cycles</dt>
-                        <dd className="text-gray-800">{profile.cycles.length}</dd>
+                        <dd className="text-gray-800" data-assessment-snapshot-cycle-scope>
+                            {cyclesValue}
+                        </dd>
                     </div>
                 </dl>
                 {displayContext?.isMockData ? (

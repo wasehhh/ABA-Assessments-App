@@ -22,7 +22,17 @@ interface Props {
     continueLabel?: string;
     /** Channel recorded on the acknowledgement audit event. */
     auditChannel?: ClinicalExportAuditChannel;
+    /** When true, dialog must not claim every cycle is included (§5.5). */
+    isPartialCycleScope?: boolean;
 }
+
+/** Complete-scope dialog body (§5.5). */
+export const SNAPSHOT_EXPORT_DIALOG_BODY_COMPLETE =
+    'Create a complete offline evidence record of this assessment. Snapshot export always includes every domain, target, and cycle.';
+
+/** Partial-scope dialog body (§5.5) — domains/targets remain; cycles follow Snapshot selection. */
+export const SNAPSHOT_EXPORT_DIALOG_BODY_PARTIAL =
+    'Create an offline evidence record of this assessment for the cycles currently selected on Snapshot. Every domain and target remains included.';
 
 /**
  * Snapshot PHI acknowledgement dialog (single mode: full).
@@ -37,6 +47,7 @@ export function SnapshotExportDialog({
     onAcknowledgedContinue,
     continueLabel = 'Continue to Export',
     auditChannel = 'export',
+    isPartialCycleScope = false,
 }: Props) {
     const [acknowledged, setAcknowledged] = useState(false);
 
@@ -101,9 +112,15 @@ export function SnapshotExportDialog({
                         >
                             Export Assessment Snapshot
                         </h2>
-                        <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                            Create a complete offline evidence record of this assessment. Snapshot
-                            export always includes every domain, target, and cycle.
+                        <p
+                            className="mt-2 text-sm leading-relaxed text-gray-600"
+                            data-snapshot-export-dialog-body={
+                                isPartialCycleScope ? 'partial' : 'complete'
+                            }
+                        >
+                            {isPartialCycleScope
+                                ? SNAPSHOT_EXPORT_DIALOG_BODY_PARTIAL
+                                : SNAPSHOT_EXPORT_DIALOG_BODY_COMPLETE}
                         </p>
                     </div>
                     <button
