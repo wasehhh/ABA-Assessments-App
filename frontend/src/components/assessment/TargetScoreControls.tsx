@@ -75,6 +75,7 @@ export function TargetScoreControls({
                         type="button"
                         key={val}
                         title={title}
+                        aria-label={title !== text ? title : undefined}
                         disabled={!scoresEditable}
                         onClick={() => onScoreUpdate(val)}
                         className={`

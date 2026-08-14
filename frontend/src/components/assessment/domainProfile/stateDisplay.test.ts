@@ -149,11 +149,12 @@ describe('competency vocabulary rename (Evalis SSOT)', () => {
     it('authored scale_labels "Mastered" still displays as Mastered on score controls', () => {
         const authored = { 2: 'Mastered' } as const;
         expect(formatMatrixScoreButtonLabel(2, authored)).toEqual({
-            text: 'Mastered',
+            text: '2',
             title: '2 — Mastered',
         });
         expect(STATE_DISPLAY_LABELS.at_maximum).toBe('Demonstrated');
         expect(STATE_DISPLAY_LABELS.at_maximum).not.toBe(authored[2]);
+        expect(formatMatrixScoreButtonLabel(2, authored).title).not.toContain('Demonstrated');
     });
 
     it('§7 surfaces derive competency labels from STATE_DISPLAY_LABELS', () => {
@@ -240,6 +241,9 @@ describe('competency vocabulary rename (Evalis SSOT)', () => {
 
         expect(snapshotCellLabel('not_yet')).toBe('Not Demonstrated');
         expect(snapshotCellLabel('at_maximum')).toBe('Demonstrated');
-        expect(formatMatrixScoreButtonLabel(2, effective.scaleLabels).text).toBe('Mastered');
+        expect(formatMatrixScoreButtonLabel(2, effective.scaleLabels).text).toBe('2');
+        expect(formatMatrixScoreButtonLabel(2, effective.scaleLabels).title).toBe(
+            '2 — Mastered'
+        );
     });
 });

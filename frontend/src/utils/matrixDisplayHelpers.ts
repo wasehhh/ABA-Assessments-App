@@ -54,7 +54,7 @@ export function findMatrixSecondaryGroupTitle(
     return undefined;
 }
 
-/** Score button copy: short labels on the button, numeric value preserved in title. */
+/** Score button copy: numeric value on the button; criterion label in title when present. */
 export function formatMatrixScoreButtonLabel(
     value: number,
     scaleLabels: Record<number, string> | undefined
@@ -64,12 +64,7 @@ export function formatMatrixScoreButtonLabel(
         return { text: String(value), title: String(value) };
     }
 
-    const title = `${value} — ${label}`;
-    if (label.length <= 8) {
-        return { text: label, title };
-    }
-
-    return { text: String(value), title };
+    return { text: String(value), title: `${value} — ${label}` };
 }
 
 /**

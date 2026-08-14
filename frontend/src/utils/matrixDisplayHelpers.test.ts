@@ -133,7 +133,7 @@ describe('matrixDisplayHelpers', () => {
 
     it('formats scale_labels for score buttons while preserving numeric title', () => {
         expect(formatMatrixScoreButtonLabel(2, { 2: 'Mastered' })).toEqual({
-            text: 'Mastered',
+            text: '2',
             title: '2 — Mastered',
         });
         expect(
@@ -141,6 +141,22 @@ describe('matrixDisplayHelpers', () => {
         ).toEqual({
             text: '1',
             title: '1 — Emerging competency observed',
+        });
+        expect(formatMatrixScoreButtonLabel(3, { 3: '4+ parts' })).toEqual({
+            text: '3',
+            title: '3 — 4+ parts',
+        });
+        expect(formatMatrixScoreButtonLabel(3, { 3: '1 minute' })).toEqual({
+            text: '3',
+            title: '3 — 1 minute',
+        });
+        expect(formatMatrixScoreButtonLabel(4, undefined)).toEqual({
+            text: '4',
+            title: '4',
+        });
+        expect(formatMatrixScoreButtonLabel(0, { 0: '  ' })).toEqual({
+            text: '0',
+            title: '0',
         });
     });
 
@@ -188,8 +204,24 @@ describe('matrixDisplayHelpers', () => {
         ).toEqual([-1, 0, 1]);
 
         expect(formatMatrixScoreButtonLabel(0.5, { 0.5: 'Partial' })).toEqual({
-            text: 'Partial',
+            text: '0.5',
             title: '0.5 — Partial',
         });
+    });
+
+    it('never mixes numerals and words across one numeric scale', () => {
+        const labels = {
+            0: 'Does not complete the design',
+            1: 'Completes with full model',
+            2: 'Completes with picture',
+            3: '4+ parts',
+            4: 'Independent',
+        };
+
+        for (const value of [0, 1, 2, 3, 4] as const) {
+            const formatted = formatMatrixScoreButtonLabel(value, labels);
+            expect(formatted.text).toBe(String(value));
+            expect(formatted.title).toBe(`${value} — ${labels[value]}`);
+        }
     });
 });
