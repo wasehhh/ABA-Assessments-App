@@ -5,6 +5,13 @@ import { buildReportProfile } from '../services/reportProfile';
 import { ReportAssessmentScoreDistribution } from '../components/report/ReportAssessmentScoreDistribution';
 import { ReportDomainSummaryTable } from '../components/report/ReportDomainSummaryTable';
 import { ReportDomainScoreDistribution } from '../components/report/ReportDomainScoreDistribution';
+import { ReportExportDialog } from '../components/report/export/ReportExportDialog';
+import {
+    hasReportExportAcknowledged,
+    REPORT_EXPORT_MODE,
+} from '../components/report/export/reportExportAcknowledgment';
+import { logClinicalExportAudit } from '../clinicalExport/clinicalExportAudit';
+import { useAuth } from '../context/AuthContext';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
 import {
@@ -22,6 +29,8 @@ interface Props {
 }
 
 export function AssessmentReport({ assessmentId }: Props) {
+    const { profile, user } = useAuth();
+    const [printDialogOpen, setPrintDialogOpen] = useState(false);
     const [loadState, setLoadState] = useState<DataLoadState>('loading');
     const [loadError, setLoadError] = useState<string | null>(null);
     const [comparisonLoadError, setComparisonLoadError] = useState<string | null>(null);
@@ -210,6 +219,27 @@ export function AssessmentReport({ assessmentId }: Props) {
     });
     const primaryLabel = report.structureLabels.primary_group;
     const targetLabel = report.structureLabels.target;
+
+    const runPrint = () => {
+        logClinicalExportAudit({
+            orgId: profile?.org_id,
+            userId: user?.id,
+            assessmentId,
+            artifact: 'report',
+            channel: 'print',
+            mode: REPORT_EXPORT_MODE,
+            event: 'print',
+        });
+        window.print();
+    };
+
+    const handlePrintClick = () => {
+        if (hasReportExportAcknowledged(assessmentId)) {
+            runPrint();
+            return;
+        }
+        setPrintDialogOpen(true);
+    };
 
     return (
         <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-10 print:py-8 print:text-black">
@@ -499,12 +529,22 @@ export function AssessmentReport({ assessmentId }: Props) {
             <div className="fixed bottom-8 right-8 z-10 print:hidden">
                 <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={handlePrintClick}
                     className="rounded-full bg-gray-900 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-black"
                 >
                     Print / Save PDF
                 </button>
             </div>
+
+            <ReportExportDialog
+                isOpen={printDialogOpen}
+                assessmentId={assessmentId}
+                orgId={profile?.org_id}
+                userId={user?.id}
+                onClose={() => setPrintDialogOpen(false)}
+                onAcknowledgedContinue={runPrint}
+                continueLabel="Acknowledge and Print"
+            />
         </div>
     );
 }
