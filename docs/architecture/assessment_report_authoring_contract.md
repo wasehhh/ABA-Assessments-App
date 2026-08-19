@@ -54,6 +54,26 @@ Superseded text from the prior contract is **not duplicated** here; it remains i
 
 ---
 
+## Amendment banner — template lock and lifecycle decisions (2026-08-19)
+
+**Founder review outcome:** Template, lifecycle gates, role print policy, and schema underspecifications from the initial authoring contract (`aba38d9`) are now **binding**.
+
+| Resolved | Decision |
+|----------|----------|
+| **OQ-RA1** — authoring start gate | **`approved` only** — authoring cannot begin until parent assessment `status === 'approved'` (§8.2) |
+| **OQ-RA2** — who may print finalized reports | **`senior_therapist` and `admin` only** — overrides Architecture §8.1 recommendation to allow therapist print (§8.1) |
+| **OQ-RA4** — report content template | **Six-section template locked** — full `authoring` + `embedded_computed` schema in §5.2 |
+| **OQ-RA7** — post-finalize score correction | **Moot** — score changes after finalize do not occur in ABA practice; no correction re-versioning workflow (§6.2, §8.4) |
+| **OQ-RA3, OQ-RA5, OQ-RA6, OQ-RA8** | **Resolved in §5.2–§5.4 and §7.3** — character limits, embed provenance keys, current-version rule, audit `version` field |
+
+**Founder override (explicit):** OQ-RA2 **overrides** the Architecture Agent’s §8.1 recommendation to allow `therapist` PHI-print on finalized documents. Founder reasoning: printing/distributing a finalized report to a parent is a **senior-clinician action**, not a general therapist action.
+
+**Payer-packet boundary (binding):** This Report is **not** a complete payer-authorization packet on its own. Standing exclusions in §1.6 apply.
+
+Superseded pre-amendment text is retained under dated notes in §2.2, §3.1, §8.1, and §8.2.
+
+---
+
 # 0. Code facts relied on (verified)
 
 | Fact | Where verified |
@@ -76,7 +96,7 @@ Superseded text from the prior contract is **not duplicated** here; it remains i
 
 The **Assessment Report** is a **clinician-authored communication document** produced for readers **outside the day-to-day clinical team** — parents/caregivers, collaborating clinicians, schools, funding agencies, and compliance files.
 
-A **senior clinician** (see §8) uses Evalis to **build** the document through **platform-assisted structured authoring**: predefined sections, guided dropdown selections (e.g. overall progress band), and short free-text fields — not AI-generated prose, not a blank word processor, and **not** an auto-rendered dump of assessment scores.
+A **senior clinician** (see §8) uses Evalis to **build** the document through **platform-assisted structured authoring**: six fixed sections (§5.2), guided dropdown selections, and bounded short text fields — not AI-generated prose, not a blank word processor, and **not** an auto-rendered dump of assessment scores.
 
 ## 1.2 Three-layer boundary (revised)
 
@@ -92,16 +112,16 @@ Snapshot and Learner Map are **clinical workspace artifacts** — dense, interna
 
 | Platform | Clinician |
 |----------|-----------|
-| Offers **reference data** from `ReportProfile` / domain profiles (read-only scaffolding) | Chooses wording, selections, and which optional computed summaries to embed |
+| Offers **reference data** from `ReportProfile` while drafting | Authors structured fields per §5.2 |
 | Validates required sections before finalize | Holds clinical responsibility for narrative accuracy |
-| Snapshots embedded computed blocks at finalize (§4) | Authors interpretation — progress, strengths, recommendations, impression |
+| Snapshots mandatory computed sections at finalize (§3.2) | Writes goals, hours, focus summary, clinical summary |
 | Assembles finalized layout for screen + print | Reviews finalized document before PHI-gated print (§7) |
 
 ## 1.4 Success statement
 
 After implementation of this contract:
 
-> A senior clinician can open an **authoring workspace** for a **single cycle**, consult live reference data from the resolver chain, complete structured section fields, optionally embed snapshotted computed summaries, **finalize** a versioned communication document, and **Print / Save as PDF** the finalized render after PHI acknowledgement with audit-logged egress. The printed document reflects authored content and any embedded snapshots — not a live auto-generated score dump.
+> A senior clinician can open an **authoring workspace** for an **approved** assessment and **single selected cycle**, complete the six-section template (§5.2), **finalize** a versioned communication document with snapshotted Present Levels and target data, and **Print / Save as PDF** the finalized render after PHI acknowledgement with audit-logged egress including report version. The printed document is a clinician-authored communication — not a live auto-generated score dump.
 
 ## 1.5 Explicit non-goals
 
@@ -112,6 +132,28 @@ After implementation of this contract:
 | Auto-publishing Report on score entry | Report requires explicit author finalize |
 | Replacing Snapshot or Learner Map | Different layers (§1.2) |
 | Matrix `note` field in Report body | Prior OQ-7 still binding for score-row notes |
+| Complete payer-authorization packet | §1.6 — Evalis holds no data for excluded domains |
+
+## 1.6 Payer-packet boundary and standing exclusions (binding)
+
+Research against payer treatment-report requirements (Carelon Behavioral Health ABA guidelines; BCBA prior-authorization checklist) informed the **six-section v1 template** (§5.2). Evalis supports **assessment-derived present levels, target skills, SMART-style goals, therapy hours, and clinical summary** — not a full authorization file.
+
+**The Assessment Report is not a complete payer-authorization packet.** Clinics may attach it to submissions; Evalis does not model everything payers sometimes request.
+
+**Standing exclusions — do not build, do not defer silently:**
+
+| Excluded content | Reason |
+|------------------|--------|
+| Biopsychosocial / medical history | No Evalis data model |
+| Functional behaviour assessment (ABC / antecedent–consequence data) | No Evalis data model |
+| Crisis plans | No Evalis data model |
+| Caregiver-training logs | No Evalis data model |
+| Care-coordination notes with prescribers / other providers | No Evalis data model |
+| Supervision-ratio documentation | No Evalis data model |
+| CPT billing codes | Practice-management / billing scope — not Evalis |
+| Physician referral / consent tracking | No Evalis data model |
+
+Adding any excluded section requires a **separate product strategy** and data model — not a Report template amendment alone.
 
 ---
 
@@ -121,20 +163,9 @@ After implementation of this contract:
 
 ### Model A — Fixed section template
 
-Predefined sections in fixed order. Each section: mix of **guided selects** + **short text fields** (character-bounded — limits **underspecified**, §11 OQ-RA3).
+Predefined sections in fixed order (§5.2). Each section: **computed blocks**, **guided selects**, and/or **short text fields** with contract-defined character bounds.
 
-Example section catalog (illustrative — exact labels **underspecified**, §11 OQ-RA4):
-
-| Section | Field types (pattern) |
-|---------|------------------------|
-| Overview | Select: overall progress this cycle; short text: summary |
-| Domain highlights | Per-domain select + optional short comment |
-| Strengths | Short text (and/or multi-select from guided list if founder adds) |
-| Areas of growth | Short text |
-| Recommendations | Short text |
-| Clinical impression | Short text |
-
-**Pros:** Matches founder direction; predictable parent/school packets; bounded v1; compliance-friendly consistency.  
+**Pros:** Matches founder direction; predictable parent/school/funder packets; bounded v1; compliance-friendly consistency.  
 **Cons:** Less flexibility when a clinic wants a minimal letter vs full report.
 
 ### Model B — Configurable section set
@@ -155,11 +186,11 @@ Clinician picks which sections from a catalog appear, then fills them.
 3. **v1 boundedness:** Model B is a general document editor; Model A ships faster with testable invariants.
 4. **Precedent:** `AssessmentBuilderTargetEditor` uses structured per-entity fields, not optional schema composition — same product instinct.
 
-### Bounded hybrid (within Model A — not Model B)
+### Bounded hybrid (within Model A — superseded 2026-08-19)
 
-Optional **per-section embed toggles** for computed reference widgets (§4) — e.g. “Include domain summary table: Yes/No” — do **not** change which **narrative sections** exist. Section **order** is fixed in v1.
+> **Superseded:** Optional per-section embed toggles for computed widgets. The locked six-section template (§5.2) defines **mandatory** computed sections (Overview, Present Levels, Target Skills list) and **authored** sections — no clinician toggles for Present Levels.
 
-Adding or removing narrative sections from the template is **out of v1 scope** (future contract amendment).
+Section **order** and **section set** are fixed in v1. Adding or removing sections requires a contract amendment.
 
 ---
 
@@ -171,9 +202,10 @@ Adding or removing narrative sections from the template is **out of v1 scope** (
 
 | Surface | Binding | Live vs snapshotted |
 |---------|---------|-------------------|
-| **Authoring reference panel** | Read-only; always available while drafting | **Live** — refreshes with current scores until finalize |
-| **Finalized document body (narrative)** | Persisted authored fields | N/A — clinician text |
-| **Optional embedded computed blocks** (e.g. domain summary table, assessment band bar) | Included only when author toggles embed on | **Snapshotted at finalize** (§3.2) |
+| **Authoring reference panel** | Read-only; optional convenience while drafting | **Live** until finalize |
+| **Finalized document — authored fields** | Persisted in `authoring` JSONB | N/A — clinician text / selections |
+| **Finalized document — computed sections** | Overview, Present Levels, Target Skills target list | **Snapshotted at finalize** in `embedded_computed` (§3.2) |
+| **Present Levels of Performance** | **Always included** — core document section, not optional | **Snapshotted at finalize** — mandatory embed |
 
 ## 3.2 Snapshot at finalize (recommended — binding)
 
@@ -187,9 +219,9 @@ Adding or removing narrative sections from the template is **out of v1 scope** (
 
 **Mechanics:**
 
-- On **finalize**, for each embed toggle that is `true`, run `buildReportProfile()` (or section-specific projection) once against `pack_snapshot` + cycle scores; store result in `embedded_computed` JSON on the report row (§5).
-- Store **`embedded_generated_at`** and **`pack_snapshot` version/id** metadata sufficient to audit provenance (exact metadata keys **underspecified**, §11 OQ-RA5).
-- **Draft** state may show live reference panel; **draft must not be PHI-gated printable as a finalized report** (§7, §8).
+- On **finalize**, run `buildReportProfile()` once against `pack_snapshot` + cycle scores; project into `embedded_computed` per §5.2 (Overview, Present Levels, Target Skills target lists).
+- Persist **provenance** keys on `embedded_computed.provenance` (§5.2) and top-level `embedded_generated_at` on the row.
+- **Draft** may preview live computed sections; **draft must not be PHI-gated printable** (§7).
 
 ### Alternative considered — live-bound at print
 
@@ -248,24 +280,176 @@ Bounded trend context in embeds: if an embed includes prior-cycle comparison, sa
 
 **Why new table:** Versioning, draft/finalized lifecycle, JSON authoring payload, and RLS distinct from score rows. Matches pattern of separating evidence (scores) from communication (this document).
 
-## 5.2 Authoring JSON shape (minimum contract)
+## 5.2 Authoring and embedded JSON schema (binding — resolves OQ-RA4, OQ-RA3, OQ-RA5)
 
-Logical structure — field keys and enums **underspecified** pending clinical template lock (§11 OQ-RA4):
+**Template version:** `template_version: 1` (integer; increment only on contract-amended template changes).
 
-```text
+**Fixed render order (binding):**
+
+| Order | Section | Source |
+|-------|---------|--------|
+| 1 | Overview | `embedded_computed.overview` |
+| 2 | Present Levels of Performance (Baseline) | `embedded_computed.present_levels` |
+| 3 | Target Skills / Areas of Focus | `embedded_computed.target_skills` + `authoring.sections.target_skills_focus` |
+| 4 | Measurable Treatment Goals | `authoring.sections.measurable_treatment_goals` |
+| 5 | Recommended Therapy Hours | `authoring.sections.recommended_therapy_hours` |
+| 6 | Clinical Summary | `authoring.sections.clinical_summary` |
+
+### 5.2.1 `authoring` JSONB (clinician inputs only)
+
+Computed Overview / Present Levels / target rows are **not** stored here — they live in `embedded_computed` after finalize.
+
+```json
 {
-  "template_version": "<semver or integer — underspecified>",
+  "template_version": 1,
   "sections": {
-    "<section_id>": {
-      "selections": { "<field_id>": "<enum value>" },
-      "text": { "<field_id>": "<string>" },
-      "embeds": { "<embed_id>": true | false }
+    "target_skills_focus": {
+      "focus_summary": "<string>"
+    },
+    "measurable_treatment_goals": {
+      "goals": [
+        {
+          "id": "<uuid>",
+          "domain_id": "<string — pack domain_id>",
+          "goal_statement": "<string>",
+          "mastery_criterion": "<string>",
+          "target_timeframe": "3_months | 6_months | 12_months"
+        }
+      ]
+    },
+    "recommended_therapy_hours": {
+      "weekly_hours": "<number>",
+      "clinical_justification": "<string>"
+    },
+    "clinical_summary": {
+      "narrative": "<string>"
     }
   }
 }
 ```
 
-**Not stored in authoring JSON:** full `ReportProfile` — only author inputs and embed toggles. Computed product lives in `embedded_computed` after finalize.
+#### Section-by-section field contract
+
+| Section key | Clinician-facing title | Fields | Type / enum | Max length or bound | Required at finalize |
+|-------------|------------------------|--------|-------------|---------------------|----------------------|
+| *(computed)* | Overview | — | — | — | Auto (§5.2.2) |
+| *(computed)* | Present Levels of Performance (Baseline) | — | — | — | Auto — **always** (§5.2.2) |
+| `target_skills_focus` | Target Skills / Areas of Focus | `focus_summary` | string | **1 500** chars | **Yes** — non-empty trim |
+| `measurable_treatment_goals` | Measurable Treatment Goals | `goals[]` | array | **1–35** goals total; **≤10** per `domain_id` | **Yes** — ≥1 goal |
+| | | `goals[].id` | uuid | Client-generated stable id per row | Per goal |
+| | | `goals[].domain_id` | string | Must match `pack_snapshot.domains[].domain_id` | Per goal |
+| | | `goals[].goal_statement` | string | **800** chars — observable/measurable behaviour | Per goal |
+| | | `goals[].mastery_criterion` | string | **300** chars — frequency/%/trials wording (free text for payer flexibility) | Per goal |
+| | | `goals[].target_timeframe` | enum | `3_months` \| `6_months` \| `12_months` | Per goal |
+| `recommended_therapy_hours` | Recommended Therapy Hours | `weekly_hours` | number | **0–168** inclusive; up to **1** decimal place | **Yes** |
+| | | `clinical_justification` | string | **1 200** chars | **Yes** — non-empty trim |
+| `clinical_summary` | Clinical Summary | `narrative` | string | **4 000** chars | **Yes** — non-empty trim |
+
+**Character limit reasoning (OQ-RA3):**
+
+| Class | Limit | Reason |
+|-------|-------|--------|
+| Mastery criterion | 300 | Single-line payer fields (“80% across 3 sessions”) |
+| Goal statement | 800 | SMART goal sentence(s) without essay length |
+| Focus summary | 1 500 | Short paragraph on priority skills — no per-target UI in v1 |
+| Hours justification | 1 200 | Tied justification, not full narrative |
+| Clinical summary | 4 000 | Wrap-up narrative — longest authored field |
+
+**No per-target flagging UI in v1** for Target Skills — computed list + `focus_summary` only (founder binding).
+
+**Domains for goals:** Clinician adds goal rows for **subset of domains** — not forced for every domain. Empty domains omit goal rows.
+
+### 5.2.2 `embedded_computed` JSONB (finalize snapshot — resolves OQ-RA5)
+
+Populated **only** when `status` transitions to `finalized`. Generated via `buildReportProfile()` (+ Overview metadata enrichment) — **INV-RA-G1**.
+
+```json
+{
+  "provenance": {
+    "snapshot_at": "<ISO8601 — mirrors embedded_generated_at>",
+    "pack_title": "<string>",
+    "pack_version": "<string>",
+    "assessment_id": "<uuid>",
+    "cycle_id": "<uuid>",
+    "cycle_number": "<integer>",
+    "pack_snapshot_frozen": true
+  },
+  "overview": {
+    "client_name": "<string | null>",
+    "client_id": "<uuid | null>",
+    "pack_title": "<string>",
+    "pack_version": "<string>",
+    "assessment_id": "<uuid>",
+    "cycle_id": "<uuid>",
+    "cycle_number": "<integer>",
+    "cycle_start_date": "<ISO date | null>",
+    "cycle_end_date": "<ISO date | null>",
+    "assessment_date": "<ISO date | null>",
+    "authoring_clinician_name": "<string — finalized_by display name>",
+    "authoring_clinician_user_id": "<uuid — finalized_by>"
+  },
+  "present_levels": {
+    "rollup": "<AssessmentLandscapeRollup>",
+    "assessment_band_distribution": "<StateDistribution>",
+    "domains": [
+      {
+        "domain_id": "<string>",
+        "title": "<string>",
+        "coverage": { "scored": "<number>", "total": "<number>" },
+        "points_captured_percentage": "<number>",
+        "state_distribution": "<StateDistribution>",
+        "domain_summary_row": "<same shape ReportDomainSummaryTable consumes>"
+      }
+    ]
+  },
+  "target_skills": {
+    "domains": [
+      {
+        "domain_id": "<string>",
+        "title": "<string>",
+        "targets": [
+          {
+            "target_id": "<string>",
+            "title": "<string>",
+            "display_score_with_max": "<string>",
+            "competency_state": "<CompetencyState>",
+            "normalized_ratio": "<number | null>"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Provenance keys (exact — OQ-RA5):** `provenance.snapshot_at`, `provenance.pack_title`, `provenance.pack_version`, `provenance.assessment_id`, `provenance.cycle_id`, `provenance.cycle_number`, `provenance.pack_snapshot_frozen` (always `true`).
+
+**Present Levels:** Always present in `embedded_computed.present_levels` — maps to `ReportProfile.rollup`, `assessmentBandDistribution`, and per-domain summary/distribution (existing `ReportDomainSummaryTable` / `ReportDomainScoreDistribution` data). **Not** an optional toggle.
+
+**Target Skills computed list:** `embedded_computed.target_skills` — projection of `ReportProfile.domains[].targets` **excluding** Matrix `note` (prior OQ-7).
+
+**Overview:** No clinician fields; populated from assessment/cycle/user metadata at finalize.
+
+### 5.2.3 Finalize validation (binding)
+
+Builder must block finalize unless:
+
+1. Parent `assessments.status === 'approved'` (§8.2).
+2. All **Required at finalize** rows in §5.2.1 table satisfied.
+3. Every `goals[].domain_id` exists in frozen `pack_snapshot`.
+4. `embedded_computed` successfully written on finalize transition.
+
+### 5.2.4 Builder completeness statement
+
+The schema above is **complete for data model and authoring UI product decisions** for v1, except:
+
+| Remaining gap | Owner |
+|---------------|--------|
+| PHI dialog microcopy (prior OQ-4) | Founder / UX — meanings locked in prior contract |
+| Report date header vs `generatedAt` (prior OQ-8) | Founder — finalized chrome only |
+| Exact route paths | Implementation |
+
+No further section list, field id, enum, or character-bound decisions are required before Builder starts persistence and authoring forms.
 
 ## 5.3 Scoping and versioning rules
 
@@ -275,9 +459,9 @@ Logical structure — field keys and enums **underspecified** pending clinical t
 | Drafts | **At most one `draft` row** per scope key |
 | Finalized | **Immutable** — edits require new version |
 | New version | Insert new row with `version + 1`, prior row → `superseded` |
-| Multiple finalized versions | **Allowed** — history retained; **one “current” finalized** per scope (highest version not superseded) |
+| Multiple finalized versions | **Allowed** — history retained |
 
-Exact “current version” pointer (**view default**) — **underspecified**, §11 OQ-RA6.
+**Current finalized version (OQ-RA6 — binding):** For scope key `(assessment_id, cycle_id)`, the **current** finalized document is the row with **`status = 'finalized'`** and the **maximum `version`**. View and print default to that row without requiring the user to pick a version. Older finalized rows have `status = 'superseded'`. Tie-break: `version` is monotonic — no separate `finalized_at` sort needed for “current” selection.
 
 ## 5.4 Distinction from `ReportProfile`
 
@@ -308,9 +492,9 @@ Exact “current version” pointer (**view default**) — **underspecified**, �
 
 | Risk | Mitigation |
 |------|------------|
-| Author types a **specific score** in prose that drifts from computed embed | Reference panel shows live values; embed snapshots at finalize; optional UI **non-blocking** hint if prose contains numerals that disagree with snapshot (implementation detail — not required v1) |
-| Author omits embed but writes misleading narrative | Clinical QA process; disclaimer footer (existing pattern in `AssessmentReport.tsx`) |
-| Stale embed snapshot after Matrix correction | Requires **new report version** after score correction — reopen draft from new version or amend workflow (**underspecified**, §11 OQ-RA7) |
+| Author types a **specific score** in prose that drifts from computed embed | Reference panel shows live values at draft time; mandatory computed sections snapshotted at finalize; optional UI **non-blocking** hint if prose numerals disagree with snapshot (not required v1) |
+| Author writes misleading narrative vs Present Levels | Clinical QA; disclaimer footer; senior-only finalize and print (§8) |
+| Score correction after finalize | **Not applicable (founder OQ-RA7):** In ABA practice, scores do not change after a finalized communication report is issued. Evalis does not design a post-finalize score-correction re-versioning workflow. Pre-finalize consistency is covered by **`approved` gate** (§8.2) and **G8** frozen `pack_snapshot`. **Voluntary** new report version (§8.3) remains for intentional document amendments only — not score-correction driven |
 
 ## 6.3 Invariant extension
 
@@ -338,37 +522,66 @@ The shipped mechanism **carries forward unchanged in posture** for the **finaliz
 
 Microcopy update for dialog (prior OQ-4) remains open — meanings locked in prior contract §5.5, adapted to “communication document” framing when implemented.
 
+## 7.3 Audit payload extensions (binding — resolves OQ-RA8)
+
+Print and acknowledgement events on a **finalized** report **must** include report **`version`** in audit `details`:
+
+| User action | `event` | `channel` | Required `details` |
+|-------------|---------|-----------|----------------------|
+| PHI ack confirmed | `acknowledgement` | `print` | `artifact: 'report'`, `mode: 'standard'`, **`version: <integer>`** |
+| In-app Print / Save as PDF | `print` | `print` | `artifact: 'report'`, `mode: 'standard'`, **`version: <integer>`** |
+
+`version` is the **`assessment_communication_reports.version`** of the finalized row being printed. Extends [`assessment_report_contract.md`](./assessment_report_contract.md) §5.6 / §5.8 pattern — not a new event name.
+
 ---
 
 # 8. Lifecycle and role gating
 
-## 8.1 Roles (recommendation — partial founder scope)
+## 8.1 Roles (binding — resolves OQ-RA2)
 
 Use existing `UserRole` only — no new roles.
 
 | Action | admin | senior_therapist | therapist | viewer |
 |--------|-------|------------------|-----------|--------|
-| Open reference data | ✓ | ✓ | ✓ | ✓ |
+| Open reference data / view draft | ✓ | ✓ | ✓ | **No** |
 | Create / edit **draft** report | ✓ | ✓ | **No** | **No** |
 | **Finalize** report | ✓ | ✓ | **No** | **No** |
 | View **finalized** report | ✓ | ✓ | ✓ | ✓ |
-| Print finalized (with PHI gate) | ✓ | ✓ | ✓* | **No** |
+| **Print** finalized (PHI gate) | ✓ | ✓ | **No** | **No** |
 
-\* **Founder scope (§11 OQ-RA2):** Whether `therapist` may PHI-print finalized reports for parents, or only senior roles, is a clinical workflow call. Architecture **recommends allow** print for therapist on **finalized** documents only (read-only participation in distribution).
+**Binding:** Only `senior_therapist` and `admin` may invoke finalized Print / Save as PDF (after PHI acknowledgement). Therapists may **view** finalized reports internally but **must not** distribute via product print egress.
 
-**Reasoning:** Founder specified **senior clinician** as author — authoring/finalize restricted to `senior_therapist` + `admin`. Therapists remain score authors; external report authorship stays supervisory.
+**Reasoning:** Founder — printing/distributing to parents is senior-clinician responsibility; aligns with authoring/finalize restriction.
 
-## 8.2 When authoring may begin
+### Superseded text — pre-amendment §8.1 (2026-08-19, retained for history)
 
-| Model | Rule |
-|-------|------|
-| **Freely during active scoring** | Draft could reference scores still changing — confusing for author |
-| **After cycle submitted** | Scores locked for therapist; senior may still edit during review — embed snapshot at finalize could still drift if senior edits scores after |
-| **After assessment approved** | Maximum stability; delays report until workflow end |
+> Print finalized (with PHI gate): therapist ✓* — Architecture **recommends allow** print for therapist on **finalized** documents only.
 
-**Architecture recommendation:** Authoring may open when cycle is **`submitted` or `approved`** for the selected cycle, and that cycle is the **active or most recently completed** administration being reported.
+**Supersession note (2026-08-19):** Founder **overrode** therapist print. Table above is authoritative.
 
-**Exact gate is founder scope** — §11 OQ-RA1. Do **not** silently default in implementation without SPM lock.
+## 8.2 When authoring may begin (binding — resolves OQ-RA1)
+
+**Decision:** Report authoring **cannot begin** until the parent assessment is **`approved`**.
+
+| Gate | Rule |
+|------|------|
+| **Required** | `assessments.status === 'approved'` for the selected `assessment_id` |
+| **Cycle** | Author selects `cycle_id` explicitly at entry — report documents that single administration (§4) |
+| **Blocked** | Draft create/open when status is `draft`, `in_progress`, or `submitted` |
+
+**Reasoning:**
+
+1. **Founder binding:** Senior clinician approval must precede external communication authoring.
+2. **Data stability:** Approved assessments are score-immutable in Evalis ([`assessment_lifecycle.md`](../product/assessment_lifecycle.md); `assessmentScoreEditRules.ts`) — embed snapshot at finalize aligns with frozen evidence.
+3. **Platform mapping:** Evalis records approval at **assessment** level; the report’s `cycle_id` identifies which cycle the communication covers. There is no separate cycle-approval status in schema today.
+
+Authoring entry UI must explain when approval is missing — exact copy is implementation (OQ-4 class).
+
+### Superseded text — pre-amendment §8.2 (2026-08-19, retained for history)
+
+> Architecture recommendation: authoring may open when cycle is **`submitted` or `approved`**. Exact gate is founder scope — OQ-RA1.
+
+**Supersession note (2026-08-19):** **`approved` only** — OQ-RA1 locked.
 
 ## 8.3 Finalize, edit, re-version
 
@@ -380,9 +593,13 @@ Use existing `UserRole` only — no new roles.
 
 **New version workflow:** Duplicate draft from finalized vN → edit → finalize vN+1 → mark vN `superseded`.
 
-## 8.4 Previously printed versions
+## 8.4 Previously printed versions and score stability
 
-Offline PDFs from version v1 are **outside Evalis control** after PHI-gated print. Version v2 does not invalidate distributed v1 PDFs. Finalized render should show **version number** and **finalized_at** on document chrome. Re-print of v2 uses same session ack namespace per assessment (prior contract INV-R8b pattern) — audit log should include `version` in `details` (**architectural recommendation** — exact audit schema extension **underspecified**, §11 OQ-RA8).
+Offline PDFs from version *N* are **outside Evalis control** after PHI-gated print. A later version *N+1* does not invalidate distributed PDFs. Finalized render must show **`version`** and **`finalized_at`** on document chrome.
+
+**Score changes after finalize (OQ-RA7 — moot):** Founder — does not occur in ABA practice. No product workflow for “Matrix corrected after report finalized.” G8 and the **`approved`** gate ensure evidence stability **before** finalize. Intentional report amendments use §8.3 voluntary new version only.
+
+Re-print of a finalized version uses the same session ack namespace per assessment; audit **`version`** must match the row printed (§7.3).
 
 ---
 
@@ -415,7 +632,9 @@ Route naming is implementation detail — logical split: `#/assessment/:id/repor
 - [ ] **INV-RA1** Finalized report body comes from `assessment_communication_reports.authoring` + `embedded_computed` — not live `ReportProfile` alone.
 - [ ] **INV-RA2** At most one `draft` per `(assessment_id, cycle_id)`.
 - [ ] **INV-RA3** `finalized` rows are immutable — changes create new version.
-- [ ] **INV-RA4** v1 uses fixed section template — section set not clinician-configurable.
+- [ ] **INV-RA4** v1 uses fixed six-section template (§5.2) — section set not clinician-configurable.
+- [ ] **INV-RA14** `embedded_computed.present_levels` is **always** populated on finalize — not optional.
+- [ ] **INV-RA15** Draft create/open blocked unless `assessments.status === 'approved'`.
 
 ## 10.2 Reference and embeds
 
@@ -432,44 +651,43 @@ Route naming is implementation detail — logical split: `#/assessment/:id/repor
 
 - [ ] **INV-RA10** Finalized print requires PHI ack + audit (carries **INV-R6**–**INV-R8**).
 - [ ] **INV-RA11** Authoring edit view does not require PHI ack (carries **INV-R12**).
+- [ ] **INV-RA16** Only `senior_therapist` and `admin` may invoke finalized print egress.
+- [ ] **INV-RA17** Print and acknowledgement audit `details` include `version` (§7.3).
 
 ## 10.5 Standing exclusions on embeds
 
 - [ ] **INV-RA12** No targets×cycles numeric grid embed (carries prior **INV-R4**).
 - [ ] **INV-RA13** No sequence strip in report output (carries prior **INV-R9**).
+- [ ] **INV-RA18** Report must not include §1.6 standing exclusions (biopsychosocial, FBA, CPT codes, etc.).
 
 ---
 
 # 11. Open questions and underspecifications
 
-## 11.1 Resolved by this contract
+## 11.1 Resolved
 
-| ID | Resolution |
-|----|------------|
-| Prior **OQ-2** (cycle picker) | **Direction set:** explicit cycle selection at authoring entry required — exact UX deferred to Builder |
-| Prior **OQ-3** (export mode) | **Locked in code:** `'standard'` |
+| ID | Decision | Date |
+|----|----------|------|
+| Prior **OQ-2** (cycle picker) | Explicit cycle selection at authoring entry | 2026-08-19 |
+| Prior **OQ-3** (export mode) | `'standard'` locked in code | 2026-08-19 |
+| **OQ-RA1** | Authoring start: **`approved` only** (§8.2) | 2026-08-19 |
+| **OQ-RA2** | Print finalized: **`senior_therapist` + `admin` only** — overrides prior §8.1 recommendation (§8.1) | 2026-08-19 |
+| **OQ-RA3** | Character limits per field — §5.2.1 table | 2026-08-19 |
+| **OQ-RA4** | Six-section template + JSON schema — §5.2 | 2026-08-19 |
+| **OQ-RA5** | Embed provenance keys — §5.2.2 `provenance.*` | 2026-08-19 |
+| **OQ-RA6** | Current finalized = max `version` where `status = 'finalized'` (§5.3) | 2026-08-19 |
+| **OQ-RA7** | Post-finalize score correction **moot** — no workflow (§6.2, §8.4) | 2026-08-19 |
+| **OQ-RA8** | Audit `details.version` **required** on print/ack (§7.3) | 2026-08-19 |
 
-## 11.2 Founder scope — still open
+## 11.2 Still open
 
 | ID | Question |
 |----|----------|
-| **OQ-RA1** | Authoring start gate: `submitted` only, `approved` only, or both? |
-| **OQ-RA2** | May `therapist` PHI-print finalized reports for parents, or senior/admin only? |
-
-## 11.3 Underspecified — stop before inventing
-
-| ID | Gap |
-|----|-----|
-| **OQ-RA3** | Max character counts for short text fields |
-| **OQ-RA4** | Exact section ids, field ids, and dropdown enum values (clinical template) |
-| **OQ-RA5** | Exact provenance metadata keys on embed snapshot |
-| **OQ-RA6** | Default “current” finalized version when multiple exist |
-| **OQ-RA7** | Workflow when scores are corrected after a finalized report exists |
-| **OQ-RA8** | Whether audit `details.version` is required on print events |
-
-## 11.4 Carried forward from prior contract (unchanged)
-
-OQ-4 (microcopy), OQ-5 (appendix), OQ-6 (export route), OQ-8 (report date header), OQ-9 (export-route ack if OQ-6 approved).
+| Prior **OQ-4** | Exact PHI acknowledgement microcopy for Report |
+| Prior **OQ-5** | Acquisition/regression appendix (strategy-deferred) |
+| Prior **OQ-6** | Dedicated Report export route in v1 |
+| Prior **OQ-8** | Report date header vs `generatedAt` on finalized chrome |
+| Prior **OQ-9** | Export-route acknowledgement scope if OQ-6 approved — **untouched** |
 
 ---
 
@@ -478,3 +696,4 @@ OQ-4 (microcopy), OQ-5 (appendix), OQ-6 (export route), OQ-8 (report date header
 | Date | Change |
 |------|--------|
 | 2026-08-19 | Initial authoring contract — supersedes computed-report purpose in [`assessment_report_contract.md`](./assessment_report_contract.md); Model A template; `assessment_communication_reports` data model; G-law split; lifecycle/roles; v1 artifact split |
+| 2026-08-19 | Template lock amendment — six-section schema §5.2; OQ-RA1/RA2/RA4/RA7 resolved; RA3/RA5/RA6/RA8 folded into schema; OQ-RA2 overrides §8.1 therapist-print recommendation; §1.6 payer exclusions |
