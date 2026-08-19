@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { packService } from '../services/packs';
 import { ContentPack } from '../types';
@@ -9,6 +9,16 @@ import {
     OVERSIZED_WARNING_ADVICE,
     PackGroupWarning,
 } from '../utils/assessmentPackAuthoring';
+import {
+    DataLoadEmptyState,
+    DataLoadErrorPanel,
+    DataLoadContent,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 export function ContentPacks() {
   const { user, profile } = useAuth();
@@ -20,7 +30,9 @@ export function ContentPacks() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', file: null as File | null });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<DataLoadState>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
   const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
@@ -29,17 +41,37 @@ export function ContentPacks() {
   const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
   const [importWarnings, setImportWarnings] = useState<PackGroupWarning[]>([]);
 
-  const loadPacks = () => {
-    if (profile?.org_id) {
-      // setLoading(true); // Don't reset loading to true on filter change to avoid flicker loop?
-      // Actually keeping usage simple:
-      packService.getByOrg(profile.org_id, statusFilter).then((data) => {
-        setPacks(data);
-        setLoading(false);
-      });
-    } else {
-      setLoading(false);
+  const loadPacks = async () => {
+    if (!profile?.org_id) {
+      setLoadState('loaded');
+      return;
     }
+
+    const requestId = ++loadRequestRef.current;
+    setLoadState('loading');
+    setLoadError(null);
+
+    const result = await executeProtectedLoad({
+      requestId,
+      getCurrentRequestId: () => loadRequestRef.current,
+      load: () => packService.getByOrg(profile.org_id, statusFilter),
+    });
+
+    if (result.kind === 'stale') {
+      return;
+    }
+
+    if (result.kind === 'error') {
+      setPacks([]);
+      setLoadError(
+        'We could not load content packs. Your packs are still saved — try again.'
+      );
+      setLoadState('error');
+      return;
+    }
+
+    setPacks(result.data);
+    setLoadState('loaded');
   };
 
   useEffect(() => {
@@ -90,7 +122,20 @@ export function ContentPacks() {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
+  if (loadState === 'loading') {
+    return <DataLoadSpinner label="Loading content packs…" />;
+  }
+
+  if (loadState === 'error') {
+    return (
+      <DataLoadErrorPanel
+        title="Content packs could not be loaded"
+        message={loadError ?? ''}
+        onRetry={() => void loadPacks()}
+        retryLabel="Retry loading content packs"
+      />
+    );
+  }
 
   const handleEdit = (pack: ContentPack) => {
     setEditingPack(pack);
@@ -327,13 +372,16 @@ export function ContentPacks() {
         </div>
       )}
 
-      <div className="grid gap-4">
-        {packs.length === 0 && (
+      {packs.length === 0 ? (
+        <DataLoadEmptyState>
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <p className="text-gray-500">No {statusFilter} packs found.</p>
           </div>
-        )}
-        {packs.map((pack) => (
+        </DataLoadEmptyState>
+      ) : (
+        <DataLoadContent>
+          <div className="grid gap-4">
+            {packs.map((pack) => (
           <div key={pack.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between group">
             <div>
               <h3 className="font-semibold text-gray-900">{pack.title}</h3>
@@ -388,8 +436,10 @@ export function ContentPacks() {
               </div>
             )}
           </div>
-        ))}
-      </div>
+            ))}
+          </div>
+        </DataLoadContent>
+      )}
     </div>
   );
 }

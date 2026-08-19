@@ -1,16 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { clientService } from '../services/clients';
 import { auditService } from '../services/audit';
 import { Client } from '../types';
-import { Search, Plus, Archive, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  DataLoadEmptyState,
+  DataLoadErrorPanel,
+  DataLoadContent,
+  DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+  executeProtectedLoad,
+  type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 export function Clients() {
   const { user, profile } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', dateOfBirth: '' });
-  const [loading, setLoading] = useState(true);
+  const [loadState, setLoadState] = useState<DataLoadState>('loading');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
 
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,6 +31,7 @@ export function Clients() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -34,16 +47,37 @@ export function Clients() {
     }
   }, [profile?.org_id, statusFilter]);
 
-  const loadClients = () => {
-    if (profile?.org_id) {
-      setLoading(true);
-      clientService.getByOrg(profile.org_id, statusFilter).then((data) => {
-        setClients(data);
-        setLoading(false);
-      });
-    } else {
-      setLoading(false);
+  const loadClients = async () => {
+    if (!profile?.org_id) {
+      setLoadState('loaded');
+      return;
     }
+
+    const requestId = ++loadRequestRef.current;
+    setLoadState('loading');
+    setLoadError(null);
+
+    const result = await executeProtectedLoad({
+      requestId,
+      getCurrentRequestId: () => loadRequestRef.current,
+      load: () => clientService.getByOrg(profile.org_id, statusFilter),
+    });
+
+    if (result.kind === 'stale') {
+      return;
+    }
+
+    if (result.kind === 'error') {
+      setClients([]);
+      setLoadError(
+        'We could not load your client list. Your records are still saved — check your connection and try again.'
+      );
+      setLoadState('error');
+      return;
+    }
+
+    setClients(result.data);
+    setLoadState('loaded');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,10 +125,15 @@ export function Clients() {
     if (!archiveTarget) return;
     try {
       await clientService.archive(archiveTarget.id);
+      setArchiveError(null);
       loadClients();
       setArchiveTarget(null);
     } catch (err) {
       console.error('Error archiving client:', err);
+      setArchiveTarget(null);
+      setArchiveError(
+        'We could not archive this client. The client is still active — try again.'
+      );
     }
   };
 
@@ -115,7 +154,20 @@ export function Clients() {
     }
   };
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
+  if (loadState === 'loading') {
+    return <DataLoadSpinner label="Loading clients…" />;
+  }
+
+  if (loadState === 'error') {
+    return (
+      <DataLoadErrorPanel
+        title="Clients could not be loaded"
+        message={loadError ?? ''}
+        onRetry={() => void loadClients()}
+        retryLabel="Retry loading clients"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -155,6 +207,22 @@ export function Clients() {
           )}
         </div>
       </div>
+
+      {archiveError && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start justify-between gap-4"
+          data-action-error
+        >
+          <span>{archiveError}</span>
+          <button
+            type="button"
+            onClick={() => setArchiveError(null)}
+            className="shrink-0 font-medium text-red-700 hover:text-red-900 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {saveError && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start justify-between gap-4">
@@ -312,13 +380,16 @@ export function Clients() {
         </div>
       )}
 
-      <div className="grid gap-4">
-        {clients.length === 0 && (
+      {clients.length === 0 ? (
+        <DataLoadEmptyState>
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <p className="text-gray-500">No {statusFilter} clients found.</p>
           </div>
-        )}
-        {clients.map((client) => (
+        </DataLoadEmptyState>
+      ) : (
+        <DataLoadContent>
+          <div className="grid gap-4">
+            {clients.map((client) => (
           <div
             key={client.id}
             className="bg-white rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-emerald-200 p-4 flex items-center justify-between group"
@@ -393,8 +464,10 @@ export function Clients() {
               </button>
             </div>
           </div>
-        ))}
-      </div>
+            ))}
+          </div>
+        </DataLoadContent>
+      )}
     </div>
   );
 }

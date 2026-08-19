@@ -1,9 +1,17 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { auditService } from '../services/audit';
 import { userService } from '../services/users';
 import { RefreshCw } from 'lucide-react';
+import {
+    DataLoadErrorPanel,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 function actionBadgeClass(action: string): string {
     const a = (action || '').toString().toUpperCase();
@@ -44,7 +52,9 @@ export function AuditLog() {
     const isAdmin = profile?.role === 'admin';
     const [logs, setLogs] = useState<any[]>([]);
     const [users, setUsers] = useState<Record<string, string>>({});
-    const [loading, setLoading] = useState(true);
+    const [loadState, setLoadState] = useState<DataLoadState>('loading');
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const loadRequestRef = useRef(0);
 
     useEffect(() => {
         if (isAdmin && profile?.org_id) {
@@ -53,22 +63,43 @@ export function AuditLog() {
     }, [profile?.org_id, isAdmin]);
 
     const loadData = async () => {
-        setLoading(true);
-        try {
-            const logData = await auditService.getLogs(profile?.org_id || '', 100);
-            setLogs(logData || []);
+        if (!profile?.org_id) return;
 
-            const userData = await userService.getByOrg(profile?.org_id || '');
-            const userMap: Record<string, string> = {};
-            userData.forEach(u => {
-                userMap[u.id] = u.full_name || u.email;
-            });
-            setUsers(userMap);
-        } catch (err) {
-            console.error('Failed to load audit logs', err);
-        } finally {
-            setLoading(false);
+        const requestId = ++loadRequestRef.current;
+        setLoadState('loading');
+        setLoadError(null);
+
+        const result = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => loadRequestRef.current,
+            load: async () => {
+                const logData = await auditService.getLogs(profile.org_id, 100);
+                const userData = await userService.getByOrg(profile.org_id);
+                const userMap: Record<string, string> = {};
+                userData.forEach((u) => {
+                    userMap[u.id] = u.full_name || u.email;
+                });
+                return { logs: logData || [], users: userMap };
+            },
+        });
+
+        if (result.kind === 'stale') {
+            return;
         }
+
+        if (result.kind === 'error') {
+            setLogs([]);
+            setUsers({});
+            setLoadError(
+                'We could not load audit events. Try again or contact your administrator if this continues.'
+            );
+            setLoadState('error');
+            return;
+        }
+
+        setLogs(result.data.logs);
+        setUsers(result.data.users);
+        setLoadState('loaded');
     };
 
     if (!isAdmin) {
@@ -103,13 +134,29 @@ export function AuditLog() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200 text-sm">
-                        {loading ? (
+                        {loadState === 'loading' ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading events...</td>
+                                <td colSpan={5} className="px-6 py-8">
+                                    <DataLoadSpinner label="Loading events…" className="py-4" />
+                                </td>
+                            </tr>
+                        ) : loadState === 'error' ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-8">
+                                    <DataLoadErrorPanel
+                                        title="Audit events could not be loaded"
+                                        message={loadError ?? ''}
+                                        onRetry={() => void loadData()}
+                                        retryLabel="Retry loading events"
+                                        className="rounded-lg border border-red-200 bg-red-50 p-6 text-center"
+                                    />
+                                </td>
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">No events found.</td>
+                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500" data-load-empty>
+                                    No events found.
+                                </td>
                             </tr>
                         ) : (
                             logs.map((log) => {

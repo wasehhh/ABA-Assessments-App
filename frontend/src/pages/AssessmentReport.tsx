@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { assessmentService } from '../services/assessments';
 import { buildReportProfile } from '../services/reportProfile';
 import { ReportAssessmentScoreDistribution } from '../components/report/ReportAssessmentScoreDistribution';
@@ -7,50 +7,141 @@ import { ReportDomainSummaryTable } from '../components/report/ReportDomainSumma
 import { ReportDomainScoreDistribution } from '../components/report/ReportDomainScoreDistribution';
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { formatCycleStatusLabel } from '../utils/assessmentStatusLabel';
+import {
+    DataLoadErrorPanel,
+    DataLoadSecondaryError,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 interface Props {
     assessmentId: string;
 }
 
 export function AssessmentReport({ assessmentId }: Props) {
-    const [loading, setLoading] = useState(true);
+    const [loadState, setLoadState] = useState<DataLoadState>('loading');
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [comparisonLoadError, setComparisonLoadError] = useState<string | null>(null);
+    const loadRequestRef = useRef(0);
     const [assessment, setAssessment] = useState<any>(null);
     const [scores, setScores] = useState<any[]>([]);
     const [previousScores, setPreviousScores] = useState<any[]>([]);
     const [currentCycle, setCurrentCycle] = useState<any>(null);
+    const [notFound, setNotFound] = useState(false);
 
     useEffect(() => {
-        loadData();
+        void loadData();
     }, [assessmentId]);
 
     const loadData = async () => {
-        try {
-            const [aData, cycles] = await Promise.all([
-                assessmentService.getById(assessmentId),
-                assessmentService.getCycles(assessmentId)
-            ]);
+        const requestId = ++loadRequestRef.current;
+        setLoadState('loading');
+        setLoadError(null);
+        setComparisonLoadError(null);
+        setNotFound(false);
 
-            if (aData) {
-                setAssessment(aData);
-                const active = cycles.find((c: any) => c.status === 'in_progress') || cycles[0];
-                setCurrentCycle(active);
+        const primaryResult = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => loadRequestRef.current,
+            load: async () => {
+                const [aData, cycles] = await Promise.all([
+                    assessmentService.getById(assessmentId),
+                    assessmentService.getCycles(assessmentId),
+                ]);
+                return { assessment: aData, cycles };
+            },
+        });
 
-                const s = await assessmentService.getScores(assessmentId, active?.id);
-                setScores(s);
+        if (primaryResult.kind === 'stale') {
+            return;
+        }
 
-                if (active && active.cycle_number > 1) {
-                    const prevCycle = cycles.find((c: any) => c.cycle_number === active.cycle_number - 1);
-                    if (prevCycle) {
-                        const prevS = await assessmentService.getScores(assessmentId, prevCycle.id);
-                        setPreviousScores(prevS);
-                    }
+        if (primaryResult.kind === 'error') {
+            setAssessment(null);
+            setScores([]);
+            setPreviousScores([]);
+            setCurrentCycle(null);
+            setLoadError(
+                'We could not load this assessment report. Your records are still saved — try again before reviewing or printing.'
+            );
+            setLoadState('error');
+            return;
+        }
+
+        const { assessment: aData, cycles } = primaryResult.data;
+        if (!aData) {
+            setAssessment(null);
+            setScores([]);
+            setPreviousScores([]);
+            setCurrentCycle(null);
+            setNotFound(true);
+            setLoadState('loaded');
+            return;
+        }
+
+        const active = cycles.find((c: any) => c.status === 'in_progress') || cycles[0];
+        setAssessment(aData);
+        setCurrentCycle(active ?? null);
+
+        if (!active?.id) {
+            setScores([]);
+            setPreviousScores([]);
+            setLoadState('loaded');
+            return;
+        }
+
+        const scoresResult = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => loadRequestRef.current,
+            load: () => assessmentService.getScores(assessmentId, active.id),
+        });
+
+        if (scoresResult.kind === 'stale') {
+            return;
+        }
+
+        if (scoresResult.kind === 'error') {
+            setScores([]);
+            setPreviousScores([]);
+            setLoadError(
+                'We could not load scores for this report. Your records are still saved — try again before reviewing or printing.'
+            );
+            setLoadState('error');
+            return;
+        }
+
+        setScores(scoresResult.data);
+
+        if (active.cycle_number > 1) {
+            const prevCycle = cycles.find((c: any) => c.cycle_number === active.cycle_number - 1);
+            if (prevCycle) {
+                const comparisonResult = await executeProtectedLoad({
+                    requestId,
+                    getCurrentRequestId: () => loadRequestRef.current,
+                    load: () => assessmentService.getScores(assessmentId, prevCycle.id),
+                });
+
+                if (comparisonResult.kind === 'stale') {
+                    return;
+                }
+
+                if (comparisonResult.kind === 'error') {
+                    setPreviousScores([]);
+                    setComparisonLoadError(
+                        'We could not load comparison scores for trend arrows. The report below uses the current cycle only — try again to restore trends.'
+                    );
+                } else {
+                    setPreviousScores(comparisonResult.data);
                 }
             }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
+        } else {
+            setPreviousScores([]);
         }
+
+        setLoadState('loaded');
     };
 
     const report = useMemo(() => {
@@ -77,8 +168,34 @@ export function AssessmentReport({ assessmentId }: Props) {
         });
     }, [assessment, currentCycle, scores, previousScores]);
 
-    if (loading) return <div className="min-h-screen flex items-center justify-center p-12 text-gray-500 text-base">Generating report…</div>;
-    if (!assessment || !report) return <div className="min-h-screen flex items-center justify-center p-12 text-red-600">Assessment not found</div>;
+    if (loadState === 'loading') {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-12">
+                <DataLoadSpinner label="Generating report…" />
+            </div>
+        );
+    }
+
+    if (loadState === 'error') {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-12">
+                <DataLoadErrorPanel
+                    title="Assessment report could not be loaded"
+                    message={loadError ?? ''}
+                    onRetry={() => void loadData()}
+                    retryLabel="Retry loading report"
+                />
+            </div>
+        );
+    }
+
+    if (notFound || !assessment || !report) {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-12 text-red-600" data-load-not-found>
+                Assessment not found
+            </div>
+        );
+    }
 
     const clientName = report.metadata.clientName ?? '—';
     const packLabel = `${report.metadata.packTitle} (v${report.metadata.packVersion})`;
@@ -158,6 +275,14 @@ export function AssessmentReport({ assessmentId }: Props) {
                     </div>
                 </div>
             </div>
+
+            {comparisonLoadError ? (
+                <DataLoadSecondaryError
+                    message={comparisonLoadError}
+                    onRetry={() => void loadData()}
+                    retryLabel="Retry loading trends"
+                />
+            ) : null}
 
             {/* Executive summary */}
             <section className="mb-12 print:mb-8 report-section-block">

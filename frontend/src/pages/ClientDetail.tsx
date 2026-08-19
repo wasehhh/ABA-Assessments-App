@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { clientService } from '../services/clients';
@@ -6,6 +6,17 @@ import { ArrowLeft, Calendar, FileText, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
 import { Assessment, Client } from '../types';
+import {
+  DataLoadEmptyState,
+  DataLoadErrorPanel,
+  DataLoadContent,
+  DataLoadSecondaryError,
+  DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+  executeProtectedLoad,
+  type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 interface Props {
   clientId: string;
@@ -15,27 +26,115 @@ export function ClientDetail({ clientId }: Props) {
   const { user, profile } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clientLoadState, setClientLoadState] = useState<DataLoadState>('loading');
+  const [clientLoadError, setClientLoadError] = useState<string | null>(null);
+  const [assessmentsLoadState, setAssessmentsLoadState] = useState<DataLoadState>('loading');
+  const [assessmentsLoadError, setAssessmentsLoadError] = useState<string | null>(null);
+  const clientLoadRequestRef = useRef(0);
+  const assessmentsLoadRequestRef = useRef(0);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      clientService.getById(clientId),
-      assessmentService.getByOrg(profile?.org_id || ''),
-    ]).then(([clientData, allAssessments]) => {
-      setClient(clientData);
-      setAssessments(allAssessments.filter(a => a.client_id === clientId));
-      setLoading(false);
-    }).catch((err) => {
-      console.error('Error loading client details:', err);
-      setLoading(false);
-    });
-  }, [clientId, profile?.org_id]);
+  const loadClient = async () => {
+    const requestId = ++clientLoadRequestRef.current;
+    setClientLoadState('loading');
+    setClientLoadError(null);
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
-  if (!client) return <div className="text-center py-12">Client not found</div>;
+    const result = await executeProtectedLoad({
+      requestId,
+      getCurrentRequestId: () => clientLoadRequestRef.current,
+      load: () => clientService.getById(clientId),
+    });
+
+    if (result.kind === 'stale') {
+      return;
+    }
+
+    if (result.kind === 'error') {
+      setClient(null);
+      setClientLoadError(
+        'We could not load this client\'s record. Your records are still saved — check your connection and try again.'
+      );
+      setClientLoadState('error');
+      return;
+    }
+
+    if (!result.data) {
+      setClient(null);
+      setClientLoadState('loaded');
+      return;
+    }
+
+    setClient(result.data);
+    setClientLoadState('loaded');
+  };
+
+  const loadAssessments = async () => {
+    if (!profile?.org_id) {
+      setAssessmentsLoadState('loaded');
+      return;
+    }
+
+    const requestId = ++assessmentsLoadRequestRef.current;
+    setAssessmentsLoadState('loading');
+    setAssessmentsLoadError(null);
+
+    const result = await executeProtectedLoad({
+      requestId,
+      getCurrentRequestId: () => assessmentsLoadRequestRef.current,
+      load: () => assessmentService.getByOrg(profile.org_id),
+    });
+
+    if (result.kind === 'stale') {
+      return;
+    }
+
+    if (result.kind === 'error') {
+      setAssessments([]);
+      setAssessmentsLoadError(
+        'We could not load assessments for this client. The client record loaded, but the assessment list is unavailable — try again.'
+      );
+      setAssessmentsLoadState('error');
+      return;
+    }
+
+    setAssessments(result.data.filter((a) => a.client_id === clientId));
+    setAssessmentsLoadState('loaded');
+  };
+
+  useEffect(() => {
+    void loadClient();
+  }, [clientId]);
+
+  useEffect(() => {
+    if (clientLoadState === 'loaded' && client) {
+      void loadAssessments();
+    }
+  }, [clientId, profile?.org_id, clientLoadState, client?.id]);
+
+  if (clientLoadState === 'loading') {
+    return <DataLoadSpinner label="Loading client…" />;
+  }
+
+  if (clientLoadState === 'error') {
+    return (
+      <DataLoadErrorPanel
+        title="Client record could not be loaded"
+        message={clientLoadError ?? ''}
+        onRetry={() => void loadClient()}
+        retryLabel="Retry loading client"
+      />
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="text-center py-12" data-load-not-found>
+        Client not found
+      </div>
+    );
+  }
 
   const handleDeleteClick = (assessmentId: string) => {
     setDeleteId(assessmentId);
@@ -106,53 +205,65 @@ export function ClientDetail({ clientId }: Props) {
             Assessments
           </h2>
 
-          {assessments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No assessments yet. Create one to get started.
-            </div>
+          {assessmentsLoadState === 'loading' ? (
+            <DataLoadSpinner label="Loading assessments…" className="py-8" />
+          ) : assessmentsLoadState === 'error' ? (
+            <DataLoadSecondaryError
+              message={assessmentsLoadError ?? ''}
+              onRetry={() => void loadAssessments()}
+              retryLabel="Retry loading assessments"
+            />
+          ) : assessments.length === 0 ? (
+            <DataLoadEmptyState>
+              <div className="text-center py-8 text-gray-500">
+                No assessments yet. Create one to get started.
+              </div>
+            </DataLoadEmptyState>
           ) : (
-            <div className="space-y-3">
-              {assessments.map((assessment) => (
-                <div key={assessment.id} className="flex gap-2">
-                  <button
-                    onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
-                    className="flex-1 text-left bg-gray-50 hover:bg-gray-100 rounded-lg p-4 transition border border-gray-200"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">
-                          {assessment.pack_snapshot.title}
-                        </h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Created: {new Date(assessment.created_at).toLocaleDateString()}
-                        </p>
-                        {assessment.submitted_at && (
-                          <p className="text-sm text-gray-600">
-                            Submitted: {new Date(assessment.submitted_at).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
-                          {formatAssessmentStatusLabel(assessment.status)}
-                        </span>
-                        <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
-                      </div>
-                    </div>
-                  </button>
-                  {assessment.status === 'draft' && (
+            <DataLoadContent>
+              <div className="space-y-3">
+                {assessments.map((assessment) => (
+                  <div key={assessment.id} className="flex gap-2">
                     <button
-                      onClick={() => handleDeleteClick(assessment.id)}
-                      disabled={deleting === assessment.id}
-                      className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition border border-red-200 disabled:opacity-50"
-                      title="Delete draft"
+                      onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
+                      className="flex-1 text-left bg-gray-50 hover:bg-gray-100 rounded-lg p-4 transition border border-gray-200"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900">
+                            {assessment.pack_snapshot.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Created: {new Date(assessment.created_at).toLocaleDateString()}
+                          </p>
+                          {assessment.submitted_at && (
+                            <p className="text-sm text-gray-600">
+                              Submitted: {new Date(assessment.submitted_at).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(assessment.status)}`}>
+                            {formatAssessmentStatusLabel(assessment.status)}
+                          </span>
+                          <ArrowLeft className="w-5 h-5 text-gray-400 rotate-180" />
+                        </div>
+                      </div>
                     </button>
-                  )}
-                </div>
-              ))}
-            </div>
+                    {assessment.status === 'draft' && (
+                      <button
+                        onClick={() => handleDeleteClick(assessment.id)}
+                        disabled={deleting === assessment.id}
+                        className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition border border-red-200 disabled:opacity-50"
+                        title="Delete draft"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </DataLoadContent>
           )}
         </div>
       </div>

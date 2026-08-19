@@ -8,6 +8,16 @@ import { UserProfile, Assessment } from '../types';
 import { Plus, FileText, Calendar, User, Trash2, Download } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
+import {
+    DataLoadEmptyState,
+    DataLoadErrorPanel,
+    DataLoadContent,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 function isLikelyUuid(value: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -28,7 +38,12 @@ export function Assessments() {
     // List State
     const [assessments, setAssessments] = useState<Assessment[]>([]);
     const [statusFilter, setStatusFilter] = useState<'active' | 'submitted' | 'approved'>('active');
-    const [loading, setLoading] = useState(true);
+    const [listLoadState, setListLoadState] = useState<DataLoadState>('loading');
+    const [listLoadError, setListLoadError] = useState<string | null>(null);
+    const listLoadRequestRef = useRef(0);
+    const [formDataLoadState, setFormDataLoadState] = useState<DataLoadState>('loaded');
+    const [formDataLoadError, setFormDataLoadError] = useState<string | null>(null);
+    const formDataLoadRequestRef = useRef(0);
     const [activeExportId, setActiveExportId] = useState<string | null>(null);
 
     // Form State
@@ -114,52 +129,94 @@ export function Assessments() {
         }
     }, [profile?.org_id, statusFilter, showForm]);
 
-    const loadAssessments = () => {
+    const loadAssessments = async () => {
         if (!profile?.org_id) {
-            setLoading(false);
+            setListLoadState('loaded');
             return;
         }
-        setLoading(true);
-        assessmentService.getByOrg(profile.org_id, statusFilter).then((data) => {
-            setAssessments(data);
-            setLoading(false);
+
+        const requestId = ++listLoadRequestRef.current;
+        setListLoadState('loading');
+        setListLoadError(null);
+
+        const result = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => listLoadRequestRef.current,
+            load: () => assessmentService.getByOrg(profile.org_id, statusFilter),
         });
+
+        if (result.kind === 'stale') {
+            return;
+        }
+
+        if (result.kind === 'error') {
+            setAssessments([]);
+            setListLoadError(
+                'We could not load assessments. Your records are still saved — try again in a moment.'
+            );
+            setListLoadState('error');
+            return;
+        }
+
+        setAssessments(result.data);
+        setListLoadState('loaded');
     };
 
-    const loadFormData = () => {
+    const loadFormData = async () => {
         if (!profile?.org_id) return;
 
         const deepLinkUuidAtStart = pendingClientFromHashRef.current;
+        const requestId = ++formDataLoadRequestRef.current;
+        setFormDataLoadState('loading');
+        setFormDataLoadError(null);
 
-        Promise.all([
-            clientService.getByOrg(profile.org_id, 'active'),
-            packService.getByOrg(profile.org_id, 'active'),
-            userService.getByOrg(profile.org_id),
-        ]).then(([c, p, u]) => {
-            setClients(c);
-            setPacks(p);
-            setUsers(u);
-
-            if (!deepLinkUuidAtStart) return;
-            const stillWaiting =
-                pendingClientFromHashRef.current === deepLinkUuidAtStart;
-            if (!stillWaiting) return;
-
-            pendingClientFromHashRef.current = null;
-
-            if (c.some((cl: { id: string }) => cl.id === deepLinkUuidAtStart)) {
-                setForm((prev) => ({
-                    ...prev,
-                    clientId: deepLinkUuidAtStart,
-                }));
-                window.location.hash = '#/assessments';
-            } else {
-                clearCreateDraft();
-                pendingClientFromHashRef.current = null;
-                setShowForm(false);
-                window.location.hash = '#/assessments';
-            }
+        const result = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => formDataLoadRequestRef.current,
+            load: () =>
+                Promise.all([
+                    clientService.getByOrg(profile.org_id, 'active'),
+                    packService.getByOrg(profile.org_id, 'active'),
+                    userService.getByOrg(profile.org_id),
+                ]),
         });
+
+        if (result.kind === 'stale') {
+            return;
+        }
+
+        if (result.kind === 'error') {
+            setFormDataLoadError(
+                'We could not load form options. Close and reopen the form, or try again.'
+            );
+            setFormDataLoadState('error');
+            return;
+        }
+
+        const [c, p, u] = result.data;
+        setClients(c);
+        setPacks(p);
+        setUsers(u);
+        setFormDataLoadState('loaded');
+
+        if (!deepLinkUuidAtStart) return;
+        const stillWaiting = pendingClientFromHashRef.current === deepLinkUuidAtStart;
+        if (!stillWaiting) return;
+
+        pendingClientFromHashRef.current = null;
+
+        if (c.some((cl: { id: string }) => cl.id === deepLinkUuidAtStart)) {
+            setForm((prev) => ({
+                ...prev,
+                clientId: deepLinkUuidAtStart,
+            }));
+            window.location.hash = '#/assessments';
+        } else {
+            clearCreateDraft();
+            pendingClientFromHashRef.current = null;
+            setShowForm(false);
+            window.location.hash = '#/assessments';
+        }
     };
 
     const closeCreateForm = () => {
@@ -225,7 +282,20 @@ export function Assessments() {
         }
     };
 
-    if (loading && !assessments.length && !showForm) return <div className="text-center py-12">Loading...</div>;
+    if (listLoadState === 'loading' && !showForm) {
+        return <DataLoadSpinner label="Loading assessments…" />;
+    }
+
+    if (listLoadState === 'error' && !showForm) {
+        return (
+            <DataLoadErrorPanel
+                title="Assessments could not be loaded"
+                message={listLoadError ?? ''}
+                onRetry={() => void loadAssessments()}
+                retryLabel="Retry loading assessments"
+            />
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -289,6 +359,18 @@ export function Assessments() {
                     </div>
 
                     <div className="p-6">
+                        {formDataLoadState === 'loading' ? (
+                            <DataLoadSpinner label="Loading form options…" className="py-12" />
+                        ) : formDataLoadState === 'error' ? (
+                            <DataLoadErrorPanel
+                                title="Form options could not be loaded"
+                                message={formDataLoadError ?? ''}
+                                onRetry={() => void loadFormData()}
+                                retryLabel="Retry loading form options"
+                                className="rounded-lg border border-red-200 bg-red-50 p-6 text-center"
+                            />
+                        ) : (
+                        <>
                         {error && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                                 <p className="text-red-800 font-semibold">Error Creating Assessment</p>
@@ -379,11 +461,22 @@ export function Assessments() {
                                 </button>
                             </div>
                         </form>
+                        </>
+                        )}
                     </div>
                 </div>
+            ) : listLoadState === 'error' ? (
+                <DataLoadErrorPanel
+                    title="Assessments could not be loaded"
+                    message={listLoadError ?? ''}
+                    onRetry={() => void loadAssessments()}
+                    retryLabel="Retry loading assessments"
+                />
             ) : (
+                <DataLoadContent>
                 <div className="grid gap-4">
-                    {assessments.length === 0 && (
+                    {assessments.length === 0 ? (
+                        <DataLoadEmptyState>
                         <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-200">
                             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <h3 className="text-lg font-medium text-gray-900">No {statusFilter} assessments found</h3>
@@ -397,9 +490,9 @@ export function Assessments() {
                                 </button>
                             )}
                         </div>
-                    )}
-
-                    {assessments.map((assessment: any) => (
+                        </DataLoadEmptyState>
+                    ) : (
+                    assessments.map((assessment: any) => (
                         <div
                             key={assessment.id}
                             className="bg-white rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-emerald-200 p-5 cursor-pointer group relative"
@@ -497,8 +590,10 @@ export function Assessments() {
                                 )}
                             </div>
                         </div>
-                    ))}
+                    ))
+                    )}
                 </div>
+                </DataLoadContent>
             )}
             <ConfirmDialog
                 isOpen={!!deleteConfirm}

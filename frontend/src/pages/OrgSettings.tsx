@@ -1,14 +1,24 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { orgService } from '../services/orgs';
 import { auditService } from '../services/audit';
 import { Building2, Save } from 'lucide-react';
+import {
+    DataLoadErrorPanel,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 export function OrgSettings() {
     const { user, profile } = useAuth();
     const isAdmin = profile?.role === 'admin';
-    const [loading, setLoading] = useState(true);
+    const [loadState, setLoadState] = useState<DataLoadState>('loading');
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const loadRequestRef = useRef(0);
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -20,15 +30,31 @@ export function OrgSettings() {
     }, [profile?.org_id, isAdmin]);
 
     const loadOrg = async () => {
-        try {
-            const org = await orgService.getById(profile!.org_id);
-            setName(org.name);
-        } catch (err) {
-            console.error('Failed to load org', err);
-            setMessage({ type: 'error', text: 'Failed to load organization details.' });
-        } finally {
-            setLoading(false);
+        const requestId = ++loadRequestRef.current;
+        setLoadState('loading');
+        setLoadError(null);
+        setMessage(null);
+
+        const result = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => loadRequestRef.current,
+            load: () => orgService.getById(profile!.org_id),
+        });
+
+        if (result.kind === 'stale') {
+            return;
         }
+
+        if (result.kind === 'error') {
+            setLoadError(
+                'We could not load organization settings. Your clinic details are still saved — try again.'
+            );
+            setLoadState('error');
+            return;
+        }
+
+        setName(result.data.name);
+        setLoadState('loaded');
     };
 
     const handleSave = async (e: React.FormEvent) => {
@@ -64,7 +90,20 @@ export function OrgSettings() {
         return <div className="p-8 text-center text-gray-500">Access Denied</div>;
     }
 
-    if (loading) return <div className="text-center py-12">Loading...</div>;
+    if (loadState === 'loading') {
+        return <DataLoadSpinner label="Loading organization settings…" />;
+    }
+
+    if (loadState === 'error') {
+        return (
+            <DataLoadErrorPanel
+                title="Organization settings could not be loaded"
+                message={loadError ?? ''}
+                onRetry={() => void loadOrg()}
+                retryLabel="Retry loading settings"
+            />
+        );
+    }
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">

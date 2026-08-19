@@ -1,10 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userService } from '../services/users';
 import { UserProfile } from '../types';
-import { Plus, Mail, Shield, User, Trash2 } from 'lucide-react';
+import { Plus, Shield, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import {
+    DataLoadEmptyState,
+    DataLoadErrorPanel,
+    DataLoadContent,
+    DataLoadSpinner,
+} from '../components/DataLoadSurface';
+import {
+    executeProtectedLoad,
+    type DataLoadState,
+} from '../utils/dataLoadHonesty';
 
 export function Users() {
     const { user, profile } = useAuth();
@@ -15,28 +25,52 @@ export function Users() {
     const [showInviteForm, setShowInviteForm] = useState(false);
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState('therapist');
-    const [loading, setLoading] = useState(true);
+    const [loadState, setLoadState] = useState<DataLoadState>('loading');
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const loadRequestRef = useRef(0);
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [revokeEmail, setRevokeEmail] = useState<string | null>(null);
 
     useEffect(() => {
-        loadUsers();
+        void loadUsers();
     }, [profile?.org_id]);
 
     const loadUsers = async () => {
         if (!profile?.org_id) return;
-        try {
-            const data = await userService.getByOrg(profile.org_id);
-            setUsers(data);
-            const invitesData = await userService.getInvitesByOrg(profile.org_id);
-            setInvites(invitesData);
-        } catch (err) {
-            console.error('Failed to load users', err);
-        } finally {
-            setLoading(false);
+
+        const requestId = ++loadRequestRef.current;
+        setLoadState('loading');
+        setLoadError(null);
+
+        const result = await executeProtectedLoad({
+            requestId,
+            getCurrentRequestId: () => loadRequestRef.current,
+            load: async () => {
+                const data = await userService.getByOrg(profile.org_id);
+                const invitesData = await userService.getInvitesByOrg(profile.org_id);
+                return { users: data, invites: invitesData };
+            },
+        });
+
+        if (result.kind === 'stale') {
+            return;
         }
+
+        if (result.kind === 'error') {
+            setUsers([]);
+            setInvites([]);
+            setLoadError(
+                'We could not load team members. Try again in a moment.'
+            );
+            setLoadState('error');
+            return;
+        }
+
+        setUsers(result.data.users);
+        setInvites(result.data.invites);
+        setLoadState('loaded');
     };
 
     const handleInvite = async (e: React.FormEvent) => {
@@ -55,7 +89,7 @@ export function Users() {
             setInviteEmail('');
             setInviteRole('therapist');
             setShowInviteForm(false);
-            loadUsers(); // Reload to show new invite
+            void loadUsers();
         } catch (err: any) {
             console.error('Invite error:', err);
             setError(err.message || 'Could not create invite');
@@ -68,7 +102,7 @@ export function Users() {
         if (!revokeEmail) return;
         try {
             await userService.deleteInvite(revokeEmail);
-            loadUsers();
+            void loadUsers();
             setSuccessMsg(`Invitation revoked for ${revokeEmail}`);
         } catch (e: any) {
             console.error(e);
@@ -88,7 +122,20 @@ export function Users() {
         );
     }
 
-    if (loading) return <div className="text-center py-12">Loading...</div>;
+    if (loadState === 'loading') {
+        return <DataLoadSpinner label="Loading team members…" />;
+    }
+
+    if (loadState === 'error') {
+        return (
+            <DataLoadErrorPanel
+                title="Team members could not be loaded"
+                message={loadError ?? ''}
+                onRetry={() => void loadUsers()}
+                retryLabel="Retry loading team members"
+            />
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -169,86 +216,96 @@ export function Users() {
                 </div>
             )}
 
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {users.map((u) => {
-                            const isMe = u.id === user?.id; // Prevent editing self
-                            return (
-                                <tr key={u.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="flex items-center">
-                                            <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold mr-3">
-                                                {u.full_name?.charAt(0) || u.email?.charAt(0)}
-                                            </div>
-                                            <div className="text-sm font-medium text-gray-900">{u.full_name}</div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <select
-                                            value={u.role}
-                                            disabled={isMe}
-                                            onChange={async (e) => {
-                                                try {
-                                                    await userService.updateUser(u.id, { role: e.target.value as any });
-                                                    setSuccessMsg(`Updated role for ${u.full_name || u.email}`);
-                                                    loadUsers();
-                                                } catch (err) {
-                                                    console.error(err);
-                                                    setError('Failed to update role');
-                                                }
-                                            }}
-                                            className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:bg-gray-100"
-                                        >
-                                            <option value="admin">Admin</option>
-                                            <option value="senior_therapist">Senior Therapist</option>
-                                            <option value="therapist">Therapist</option>
-                                            <option value="viewer">Viewer</option>
-                                        </select>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'inactive' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                                            {u.status === 'inactive' ? 'Inactive' : 'Active'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        {!isMe && (
-                                            <button
-                                                onClick={async () => {
-                                                    const newStatus = u.status === 'inactive' ? 'active' : 'inactive';
-                                                    if (!confirm(`Are you sure you want to ${newStatus === 'inactive' ? 'deactivate' : 'activate'} this user?`)) return;
-
-                                                    try {
-                                                        await userService.updateUser(u.id, { status: newStatus });
-                                                        setSuccessMsg(`User ${newStatus === 'inactive' ? 'deactivated' : 'activated'}`);
-                                                        loadUsers();
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        setError('Failed to update status');
-                                                    }
-                                                }}
-                                                className={`${u.status === 'inactive' ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
-                                            >
-                                                {u.status === 'inactive' ? 'Activate' : 'Deactivate'}
-                                            </button>
-                                        )}
-                                    </td>
+            {users.length === 0 ? (
+                <DataLoadEmptyState>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <div className="px-6 py-12 text-center text-gray-500">No team members found.</div>
+                    </div>
+                </DataLoadEmptyState>
+            ) : (
+                <DataLoadContent>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {users.map((u) => {
+                                    const isMe = u.id === user?.id;
+                                    return (
+                                        <tr key={u.id}>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold mr-3">
+                                                        {u.full_name?.charAt(0) || u.email?.charAt(0)}
+                                                    </div>
+                                                    <div className="text-sm font-medium text-gray-900">{u.full_name}</div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <select
+                                                    value={u.role}
+                                                    disabled={isMe}
+                                                    onChange={async (e) => {
+                                                        try {
+                                                            await userService.updateUser(u.id, { role: e.target.value as any });
+                                                            setSuccessMsg(`Updated role for ${u.full_name || u.email}`);
+                                                            void loadUsers();
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            setError('Failed to update role');
+                                                        }
+                                                    }}
+                                                    className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:opacity-50 disabled:bg-gray-100"
+                                                >
+                                                    <option value="admin">Admin</option>
+                                                    <option value="senior_therapist">Senior Therapist</option>
+                                                    <option value="therapist">Therapist</option>
+                                                    <option value="viewer">Viewer</option>
+                                                </select>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.email}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.status === 'inactive' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                    {u.status === 'inactive' ? 'Inactive' : 'Active'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                {!isMe && (
+                                                    <button
+                                                        onClick={async () => {
+                                                            const newStatus = u.status === 'inactive' ? 'active' : 'inactive';
+                                                            if (!confirm(`Are you sure you want to ${newStatus === 'inactive' ? 'deactivate' : 'activate'} this user?`)) return;
+
+                                                            try {
+                                                                await userService.updateUser(u.id, { status: newStatus });
+                                                                setSuccessMsg(`User ${newStatus === 'inactive' ? 'deactivated' : 'activated'}`);
+                                                                void loadUsers();
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                                setError('Failed to update status');
+                                                            }
+                                                        }}
+                                                        className={`${u.status === 'inactive' ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'}`}
+                                                    >
+                                                        {u.status === 'inactive' ? 'Activate' : 'Deactivate'}
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </DataLoadContent>
+            )}
 
             {invites.length > 0 && (
                 <div className="mt-8">
