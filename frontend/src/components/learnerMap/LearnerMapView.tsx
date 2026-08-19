@@ -6,11 +6,13 @@ import { LearnerMapDomainSummary } from './LearnerMapDomainSummary';
 import { LearnerMapDisplayContext } from './learnerMapDisplayContext';
 import { LearnerMapMovementKey } from './LearnerMapMovementKey';
 import { LearnerMapScoreBandsCard } from './LearnerMapScoreBandsCard';
+import { LEARNER_MAP_CELL_NUMERALS_HINT_HIDDEN } from './learnerMapShowCellNumerals';
 
 interface Props {
     profile: LearnerMapProfile;
     displayContext?: LearnerMapDisplayContext;
     cycleDateLabels?: Record<string, string>;
+    showCellNumerals?: boolean;
 }
 
 function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
@@ -29,7 +31,12 @@ function formatCycleRange(cycles: LearnerMapCycleSummary[]): string {
     return `Cycles ${min}–${max}`;
 }
 
-export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Props) {
+export function LearnerMapView({
+    profile,
+    displayContext,
+    cycleDateLabels,
+    showCellNumerals = false,
+}: Props) {
     const { metadata, cycles, domains, totals, structureLabels } = profile;
     const primaryLabel = structureLabels.primary_group;
     const targetLabel = structureLabels.target;
@@ -40,7 +47,10 @@ export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Pro
     const cycleRangeLabel = formatCycleRange(cycles);
 
     return (
-        <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 text-gray-900">
+        <div
+            className="mx-auto max-w-6xl space-y-8 px-4 py-8 text-gray-900"
+            data-learner-map-show-cell-numerals={showCellNumerals ? 'true' : 'false'}
+        >
             <LearnerMapArtifactHeader
                 profile={profile}
                 cycleRangeLabel={cycleRangeLabel}
@@ -79,15 +89,24 @@ export function LearnerMapView({ profile, displayContext, cycleDateLabels }: Pro
                 <section className="space-y-8 border-t border-gray-300 pt-8">
                     <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gray-500">
-                            Supporting detail
+                            Per-target movement
                         </p>
                         <h2 className="mt-1 text-base font-bold uppercase tracking-wide text-gray-900">
-                            Cycle × {targetLabel.toLowerCase()} detail
+                            Cycle × {targetLabel.toLowerCase()} movement grid
                         </h2>
                         <p className="mt-1 text-sm text-gray-600">
-                            Cycles as rows, {targetLabel.toLowerCase()}s as columns — scroll horizontally
-                            for large {primaryLabel.toLowerCase()}s across {cycleRangeLabel.toLowerCase()}.
+                            See which {targetLabel.toLowerCase()}s moved and in which direction across{' '}
+                            {cycleRangeLabel.toLowerCase()}. Cycles as rows, {targetLabel.toLowerCase()}s
+                            as columns — scroll horizontally for large {primaryLabel.toLowerCase()}s.
                         </p>
+                        {showCellNumerals ? null : (
+                            <p
+                                className="mt-2 text-xs text-gray-500"
+                                data-learner-map-cell-numerals-hidden
+                            >
+                                {LEARNER_MAP_CELL_NUMERALS_HINT_HIDDEN}
+                            </p>
+                        )}
                     </div>
                     <div className="space-y-10">
                         {domains.map((domain, index) => (

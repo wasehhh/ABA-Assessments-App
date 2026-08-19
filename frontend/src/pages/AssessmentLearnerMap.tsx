@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Download, Map } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { LearnerMapView } from '../components/learnerMap';
+import { LearnerMapShowCellNumeralsToggle } from '../components/learnerMap/LearnerMapShowCellNumeralsToggle';
+import {
+    readLearnerMapShowCellNumerals,
+    writeLearnerMapShowCellNumerals,
+} from '../components/learnerMap/learnerMapShowCellNumerals';
 import { getLearnerMapExportAvailability } from '../components/learnerMap/export/learnerMapExportAvailability';
 import { LearnerMapExportDialog } from '../components/learnerMap/export/LearnerMapExportDialog';
 import { shouldOpenLearnerMapExportDialog } from '../components/learnerMap/export/learnerMapExportState';
@@ -25,6 +30,13 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
     const [productionData, setProductionData] = useState<Awaited<
         ReturnType<typeof loadLearnerMapProductionData>
     > | null>(null);
+    const [showCellNumerals, setShowCellNumerals] = useState(() =>
+        readLearnerMapShowCellNumerals(assessmentId)
+    );
+
+    useEffect(() => {
+        setShowCellNumerals(readLearnerMapShowCellNumerals(assessmentId));
+    }, [assessmentId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -141,25 +153,34 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-start gap-1 sm:items-end">
-                        <span
-                            title={exportDisabled ? exportAvailability.reason : undefined}
-                            className="inline-flex"
-                        >
-                            <button
-                                type="button"
-                                onClick={() => setShowExportDialog(true)}
-                                disabled={exportDisabled}
-                                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                                    exportDisabled
-                                        ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
-                                        : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                                }`}
+                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <LearnerMapShowCellNumeralsToggle
+                                checked={showCellNumerals}
+                                onChange={(next) => {
+                                    setShowCellNumerals(next);
+                                    writeLearnerMapShowCellNumerals(assessmentId, next);
+                                }}
+                            />
+                            <span
+                                title={exportDisabled ? exportAvailability.reason : undefined}
+                                className="inline-flex"
                             >
-                                <Download className="h-4 w-4" />
-                                Export Learner Map
-                            </button>
-                        </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowExportDialog(true)}
+                                    disabled={exportDisabled}
+                                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                                        exportDisabled
+                                            ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400'
+                                            : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                                    }`}
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Export Learner Map
+                                </button>
+                            </span>
+                        </div>
                         {exportDisabled && exportAvailability.reason ? (
                             <p className="max-w-xs text-xs text-gray-500 sm:text-right">
                                 {exportAvailability.reason}
@@ -179,6 +200,7 @@ export function AssessmentLearnerMap({ assessmentId }: Props) {
                 profile={learnerMapProfile}
                 displayContext={displayContext}
                 cycleDateLabels={productionData.cycleDateLabels}
+                showCellNumerals={showCellNumerals}
             />
 
             <LearnerMapExportDialog

@@ -22,6 +22,7 @@ import {
     resolveLearnerMapExportPreviewParams,
 } from '../components/learnerMap/export/learnerMapExportState';
 import { loadLearnerMapProductionData } from '../services/learnerMapProduction';
+import { readLearnerMapShowCellNumerals } from '../components/learnerMap/learnerMapShowCellNumerals';
 
 interface Props {
     assessmentId: string;
@@ -282,6 +283,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
         resolvedExportParams.exportMode,
         appendixEstimate
     );
+    const showCellNumerals = readLearnerMapShowCellNumerals(assessmentId);
 
     const handlePrint = () => {
         logClinicalExportAudit({
@@ -358,6 +360,7 @@ export function AssessmentLearnerMapExport({ assessmentId }: Props) {
                 }
                 displayContext={displayContext}
                 cycleDateLabels={cycleDateLabels}
+                showCellNumerals={showCellNumerals}
             />
         </div>
     );

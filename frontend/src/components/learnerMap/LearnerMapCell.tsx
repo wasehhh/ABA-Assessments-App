@@ -27,11 +27,14 @@ export function LearnerMapCell({ cell, compact = false }: Props) {
                         ? 'min-h-[1.85rem] min-w-[2.25rem] px-0 py-0.5'
                         : 'min-h-[2.75rem] min-w-[3.5rem] px-0.5 py-1'
                 } ${bucket.legendClass}`}
+                data-learner-map-grid-cell
+                tabIndex={0}
                 aria-label={`${bucket.label}, score ${cell.displayScoreWithMax}${
                     marker ? `, ${markerStyle.label}` : ''
                 }`}
             >
                 <span
+                    data-learner-map-cell-numeral
                     className={`font-mono font-semibold tabular-nums text-gray-900 ${
                         compact ? 'text-[9px] leading-none' : 'text-xs'
                     }`}

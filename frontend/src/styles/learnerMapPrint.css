@@ -427,4 +427,12 @@
         color: #444 !important;
         font-size: 8pt !important;
     }
+
+    /* Movement view: keep numerals hidden on paper when preference is off. */
+    [data-learner-map-show-cell-numerals='false'] [data-learner-map-grid-cell] [data-learner-map-cell-numeral],
+    [data-learner-map-show-cell-numerals='false'] [data-learner-map-grid-cell]:hover [data-learner-map-cell-numeral],
+    [data-learner-map-show-cell-numerals='false'] [data-learner-map-grid-cell]:focus [data-learner-map-cell-numeral],
+    [data-learner-map-show-cell-numerals='false'] [data-learner-map-grid-cell]:focus-visible [data-learner-map-cell-numeral] {
+        color: transparent !important;
+    }
 }
