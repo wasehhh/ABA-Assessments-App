@@ -20,6 +20,21 @@ import {
   buildAssessmentSnapshotRouteHash,
   getAssessmentSnapshotAvailability,
 } from '../services/assessmentSnapshotAvailability';
+import {
+  countUnscoredTargets,
+  evaluateSubmitGate,
+  fetchCycleScoresBundle,
+  formatSubmitConfirmMessage,
+  matrixScoresEntryAllowed,
+  PendingSaveTracker,
+  resolveSubmitControlState,
+  type ComparisonScoresLoadState,
+  type CycleScoresLoadState,
+} from './assessmentMatrixSaveHonesty';
+import {
+  AssessmentMatrixScoresMainPanel,
+  AssessmentMatrixSubmitControl,
+} from './AssessmentMatrixHonestySurface';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -41,7 +56,18 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [compareCycleId, setCompareCycleId] = useState<string | null>(null);
   const [client, setClient] = useState<any>(null);
   const [scores, setScores] = useState<any[]>([]);
+  const [persistedScores, setPersistedScores] = useState<any[]>([]);
   const [previousScores, setPreviousScores] = useState<any[]>([]);
+  const [pendingSaveCount, setPendingSaveCount] = useState(0);
+  const [failedSaveTargetIds, setFailedSaveTargetIds] = useState<string[]>([]);
+  const [cycleScoresLoadState, setCycleScoresLoadState] =
+    useState<CycleScoresLoadState>('loading');
+  const [cycleScoresLoadError, setCycleScoresLoadError] = useState<string | null>(null);
+  const [comparisonScoresLoadState, setComparisonScoresLoadState] =
+    useState<ComparisonScoresLoadState>('loading');
+  const [comparisonScoresLoadError, setComparisonScoresLoadError] = useState<string | null>(
+    null
+  );
 
   // UI State
   const [loading, setLoading] = useState(true);
@@ -66,6 +92,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   const loadDataRequestRef = useRef(0);
   const loadCycleScoresRequestRef = useRef(0);
+  const pendingSaveTrackerRef = useRef(new PendingSaveTracker());
 
   const domainProfiles = useMemo(() => {
     if (!assessment?.pack_snapshot) return [];
@@ -176,32 +203,44 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     const compareId = compareCycleId;
     const cycleList = cycles;
 
-    try {
-      if (!cycleId) return;
-      const cycleScores = await assessmentService.getScores(assessmentId, cycleId);
-      if (requestId !== loadCycleScoresRequestRef.current) return;
-      setScores(cycleScores);
+    if (!cycleId) return;
 
-      let targetCompareId = compareId;
-      if (!targetCompareId || targetCompareId === cycleId) {
-        const sortedCycles = [...cycleList].sort((a, b) => b.cycle_number - a.cycle_number);
-        const currentIndex = sortedCycles.findIndex(c => c.id === cycleId);
-        const prevCycle = sortedCycles[currentIndex + 1];
-        if (prevCycle) targetCompareId = prevCycle.id;
-      }
+    setCycleScoresLoadState('loading');
+    setCycleScoresLoadError(null);
+    setComparisonScoresLoadState('loading');
+    setComparisonScoresLoadError(null);
 
-      if (targetCompareId) {
-        const ghosts = await assessmentService.getScores(assessmentId, targetCompareId);
-        if (requestId !== loadCycleScoresRequestRef.current) return;
-        setPreviousScores(ghosts);
-      } else {
-        if (requestId !== loadCycleScoresRequestRef.current) return;
-        setPreviousScores([]);
-      }
-    } catch (error) {
-      if (requestId !== loadCycleScoresRequestRef.current) return;
-      console.error('Error loading cycle scores:', error);
+    const result = await fetchCycleScoresBundle({
+      requestId,
+      getCurrentRequestId: () => loadCycleScoresRequestRef.current,
+      cycleId,
+      compareCycleId: compareId,
+      cycles: cycleList,
+      getScores: (id) => assessmentService.getScores(assessmentId, id),
+    });
+
+    if (result.kind === 'stale') {
+      return;
     }
+
+    if (result.kind === 'primary_error') {
+      setScores([]);
+      setPersistedScores([]);
+      setPreviousScores([]);
+      setFailedSaveTargetIds([]);
+      setCycleScoresLoadState('error');
+      setCycleScoresLoadError(result.cycleScoresLoadError);
+      setComparisonScoresLoadState('none');
+      return;
+    }
+
+    setScores(result.scores);
+    setPersistedScores(result.scores);
+    setFailedSaveTargetIds([]);
+    setCycleScoresLoadState('loaded');
+    setPreviousScores(result.previousScores);
+    setComparisonScoresLoadState(result.comparisonScoresLoadState);
+    setComparisonScoresLoadError(result.comparisonScoresLoadError);
   };
 
   // --- Handlers ---
@@ -324,6 +363,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
     setScores(newScores);
     setSaveStatus('saving');
+    const saveToken = pendingSaveTrackerRef.current.begin();
+    setPendingSaveCount(pendingSaveTrackerRef.current.count);
 
     try {
       const scoreRecord = newScores.find(s => s.target_id === targetId);
@@ -373,13 +414,30 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         }
         return next;
       });
+      setPersistedScores((prev) => {
+        const idx = prev.findIndex((s) => s.target_id === targetId);
+        const next = [...prev];
+        if (idx >= 0) {
+          next[idx] = persisted;
+        } else {
+          next.push(persisted);
+        }
+        return next;
+      });
+      setFailedSaveTargetIds((prev) => prev.filter((id) => id !== targetId));
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err: any) {
       console.error(err);
       setScores(priorScores);
       setSaveStatus('error');
-      setErrorAlert(`Failed to save score: ${err?.message || 'Unknown error'}`);
+      setFailedSaveTargetIds((prev) =>
+        prev.includes(targetId) ? prev : [...prev, targetId]
+      );
+      setErrorAlert(`Failed to save score for ${targetId}: ${err?.message || 'Unknown error'}`);
+    } finally {
+      const remaining = pendingSaveTrackerRef.current.end(saveToken);
+      setPendingSaveCount(remaining);
     }
   };
 
@@ -412,23 +470,23 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const handleSubmit = async () => {
     if (!assessment) return;
     const viewingCycleForSubmit = cycles.find((c) => c.id === selectedCycleId);
-    if (cannotSubmitAssessmentState(assessment, viewingCycleForSubmit) || profile?.role === 'viewer' || isSubmitting) {
+    const submitGate = evaluateSubmitGate({
+      pendingSaveCount,
+      failedSaveTargetIds,
+      isSubmitting,
+      cannotSubmitAssessment: cannotSubmitAssessmentState(assessment, viewingCycleForSubmit),
+      isViewer: profile?.role === 'viewer',
+      cycleScoresLoadState,
+    });
+    if (!submitGate.allowed) {
+      if (submitGate.reason) {
+        setErrorAlert(submitGate.reason);
+      }
       return;
     }
 
-    // Calculate unscored count
-    let total = 0;
-    let scored = 0;
-    if (assessment?.pack_snapshot?.domains) {
-      assessment.pack_snapshot.domains.forEach((d: any) => {
-        d.targets.forEach((t: any) => {
-          total++;
-          const s = scores.find(sc => sc.target_id === t.target_id);
-          if (s && s.score !== null) scored++;
-        });
-      });
-    }
-    setUnscoredCount(total - scored);
+    const unscored = countUnscoredTargets(assessment.pack_snapshot, persistedScores);
+    setUnscoredCount(unscored);
     setShowSubmitConfirm(true);
   };
 
@@ -467,11 +525,27 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const viewingCycle = cycles.find((c) => c.id === selectedCycleId);
   const isCycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
   const scoresEditable = canEditAssessmentScores(profile?.role, assessment.status, viewingCycle?.status);
+  const scoresEntryAllowed = matrixScoresEntryAllowed(cycleScoresLoadState);
+  const effectiveScoresEditable = scoresEditable && scoresEntryAllowed;
   const cannotSubmitAssessment = cannotSubmitAssessmentState(assessment, viewingCycle);
   const showSubmitAssessmentButton =
     !cannotSubmitAssessment &&
     (assessment.status === 'in_progress' || assessment.status === 'draft') &&
     profile?.role !== 'viewer';
+  const submitGateInput = {
+    pendingSaveCount,
+    failedSaveTargetIds,
+    isSubmitting,
+    cannotSubmitAssessment,
+    isViewer: profile?.role === 'viewer',
+    cycleScoresLoadState,
+  };
+  const submitControl = resolveSubmitControlState({
+    ...submitGateInput,
+    showSubmitAssessmentButton,
+  });
+  const submitControlDisabled = submitControl.disabled;
+  const submitDisabledReason = submitControl.reason;
   const snapshotAvailability = getAssessmentSnapshotAvailability({
     assessment,
     cycleCount: cycles.length,
@@ -532,8 +606,15 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                   <span className={`inline-flex items-center rounded px-2 py-0.5 font-semibold ${matrixWorkflowBadgeClass}`}>
                     {matrixWorkflowLabel}
                   </span>
-                  {saveStatus === 'saving' && <span className="text-blue-600 font-medium animate-pulse">Saving...</span>}
+                  {saveStatus === 'saving' && (
+                    <span className="text-blue-600 font-medium animate-pulse">
+                      Saving{pendingSaveCount > 1 ? ` (${pendingSaveCount})` : ''}...
+                    </span>
+                  )}
                   {saveStatus === 'saved' && <span className="text-green-600 font-medium flex items-center gap-0.5"><CheckCircle className="w-3 h-3" /> Saved</span>}
+                  {saveStatus === 'error' && (
+                    <span className="text-red-600 font-medium">Save failed — check alert</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -553,17 +634,19 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                     <option key={cycle.id} value={cycle.id}>Cycle {cycle.cycle_number}</option>
                   ))}
                 </select>
+                {comparisonScoresLoadState === 'error' && comparisonScoresLoadError ? (
+                  <span className="text-xs text-amber-800 max-w-xs" role="status">
+                    {comparisonScoresLoadError}
+                  </span>
+                ) : null}
               </div>
 
-              {showSubmitAssessmentButton && (
-                <button
-                  onClick={handleSubmit}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                >
-                  <Save className="w-4 h-4" />
-                  Submit
-                </button>
-              )}
+              <AssessmentMatrixSubmitControl
+                showSubmitAssessmentButton={showSubmitAssessmentButton}
+                submitControlDisabled={submitControlDisabled}
+                submitDisabledReason={submitDisabledReason}
+                onSubmit={handleSubmit}
+              />
 
               {assessment.status === 'submitted' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
                 <button
@@ -672,35 +755,41 @@ export function AssessmentMatrix({ assessmentId }: Props) {
           </div>
         )}
 
-        {!activeDomainId ? (
-          <AssessmentOverview
-            domainProfiles={domainProfiles}
-            structureLabels={structureLabels}
-            onSelectDomain={handleSelectDomain}
-          />
-        ) : (
-          /* LAYER 2: SCOREBOARD */
-          activeDomain && assessment?.pack_snapshot ? (
-          <DomainScoreboard
-            domain={activeDomain}
-            pack={assessment.pack_snapshot}
-            structureLabels={structureLabels}
-            scores={scores}
-            previousScores={previousScores}
-            onScoreUpdate={handleScoreUpdate}
-            onViewDetail={handleViewDetail}
-            onBack={handleBackToOverview}
-
-            // New Navigation Props
-            onNavigateDomain={handleNavigateDomain}
-            isFirstDomain={isFirstDomain}
-            isLastDomain={isLastDomain}
-            onSubmit={handleSubmit}
-            scoresEditable={scoresEditable}
-            showFooterSubmit={showSubmitAssessmentButton}
-          />
-          ) : null
-        )}
+        <AssessmentMatrixScoresMainPanel
+          cycleScoresLoadState={cycleScoresLoadState}
+          cycleScoresLoadError={cycleScoresLoadError}
+          onRetryLoad={() => void loadCycleScores()}
+          activeDomainId={activeDomainId}
+          overview={
+            <AssessmentOverview
+              domainProfiles={domainProfiles}
+              structureLabels={structureLabels}
+              onSelectDomain={handleSelectDomain}
+            />
+          }
+          scoreboard={
+            activeDomain && assessment?.pack_snapshot ? (
+              <DomainScoreboard
+                domain={activeDomain}
+                pack={assessment.pack_snapshot}
+                structureLabels={structureLabels}
+                scores={scores}
+                previousScores={previousScores}
+                onScoreUpdate={handleScoreUpdate}
+                onViewDetail={handleViewDetail}
+                onBack={handleBackToOverview}
+                onNavigateDomain={handleNavigateDomain}
+                isFirstDomain={isFirstDomain}
+                isLastDomain={isLastDomain}
+                onSubmit={handleSubmit}
+                scoresEditable={effectiveScoresEditable}
+                showFooterSubmit={showSubmitAssessmentButton}
+                submitDisabled={submitControlDisabled}
+                submitDisabledReason={submitDisabledReason}
+              />
+            ) : null
+          }
+        />
       </main>
 
       {/* LAYER 3: DETAIL MODAL */}
@@ -716,9 +805,9 @@ export function AssessmentMatrix({ assessmentId }: Props) {
           secondaryGroupTitle={activeTargetSecondaryGroupTitle}
           canNavigatePrev={activeTargetIndex > 0}
           canNavigateNext={activeTargetIndex < activeDomainTargets.length - 1}
-          scoresEditable={scoresEditable}
+          scoresEditable={effectiveScoresEditable}
           onClose={() => setShowTargetInfo(false)}
-          notesReadOnly={!scoresEditable}
+          notesReadOnly={!effectiveScoresEditable}
           onScoreUpdate={(val) => handleScoreUpdate(activeDomainTargets[activeTargetIndex].target_id, val)}
           onNavigateTarget={handleNavigateTarget}
           onSaveNote={(note) => {
@@ -742,12 +831,25 @@ export function AssessmentMatrix({ assessmentId }: Props) {
       <ConfirmDialog
         isOpen={showSubmitConfirm}
         title="Submit Assessment"
-        message={unscoredCount > 0
-          ? `Warning: You have ${unscoredCount} unscored ${structureLabels.target.toLowerCase()}s. Submitting will lock this cycle. Are you sure you want to proceed?`
-          : "Are you sure you want to submit this assessment? This will lock the cycle for review."}
+        message={formatSubmitConfirmMessage(unscoredCount, structureLabels.target)}
         confirmText={unscoredCount > 0 ? 'Submit with Unscored Targets' : 'Submit'}
         onConfirm={async () => {
           if (!profile?.org_id || !user?.id) return;
+          const submitGate = evaluateSubmitGate({
+            pendingSaveCount,
+            failedSaveTargetIds,
+            isSubmitting,
+            cannotSubmitAssessment,
+            isViewer: profile?.role === 'viewer',
+            cycleScoresLoadState,
+          });
+          if (!submitGate.allowed) {
+            setShowSubmitConfirm(false);
+            if (submitGate.reason) {
+              setErrorAlert(submitGate.reason);
+            }
+            return;
+          }
           try {
             setIsSubmitting(true);
             await assessmentService.submit(assessmentId, profile.org_id, user.id);

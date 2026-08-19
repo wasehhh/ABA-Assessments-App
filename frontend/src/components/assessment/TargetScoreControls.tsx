@@ -22,7 +22,7 @@ export function TargetScoreControls({
 
     if (effective.type === 'yes_no') {
         return (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" data-matrix-target-score-controls>
                 <button
                     type="button"
                     disabled={!scoresEditable}
@@ -63,7 +63,7 @@ export function TargetScoreControls({
     const useCompactButtons = effective.type !== 'checkbox';
 
     return (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5" data-matrix-target-score-controls>
             {scale.map((val) => {
                 const { text, title } = formatMatrixScoreButtonLabel(
                     val,

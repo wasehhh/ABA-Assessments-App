@@ -26,6 +26,8 @@ interface Props {
     onSubmit: () => void;
     scoresEditable?: boolean;
     showFooterSubmit?: boolean;
+    submitDisabled?: boolean;
+    submitDisabledReason?: string | null;
 }
 
 export function DomainScoreboard({
@@ -43,6 +45,8 @@ export function DomainScoreboard({
     onSubmit,
     scoresEditable = true,
     showFooterSubmit = true,
+    submitDisabled = false,
+    submitDisabledReason = null,
 }: Props) {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'unscored' | 'at_max'>('all');
@@ -148,7 +152,7 @@ export function DomainScoreboard({
     };
 
     return (
-        <div className="animate-fade-in space-y-6 pb-20">
+        <div className="animate-fade-in space-y-6 pb-20" data-matrix-domain-scoreboard>
             <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-4">
                     <button
@@ -254,9 +258,15 @@ export function DomainScoreboard({
                         <button
                             type="button"
                             onClick={onSubmit}
-                            disabled={!showFooterSubmit}
+                            disabled={!showFooterSubmit || submitDisabled}
+                            title={submitDisabled ? submitDisabledReason ?? undefined : undefined}
+                            aria-label={
+                                submitDisabled && submitDisabledReason
+                                    ? `Submit assessment — ${submitDisabledReason}`
+                                    : 'Submit assessment'
+                            }
                             className={`flex items-center gap-2 rounded-lg px-6 py-2 font-bold shadow-sm transition-all ${
-                                showFooterSubmit
+                                showFooterSubmit && !submitDisabled
                                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                                     : 'cursor-not-allowed bg-gray-200 text-gray-500'
                             }`}
