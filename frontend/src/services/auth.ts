@@ -36,7 +36,9 @@ export const authService = {
       // 3a. Join Existing Org
       profileData.org_id = invite.org_id;
       profileData.role = invite.role;
-      // Invite is auto-deleted by the RPC
+      // claim_invite returns the invite without consuming it; the invite row is
+      // deleted by the user_profiles_consume_invite AFTER INSERT trigger once
+      // the profile insert below succeeds.
     } else {
       // 2b. Create New Org (Admin)
       if (!orgName) throw new Error('Organization Name is required for new accounts.');
