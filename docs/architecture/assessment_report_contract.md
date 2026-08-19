@@ -39,6 +39,32 @@ Resolved open questions: **OQ-1**, **OQ-7** — see §12. OQ-2 through OQ-6 and 
 
 ---
 
+## Amendment banner — purpose reframe superseded (2026-08-19)
+
+**Founder decision:** Layer 2C is a **clinician-authored communication artifact** (structured selections + short narrative fields), not an auto-computed score summary. Authoritative product meaning for the authoring model, persisted document entity, reference-data integration, G-law boundary for narrative, lifecycle/roles, and v1 surface split lives in **[`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md)**.
+
+| Section in this document | Disposition |
+|--------------------------|-------------|
+| §1 Goals (computed success statement) | **Superseded** by authoring contract §1 |
+| §2 Three-layer boundary + §2.2 `ReportProfile` as body | **Superseded** by authoring contract §1–§2 |
+| §3 Data contract (`ReportProfile` canonical body) | **Superseded for body** — reference/scaffolding only (authoring §5) |
+| §4 Cycle scope | **Carried forward** — confirmed in authoring §4 |
+| §5 PHI / audit | **Carried forward** — confirmed in authoring §7 |
+| §6 Export channels | **Carried forward** |
+| §7 Standing exclusions | **Partially carried forward** — apply to embedded computed widgets (authoring §10.5) |
+| §8 Matrix `note` exclusion (OQ-7) | **Carried forward** for score-row notes |
+| §9 G-law path as report purpose | **Superseded** — reframed in authoring §6 |
+| §10 INV-R1–R4, INV-R9 | **Superseded** by INV-RA\* in authoring contract |
+| §10 INV-R5–R8, INV-R11, INV-R12 | **Carried forward** for finalized print posture; apply to finalized authored render |
+| §11 Implementation guidance | **Superseded** |
+| §12 OQ-1, OQ-7 | **Resolved** (prior amendment); OQ-3 locked `'standard'` in code; OQ-2 direction set in authoring §11.1 |
+
+This file remains the historical record of the computed-report contract and egress decisions. Do not implement computed-only Report body from §1–§3 as Layer 2C product intent.
+
+Superseded §1–§2 text is retained below under original section headings so the computed-report position remains visible as considered-and-superseded, not never held.
+
+---
+
 # 0. Code facts relied on (verified)
 
 | Fact | Where verified |
@@ -61,6 +87,8 @@ Could not verify inside this repo: vault G1–G8 full text, SPM security log ent
 ---
 
 # 1. Goals
+
+> **Superseded (2026-08-19):** Purpose and success statement below describe the **computed auto-render** model. Binding product intent is **[`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) §1**.
 
 ## 1.1 What this solves
 
@@ -90,6 +118,8 @@ After implementation of this contract:
 ---
 
 # 2. Three-layer purpose boundary
+
+> **Superseded (2026-08-19):** Report as computed print-oriented summary — see **[`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) §1.2** for external-reader communication boundary.
 
 ## 2.1 Operational definitions
 
@@ -137,6 +167,8 @@ For each element currently in `ReportProfile`, operational ownership under the b
 ---
 
 # 3. Data contract
+
+> **Superseded for report body (2026-08-19):** `ReportProfile` is reference/scaffolding, not canonical body — **[`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) §5**.
 
 ## 3.1 Canonical profile type
 
@@ -528,3 +560,4 @@ Builder must not silently choose these during Layer 2C implementation.
 |------|--------|
 | 2026-08-19 | Initial Layer 2C architecture contract — purpose boundary, cycle scope, PHI/audit posture, export channel model, G-law compliance path, `note` field framework |
 | 2026-08-19 | Founder amendment — OQ-1 locked (print-only PHI gate); OQ-7 locked (`note` excluded from v1 render; overrides §8.3 recommendation); INV-R5b / INV-R11 / INV-R12 updated; OQ-9 surfaced for future export route |
+| 2026-08-19 | Purpose reframe — §1–§2 and related sections superseded by [`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md); egress §5–§6 and cycle §4 carried forward |
