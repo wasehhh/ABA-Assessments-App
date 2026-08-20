@@ -10,7 +10,7 @@ import {
 import { canManageReportAuthoring } from '../services/reportAuthoringRoles';
 import {
     AssessmentCommunicationReport,
-    ReportAuthoring,
+    ReportAuthoring as ReportAuthoringData,
 } from '../services/reportAuthoringTypes';
 import {
     createEmptyReportAuthoring,
@@ -64,7 +64,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
     const [assessment, setAssessment] = useState<Assessment | null>(null);
     const [cycle, setCycle] = useState<AssessmentCycle | null>(null);
     const [reportRow, setReportRow] = useState<AssessmentCommunicationReport | null>(null);
-    const [authoring, setAuthoring] = useState<ReportAuthoring>(createEmptyReportAuthoring());
+    const [authoring, setAuthoring] = useState<ReportAuthoringData>(createEmptyReportAuthoring());
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [saveError, setSaveError] = useState<string | null>(null);
     const [finalizeState, setFinalizeState] = useState<'idle' | 'finalizing' | 'done' | 'error'>(
