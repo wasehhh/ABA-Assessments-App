@@ -53,14 +53,121 @@ function parseDefaultScaleOrFallback(defaultScale: string, fallback: number[] = 
     return result.ok ? result.values : [...fallback];
 }
 
+const NEW_PACK_DEFAULT_SCALE = '0,1,2,3,4';
+
+export interface InitialGlobalScaleState {
+    useGlobalScale: boolean;
+    defaultScale: string;
+    globalScaleLabels: Record<number, string>;
+}
+
+function scalesEqual(a: number[], b: number[]): boolean {
+    return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function normalizeScaleLabels(
+    labels: Record<number, string> | undefined
+): Record<number, string> {
+    return labels ? { ...labels } : {};
+}
+
+function scaleLabelsEqual(
+    a: Record<number, string>,
+    b: Record<number, string>
+): boolean {
+    const aEntries = Object.entries(a).sort(
+        ([keyA], [keyB]) => Number(keyA) - Number(keyB)
+    );
+    const bEntries = Object.entries(b).sort(
+        ([keyA], [keyB]) => Number(keyA) - Number(keyB)
+    );
+    if (aEntries.length !== bEntries.length) {
+        return false;
+    }
+    return aEntries.every(
+        ([key, value], index) =>
+            key === bEntries[index][0] && value === bEntries[index][1]
+    );
+}
+
+/**
+ * Derive Builder global-scale checkbox / default scale / labels from pack data.
+ * New packs (no initialData) keep the historical defaults (checkbox on, 0–4).
+ * Existing packs only enable global scale when every numeric target shares the
+ * same inline scale array and scale_labels. Numeric targets without an inline
+ * `scale` fail closed (checkbox off) — Builder-saved packs always inline scale.
+ */
+export function deriveInitialGlobalScaleState(
+    initialData?: ContentPackData & { title?: string; description?: string }
+): InitialGlobalScaleState {
+    if (!initialData) {
+        return {
+            useGlobalScale: true,
+            defaultScale: NEW_PACK_DEFAULT_SCALE,
+            globalScaleLabels: {},
+        };
+    }
+
+    const numericTargets = (initialData.domains ?? []).flatMap((domain) =>
+        domain.targets.filter((target) => target.scoring?.type === 'numeric')
+    );
+
+    if (numericTargets.length === 0) {
+        return {
+            useGlobalScale: false,
+            defaultScale: NEW_PACK_DEFAULT_SCALE,
+            globalScaleLabels: {},
+        };
+    }
+
+    const scales: number[][] = [];
+    const labelsList: Record<number, string>[] = [];
+
+    for (const target of numericTargets) {
+        const scale = target.scoring?.scale;
+        if (scale === undefined) {
+            return {
+                useGlobalScale: false,
+                defaultScale: NEW_PACK_DEFAULT_SCALE,
+                globalScaleLabels: {},
+            };
+        }
+        scales.push(scale);
+        labelsList.push(normalizeScaleLabels(target.scoring?.scale_labels));
+    }
+
+    const sharedScale = scales[0];
+    const sharedLabels = labelsList[0];
+    const allUniform =
+        scales.every((scale) => scalesEqual(scale, sharedScale)) &&
+        labelsList.every((labels) => scaleLabelsEqual(labels, sharedLabels));
+
+    if (!allUniform) {
+        return {
+            useGlobalScale: false,
+            defaultScale: NEW_PACK_DEFAULT_SCALE,
+            globalScaleLabels: {},
+        };
+    }
+
+    return {
+        useGlobalScale: true,
+        defaultScale: formatNumericScale(sharedScale),
+        globalScaleLabels: sharedLabels,
+    };
+}
+
 export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
+    const initialGlobalScaleState = deriveInitialGlobalScaleState(initialData);
     const [title, setTitle] = useState(initialData?.title || '');
     const [description, setDescription] = useState(initialData?.description || '');
     const [domains, setDomains] = useState<Domain[]>(initialData?.domains || []);
-    const [defaultScale, setDefaultScale] = useState('0,1,2,3,4');
+    const [defaultScale, setDefaultScale] = useState(initialGlobalScaleState.defaultScale);
     const [defaultScaleError, setDefaultScaleError] = useState<string | null>(null);
-    const [globalScaleLabels, setGlobalScaleLabels] = useState<Record<number, string>>({});
-    const [useGlobalScale, setUseGlobalScale] = useState(true);
+    const [globalScaleLabels, setGlobalScaleLabels] = useState<Record<number, string>>(
+        initialGlobalScaleState.globalScaleLabels
+    );
+    const [useGlobalScale, setUseGlobalScale] = useState(initialGlobalScaleState.useGlobalScale);
     const [targetScaleDrafts, setTargetScaleDrafts] = useState<Record<string, string>>({});
     const [authoringIssues, setAuthoringIssues] = useState<BuilderAuthoringIssue[]>([]);
     const [primaryGroupLabel, setPrimaryGroupLabel] = useState(
