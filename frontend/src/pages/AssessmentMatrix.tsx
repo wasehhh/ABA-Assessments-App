@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { buildDomainProfiles } from '../services/domainProfile';
 import { clientService } from '../services/clients';
-import { Save, ArrowLeft, Calendar, Download, CheckCircle, Activity, Map, ListOrdered } from 'lucide-react';
+import { Save, ArrowLeft, Calendar, Download, CheckCircle, Activity, Map, ListOrdered, FileText } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
@@ -35,6 +35,10 @@ import {
   AssessmentMatrixScoresMainPanel,
   AssessmentMatrixSubmitControl,
 } from './AssessmentMatrixHonestySurface';
+import {
+  buildReportAuthoringRouteHash,
+  shouldShowReportAuthoringEntry,
+} from './assessmentMatrixReportEntry';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -551,6 +555,8 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     cycleCount: cycles.length,
   });
   const showAssessmentSnapshotEntry = snapshotAvailability.available;
+  const showReportAuthoringEntry =
+    shouldShowReportAuthoringEntry(assessment.status, profile?.role) && Boolean(selectedCycleId);
 
   const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
   let matrixWorkflowLabel: string;
@@ -678,6 +684,23 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 <Map className="w-4 h-4" />
                 Learner Map
               </button>
+
+              {showReportAuthoringEntry ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = buildReportAuthoringRouteHash(
+                      assessmentId,
+                      selectedCycleId!
+                    );
+                  }}
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+                  data-report-authoring-entry
+                >
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Report
+                </button>
+              ) : null}
 
               {showAssessmentSnapshotEntry ? (
                 <button

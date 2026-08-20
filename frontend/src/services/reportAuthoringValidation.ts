@@ -197,6 +197,38 @@ export function validateAuthoringForFinalize(
     assertMaxLength('clinical_summary.narrative', narrative, REPORT_AUTHORING_LIMITS.clinicalSummary);
 }
 
+export function getAuthoringFinalizeValidationError(
+    authoring: ReportAuthoring,
+    packSnapshot: ContentPackData
+): string | null {
+    try {
+        validateAuthoringForFinalize(authoring, packSnapshot);
+        return null;
+    } catch (error) {
+        if (error instanceof ReportAuthoringValidationError) {
+            return error.message;
+        }
+        throw error;
+    }
+}
+
+export function getGoalAdditionBlockReason(
+    authoring: ReportAuthoring,
+    domainId?: string
+): string | null {
+    const goals = authoring.sections.measurable_treatment_goals.goals;
+    if (goals.length >= REPORT_AUTHORING_LIMITS.goalsMax) {
+        return `Measurable Treatment Goals allows at most ${REPORT_AUTHORING_LIMITS.goalsMax} goals.`;
+    }
+    if (domainId) {
+        const domainCount = goals.filter((goal) => goal.domain_id === domainId).length;
+        if (domainCount >= REPORT_AUTHORING_LIMITS.goalsPerDomainMax) {
+            return `Each domain allows at most ${REPORT_AUTHORING_LIMITS.goalsPerDomainMax} goals.`;
+        }
+    }
+    return null;
+}
+
 export function mergeReportAuthoringPartial(
     existing: ReportAuthoring,
     partial: Partial<ReportAuthoring> | { sections?: Partial<ReportAuthoringSections> }

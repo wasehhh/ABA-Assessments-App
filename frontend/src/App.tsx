@@ -10,6 +10,7 @@ import { Assessments } from './pages/Assessments';
 import { AssessmentMatrix } from './pages/AssessmentMatrix';
 import { Users } from './pages/Users';
 import { AssessmentReport } from './pages/AssessmentReport';
+import { ReportAuthoring } from './pages/ReportAuthoring';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
 import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
 import { AssessmentSnapshot } from './pages/AssessmentSnapshot';
@@ -154,6 +155,15 @@ function AppRouter() {
   }
 
   const baseRoute = route.split('?')[0];
+
+  const reportEditMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report\/edit$/);
+  if (reportEditMatch) {
+    return (
+      <Layout>
+        <ReportAuthoring assessmentId={reportEditMatch[1]} />
+      </Layout>
+    );
+  }
 
   const reportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report$/);
   if (reportMatch) {

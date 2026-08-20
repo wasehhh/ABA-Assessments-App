@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ContentPackData } from '../types';
 import {
     createEmptyReportAuthoring,
+    getAuthoringFinalizeValidationError,
     mergeReportAuthoringPartial,
     ReportAuthoringValidationError,
     validateAuthoringForFinalize,
@@ -137,6 +138,13 @@ describe('reportAuthoringValidation finalize rules', () => {
         expect(merged.sections.measurable_treatment_goals.goals).toEqual([]);
         expect(() => validateAuthoringForFinalize(merged, pack)).toThrow(
             ReportAuthoringValidationError
+        );
+    });
+
+    it('exposes finalize validation messages for UI reuse', () => {
+        expect(getAuthoringFinalizeValidationError(validAuthoring(), pack)).toBeNull();
+        expect(getAuthoringFinalizeValidationError(createEmptyReportAuthoring(), pack)).toMatch(
+            /focus_summary|goal|Clinical Summary|weekly hours/i
         );
     });
 });
