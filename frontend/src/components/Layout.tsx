@@ -1,5 +1,9 @@
 import { ReactNode, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import {
+    navigateWithOptionalGuard,
+    useOptionalAssessmentBuilderNavigationGuard,
+} from '../context/AssessmentBuilderNavigationGuard';
 import { Clipboard, LogOut, LayoutDashboard, Users, Package, FileText, Menu, X, Settings, Shield, Building2 } from 'lucide-react';
 
 interface Props {
@@ -8,11 +12,25 @@ interface Props {
 
 export function Layout({ children }: Props) {
   const { profile, signOut } = useAuth();
+  const navigationGuard = useOptionalAssessmentBuilderNavigationGuard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const navigate = (targetHash: string) => {
+    navigateWithOptionalGuard(navigationGuard, targetHash);
+  };
+
   const handleSignOut = async () => {
-    await signOut();
-    window.location.hash = '#/login';
+    const performSignOut = async () => {
+      await signOut();
+      window.location.hash = '#/login';
+    };
+    if (navigationGuard?.isBlocking) {
+      navigationGuard.requestLocalAction(() => {
+        void performSignOut();
+      });
+      return;
+    }
+    await performSignOut();
   };
 
   return (
@@ -27,35 +45,35 @@ export function Layout({ children }: Props) {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-6">
-              <button onClick={() => window.location.hash = '#/dashboard'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+              <button onClick={() => navigate('#/dashboard')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="font-medium">Dashboard</span>
               </button>
-              <button onClick={() => window.location.hash = '#/clients'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+              <button onClick={() => navigate('#/clients')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                 <Users className="w-5 h-5" />
                 <span className="font-medium">Clients</span>
               </button>
-              <button onClick={() => window.location.hash = '#/packs'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+              <button onClick={() => navigate('#/packs')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                 <Package className="w-5 h-5" />
                 <span className="font-medium">Packs</span>
               </button>
-              <button onClick={() => window.location.hash = '#/assessments'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+              <button onClick={() => navigate('#/assessments')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                 <FileText className="w-5 h-5" />
                 <span className="font-medium">Assessments</span>
               </button>
               {profile?.role === 'admin' && (
-                <button onClick={() => window.location.hash = '#/users'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+                <button onClick={() => navigate('#/users')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                   <Users className="w-5 h-5" />
                   <span className="font-medium">Team</span>
                 </button>
               )}
               {profile?.role === 'admin' && (
                 <>
-                  <button onClick={() => window.location.hash = '#/org-settings'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+                  <button onClick={() => navigate('#/org-settings')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                     <Building2 className="w-5 h-5" />
                     <span className="font-medium">Org</span>
                   </button>
-                  <button onClick={() => window.location.hash = '#/audit-log'} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+                  <button onClick={() => navigate('#/audit-log')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                     <Shield className="w-5 h-5" />
                     <span className="font-medium">Audit</span>
                   </button>
@@ -67,7 +85,7 @@ export function Layout({ children }: Props) {
             <div className="hidden md:flex items-center gap-4">
               <div className="text-right">
                 <button
-                  onClick={() => window.location.hash = '#/settings'}
+                  onClick={() => navigate('#/settings')}
                   className="hover:text-emerald-600 transition group text-right"
                 >
                   <p className="text-sm font-medium text-gray-900 group-hover:text-emerald-600 transition">{profile?.full_name}</p>
@@ -77,14 +95,14 @@ export function Layout({ children }: Props) {
                 </button>
               </div>
               <button
-                onClick={() => window.location.hash = '#/settings'}
+                onClick={() => navigate('#/settings')}
                 className="text-gray-400 hover:text-emerald-600 transition"
                 title="Account Settings"
               >
                 <Settings className="w-5 h-5" />
               </button>
               <div className="h-6 w-px bg-gray-200 mx-2"></div>
-              <button onClick={handleSignOut} className="text-gray-600 hover:text-gray-900 transition" title="Sign Out">
+              <button onClick={() => void handleSignOut()} className="text-gray-600 hover:text-gray-900 transition" title="Sign Out">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -105,27 +123,27 @@ export function Layout({ children }: Props) {
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-100">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-lg">
-              <button onClick={() => { window.location.hash = '#/dashboard'; setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Dashboard</button>
-              <button onClick={() => { window.location.hash = '#/clients'; setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Clients</button>
-              <button onClick={() => { window.location.hash = '#/packs'; setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Packs</button>
-              <button onClick={() => { window.location.hash = '#/assessments'; setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Assessments</button>
+              <button onClick={() => { navigate('#/dashboard'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Dashboard</button>
+              <button onClick={() => { navigate('#/clients'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Clients</button>
+              <button onClick={() => { navigate('#/packs'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Packs</button>
+              <button onClick={() => { navigate('#/assessments'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Assessments</button>
               {profile?.role === 'admin' && (
-                <button onClick={() => { window.location.hash = '#/users'; setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Team</button>
+                <button onClick={() => { navigate('#/users'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Team</button>
               )}
               <div className="border-t border-gray-200 my-2 pt-2">
                 <div className="px-3 py-2 flex items-center justify-between">
-                  <button onClick={() => { window.location.hash = '#/settings'; setIsMobileMenuOpen(false); }}>
+                  <button onClick={() => { navigate('#/settings'); setIsMobileMenuOpen(false); }}>
                     <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
                     <p className="text-xs text-gray-500 capitalize">{profile?.role}</p>
                   </button>
                   <button
-                    onClick={() => { window.location.hash = '#/settings'; setIsMobileMenuOpen(false); }}
+                    onClick={() => { navigate('#/settings'); setIsMobileMenuOpen(false); }}
                     className="p-2 text-gray-400 hover:text-emerald-600"
                   >
                     <Settings className="w-5 h-5" />
                   </button>
                 </div>
-                <button onClick={handleSignOut} className="block w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
+                <button onClick={() => void handleSignOut()} className="block w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
               </div>
             </div>
           </div>
@@ -142,13 +160,21 @@ export function Layout({ children }: Props) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
           <p className="mb-2">&copy; {new Date().getFullYear()} Evalis. All rights reserved.</p>
           <div className="flex justify-center gap-4">
-            <a href="#/privacy" className="hover:text-emerald-600">
+            <button
+              type="button"
+              onClick={() => navigate('#/privacy')}
+              className="hover:text-emerald-600"
+            >
               Privacy Policy
-            </a>
+            </button>
             <span className="text-gray-300">|</span>
-            <a href="#/terms" className="hover:text-emerald-600">
+            <button
+              type="button"
+              onClick={() => navigate('#/terms')}
+              className="hover:text-emerald-600"
+            >
               Terms of Service
-            </a>
+            </button>
             <span className="text-gray-300">|</span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 bg-green-500 rounded-full"></span>

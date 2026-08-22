@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useAssessmentBuilderNavigationGuard } from '../context/AssessmentBuilderNavigationGuard';
 import { packService } from '../services/packs';
 import { ContentPack } from '../types';
 import { Upload, Plus, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
@@ -40,6 +41,20 @@ export function ContentPacks() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [builderDirty, setBuilderDirty] = useState(false);
+  const navigationGuard = useAssessmentBuilderNavigationGuard();
+
+  const handleBuilderSessionChange = useCallback((state: { isDirty: boolean }) => {
+    setBuilderDirty(state.isDirty);
+  }, []);
+
+  useEffect(() => {
+    navigationGuard.setBlocking(showBuilder && builderDirty);
+  }, [showBuilder, builderDirty, navigationGuard]);
+
+  const requestBuilderSessionAction = (action: () => void) => {
+    navigationGuard.requestLocalAction(action);
+  };
 
   const loadPacks = async () => {
     if (!profile?.org_id) {
@@ -127,6 +142,7 @@ export function ContentPacks() {
     try {
       await packService.upload(profile.org_id, packData.title, packData.description, packData, user.id);
       setShowBuilder(false);
+      setBuilderDirty(false);
       const updated = await packService.getByOrg(profile.org_id);
       setPacks(updated);
     } catch (err: any) {
@@ -150,9 +166,27 @@ export function ContentPacks() {
   }
 
   const handleEdit = (pack: ContentPack) => {
-    setEditingPack(pack);
-    setShowBuilder(true);
-    setShowForm(false);
+    requestBuilderSessionAction(() => {
+      setEditingPack(pack);
+      setShowBuilder(true);
+      setShowForm(false);
+    });
+  };
+
+  const openNewBuilder = () => {
+    requestBuilderSessionAction(() => {
+      setShowBuilder(true);
+      setShowForm(false);
+      setEditingPack(null);
+    });
+  };
+
+  const openUploadForm = () => {
+    requestBuilderSessionAction(() => {
+      setShowForm(!showForm);
+      setShowBuilder(false);
+      setEditingPack(null);
+    });
   };
 
   const confirmArchive = async () => {
@@ -207,14 +241,14 @@ export function ContentPacks() {
               </button>
             </div>
             <button
-              onClick={() => { setShowBuilder(true); setShowForm(false); setEditingPack(null); }}
+              onClick={openNewBuilder}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg"
             >
               <Plus className="w-5 h-5" />
               Build Custom
             </button>
             <button
-              onClick={() => { setShowForm(!showForm); setShowBuilder(false); setEditingPack(null); }}
+              onClick={openUploadForm}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
             >
               <Upload className="w-5 h-5" />
@@ -227,6 +261,7 @@ export function ContentPacks() {
       {showBuilder && isAdmin && (
         <AssessmentBuilder
           initialData={editingPack ? { ...editingPack.pack_data, title: editingPack.title, description: editingPack.description } : undefined}
+          onSessionChange={handleBuilderSessionChange}
           onSave={async (data) => {
             if (editingPack) {
               await packService.update(editingPack.id, {
@@ -237,11 +272,16 @@ export function ContentPacks() {
               loadPacks();
               setShowBuilder(false);
               setEditingPack(null);
+              setBuilderDirty(false);
             } else {
               handleBuilderSave(data);
             }
           }}
-          onCancel={() => { setShowBuilder(false); setEditingPack(null); }}
+          onCancel={() => {
+            setShowBuilder(false);
+            setEditingPack(null);
+            setBuilderDirty(false);
+          }}
         />
       )}
 

@@ -169,3 +169,45 @@ describe('AssessmentBuilder B3 open/save contracts', () => {
         ).toBe(true);
     });
 });
+
+describe('AssessmentBuilder C1 editing session contracts', () => {
+    it('uses session snapshot module for dirty detection (not buildReportProfile or counters)', () => {
+        expect(builderSource).toContain('buildBuilderSessionSnapshot');
+        expect(builderSource).toContain('builderSessionSnapshotsEqual');
+        expect(builderSource).toContain('baselineSnapshotRef');
+        expect(builderSource).not.toMatch(/dirtyChangeCount|setIsDirty\(/);
+    });
+
+    it('gates Cancel behind confirm when dirty and never calls packService from Builder', () => {
+        expect(builderSource).toContain('handleCancelClick');
+        expect(builderSource).toContain('cancelConfirmOpen');
+        expect(builderSource).toContain('Discard unsaved changes');
+        expect(builderSource).not.toContain('packService');
+    });
+
+    it('registers beforeunload only while dirty', () => {
+        expect(builderSource).toContain("addEventListener('beforeunload'");
+        expect(builderSource).toMatch(/if \(!isDirty\)[\s\S]*return;/);
+    });
+
+    it('exposes onSessionChange for parent navigation guard wiring', () => {
+        expect(builderSource).toContain('onSessionChange?.({ isDirty })');
+    });
+
+    it('updates baseline snapshot after successful save without removing B3 normalize path', () => {
+        expect(builderSource).toContain('baselineSnapshotRef.current = buildBuilderSessionSnapshot');
+        expect(builderSource).toContain('normalizeCanonicalPackForSave');
+        expect(builderSource).toContain('seedBuilderWorkingPack');
+    });
+
+    it('renders clickable validation summary issues with scroll/focus helper', () => {
+        expect(builderSource).toContain('focusBuilderIssueAnchor');
+        expect(builderSource).toContain('builder-issue-title');
+        expect(builderSource).toContain('builder-issue-default_scale');
+    });
+
+    it('blocks save on validation issues without clearing working copy state', () => {
+        expect(builderSource).toMatch(/if \(mergedIssues\.length > 0\)[\s\S]*return;/);
+        expect(builderSource).toContain('setAuthoringIssues(mergedIssues)');
+    });
+});

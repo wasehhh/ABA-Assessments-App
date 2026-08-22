@@ -1,5 +1,6 @@
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useState, useRef, type ComponentType } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AssessmentBuilderNavigationGuardProvider, useAssessmentBuilderNavigationGuard } from './context/AssessmentBuilderNavigationGuard';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -84,22 +85,44 @@ function DevAssessmentSnapshotRouteLoader() {
 
 function AppRouter() {
   const { user, loading, error } = useAuth();
+  const navigationGuard = useAssessmentBuilderNavigationGuard();
   const [route, setRoute] = useState(window.location.hash || '#/login');
+  const routeRef = useRef(route);
 
   useEffect(() => {
-    const handleHashChange = () => setRoute(window.location.hash || '#/login');
+    routeRef.current = route;
+  }, [route]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const newHash = window.location.hash || '#/login';
+      if (
+        navigationGuard.isBlocking &&
+        newHash !== routeRef.current
+      ) {
+        window.history.replaceState(null, '', routeRef.current || '#/dashboard');
+        navigationGuard.requestNavigation(newHash);
+        return;
+      }
+      routeRef.current = newHash;
+      setRoute(newHash);
+    };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [navigationGuard]);
 
   useEffect(() => {
     if (import.meta.env.DEV) {
       return;
     }
     if (!loading && !user && route !== '#/login') {
+      if (navigationGuard.isBlocking) {
+        navigationGuard.requestNavigation('#/login');
+        return;
+      }
       window.location.hash = '#/login';
     }
-  }, [user, loading, route]);
+  }, [user, loading, route, navigationGuard]);
 
   if (import.meta.env.DEV && route.split('?')[0] === '#/dev/learner-map') {
     return <DevLearnerMapRouteLoader />;
@@ -257,7 +280,9 @@ function AppRouter() {
 function App() {
   return (
     <AuthProvider>
-      <AppRouter />
+      <AssessmentBuilderNavigationGuardProvider>
+        <AppRouter />
+      </AssessmentBuilderNavigationGuardProvider>
     </AuthProvider>
   );
 }

@@ -123,6 +123,7 @@ export function AssessmentBuilderTargetEditor({
                             <label className="mb-1 block text-xs text-gray-600">
                                 {targetLabelText} ID
                             </label>
+                            <div id={`builder-issue-target_id-${domainIndex}-${targetIndex}`}>
                             <input
                                 type="text"
                                 value={target.target_id}
@@ -138,6 +139,7 @@ export function AssessmentBuilderTargetEditor({
                             {targetIdError ? (
                                 <p className="mt-1 text-xs text-red-600">{targetIdError}</p>
                             ) : null}
+                            </div>
                         </div>
                         <div className="col-span-3">
                             <label className="mb-1 block text-xs text-gray-600">
@@ -268,6 +270,7 @@ export function AssessmentBuilderTargetEditor({
                                             <label className="mb-1 block text-xs text-gray-600">
                                                 Numeric Scale
                                             </label>
+                                            <div id={`builder-issue-scale-${domainIndex}-${targetIndex}`}>
                                             <input
                                                 type="text"
                                                 value={scaleDraft}
@@ -339,6 +342,7 @@ export function AssessmentBuilderTargetEditor({
                                                         />
                                                     </div>
                                                 ))}
+                                            </div>
                                             </div>
                                         </div>
                                     )}

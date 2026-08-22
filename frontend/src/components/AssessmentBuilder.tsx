@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Download, Info, Plus, Trash2 } from 'lucide-react';
 import {
     ContentPackData,
@@ -48,11 +48,18 @@ import {
 } from '../utils/assessmentPackBuilder';
 import { AssessmentBuilderTargetEditor } from './AssessmentBuilderTargetEditor';
 import { ConfirmDialog } from './ConfirmDialog';
+import {
+    buildBuilderSessionSnapshot,
+    builderSessionSnapshotsEqual,
+    focusBuilderIssueAnchor,
+    type BuilderSessionSnapshotInput,
+} from '../utils/assessmentBuilderSession';
 
 interface Props {
     onSave: (packData: ContentPackData) => Promise<void>;
     onCancel: () => void;
     initialData?: ContentPackData & { title?: string; description?: string };
+    onSessionChange?: (state: { isDirty: boolean }) => void;
 }
 
 function scaleDraftKey(domainIndex: number, targetIndex: number): string {
@@ -102,10 +109,21 @@ function defaultScaleCsvFromScoring(scoring: PackDefaultScoring): string {
     return NEW_PACK_DEFAULT_SCALE_CSV;
 }
 
-export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
+export function AssessmentBuilder({ onSave, onCancel, initialData, onSessionChange }: Props) {
     const workingSeed = seedBuilderWorkingPack(initialData);
-    const [title, setTitle] = useState(initialData?.title || '');
-    const [description, setDescription] = useState(initialData?.description || '');
+    const initialTitle = initialData?.title || '';
+    const initialDescription = initialData?.description || '';
+    const initialPrimaryGroupLabel = initialData?.structure_labels?.primary_group ?? 'Domain';
+    const initialTargetLabel = initialData?.structure_labels?.target ?? 'Target';
+    const initialSecondaryGroupLabel = initialData?.structure_labels?.secondary_group ?? '';
+    const initialSecondaryGroupingEnabled = Boolean(
+        initialData?.structure_labels?.secondary_group?.trim()
+    );
+    const initialDefaultScale = defaultScaleCsvFromScoring(workingSeed.default_scoring);
+    const initialGlobalScaleLabels = { ...(workingSeed.default_scoring.scale_labels ?? {}) };
+
+    const [title, setTitle] = useState(initialTitle);
+    const [description, setDescription] = useState(initialDescription);
     const [domains, setDomains] = useState<Domain[]>(workingSeed.domains);
     const [scoringMode, setScoringMode] = useState<PackScoringMode>(workingSeed.scoring_mode);
     const [defaultScoring, setDefaultScoring] = useState<PackDefaultScoring>(
@@ -114,27 +132,41 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
     const [scoringScales] = useState<ScoringScaleDefinition[] | undefined>(
         workingSeed.scoring_scales
     );
-    const [defaultScale, setDefaultScale] = useState(
-        defaultScaleCsvFromScoring(workingSeed.default_scoring)
-    );
+    const [defaultScale, setDefaultScale] = useState(initialDefaultScale);
     const [defaultScaleError, setDefaultScaleError] = useState<string | null>(null);
     const [globalScaleLabels, setGlobalScaleLabels] = useState<Record<number, string>>(
-        { ...(workingSeed.default_scoring.scale_labels ?? {}) }
+        initialGlobalScaleLabels
     );
     const [uniformConfirmOpen, setUniformConfirmOpen] = useState(false);
+    const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
     const [targetScaleDrafts, setTargetScaleDrafts] = useState<Record<string, string>>({});
     const [authoringIssues, setAuthoringIssues] = useState<BuilderAuthoringIssue[]>([]);
-    const [primaryGroupLabel, setPrimaryGroupLabel] = useState(
-        initialData?.structure_labels?.primary_group ?? 'Domain'
-    );
-    const [targetLabel, setTargetLabel] = useState(
-        initialData?.structure_labels?.target ?? 'Target'
-    );
-    const [secondaryGroupLabel, setSecondaryGroupLabel] = useState(
-        initialData?.structure_labels?.secondary_group ?? ''
-    );
+    const [primaryGroupLabel, setPrimaryGroupLabel] = useState(initialPrimaryGroupLabel);
+    const [targetLabel, setTargetLabel] = useState(initialTargetLabel);
+    const [secondaryGroupLabel, setSecondaryGroupLabel] = useState(initialSecondaryGroupLabel);
     const [secondaryGroupingEnabled, setSecondaryGroupingEnabled] = useState(
-        Boolean(initialData?.structure_labels?.secondary_group?.trim())
+        initialSecondaryGroupingEnabled
+    );
+
+    const baselineSnapshotRef = useRef(
+        buildBuilderSessionSnapshot({
+            title: initialTitle,
+            description: initialDescription,
+            domains: workingSeed.domains,
+            scoringMode: workingSeed.scoring_mode,
+            defaultScoring: workingSeed.default_scoring,
+            scoringScales: workingSeed.scoring_scales,
+            defaultScale: initialDefaultScale,
+            globalScaleLabels: initialGlobalScaleLabels,
+            targetScaleDrafts: {},
+            primaryGroupLabel: initialPrimaryGroupLabel,
+            targetLabel: initialTargetLabel,
+            secondaryGroupLabel: initialSecondaryGroupLabel,
+            secondaryGroupingEnabled: initialSecondaryGroupingEnabled,
+            packId: initialData?.pack_id,
+            orgId: initialData?.org_id,
+            version: initialData?.version,
+        })
     );
 
     const useGlobalScale = scoringMode === 'uniform';
@@ -177,6 +209,79 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             domains,
         ]
     );
+
+    const sessionSnapshotInput = useMemo<BuilderSessionSnapshotInput>(
+        () => ({
+            title,
+            description,
+            domains,
+            scoringMode,
+            defaultScoring,
+            scoringScales,
+            defaultScale,
+            globalScaleLabels,
+            targetScaleDrafts,
+            primaryGroupLabel,
+            targetLabel,
+            secondaryGroupLabel,
+            secondaryGroupingEnabled,
+            packId: initialData?.pack_id,
+            orgId: initialData?.org_id,
+            version: initialData?.version,
+        }),
+        [
+            title,
+            description,
+            domains,
+            scoringMode,
+            defaultScoring,
+            scoringScales,
+            defaultScale,
+            globalScaleLabels,
+            targetScaleDrafts,
+            primaryGroupLabel,
+            targetLabel,
+            secondaryGroupLabel,
+            secondaryGroupingEnabled,
+            initialData?.pack_id,
+            initialData?.org_id,
+            initialData?.version,
+        ]
+    );
+
+    const isDirty = useMemo(() => {
+        const currentSnapshot = buildBuilderSessionSnapshot(sessionSnapshotInput);
+        return !builderSessionSnapshotsEqual(baselineSnapshotRef.current, currentSnapshot);
+    }, [sessionSnapshotInput]);
+
+    useEffect(() => {
+        onSessionChange?.({ isDirty });
+    }, [isDirty, onSessionChange]);
+
+    useEffect(() => {
+        if (!isDirty) {
+            return;
+        }
+        const handler = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [isDirty]);
+
+    const handleCancelClick = () => {
+        if (!isDirty) {
+            onCancel();
+            return;
+        }
+        setCancelConfirmOpen(true);
+    };
+
+    const confirmCancelDiscard = () => {
+        setCancelConfirmOpen(false);
+        onCancel();
+    };
 
     const primaryLabel = secondaryGroupingEnabled
         ? primaryGroupLabel.trim() || NEUTRAL_DEFAULT_PRIMARY_LABEL
@@ -638,6 +743,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         let workingGlobalLabels = globalScaleLabels;
         let workingDefaultScoring: PackDefaultScoring = { ...defaultScoring };
         const draftIssues: BuilderAuthoringIssue[] = [];
+        let nextTargetScaleDrafts = targetScaleDrafts;
 
         if (scoringMode === 'uniform') {
             if (
@@ -691,6 +797,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                     }
                 });
             });
+            nextTargetScaleDrafts = nextDrafts;
             setTargetScaleDrafts(nextDrafts);
         }
 
@@ -745,6 +852,24 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             normalizeCanonicalPackForSave(stripSecondaryGroupingIfDisabled(packData))
         );
         await onSave(normalized);
+        baselineSnapshotRef.current = buildBuilderSessionSnapshot({
+            title,
+            description,
+            domains: workingDomains,
+            scoringMode,
+            defaultScoring: workingDefaultScoring,
+            scoringScales,
+            defaultScale: workingDefaultScale,
+            globalScaleLabels: workingGlobalLabels,
+            targetScaleDrafts: nextTargetScaleDrafts,
+            primaryGroupLabel,
+            targetLabel,
+            secondaryGroupLabel,
+            secondaryGroupingEnabled,
+            packId: initialData?.pack_id,
+            orgId: initialData?.org_id,
+            version: initialData?.version,
+        });
     };
 
     const requestScoringModeChange = (nextChecked: boolean) => {
@@ -834,7 +959,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
             <div className="grid grid-cols-1 gap-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div id="builder-issue-title">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Assessment Title
                         </label>
@@ -951,6 +1076,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Default Scoring Scale
                             </label>
+                            <div id="builder-issue-default_scale">
                             <input
                                 type="text"
                                 value={defaultScale}
@@ -1037,6 +1163,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                     </div>
                                 ))}
                             </div>
+                            </div>
                         </>
                     )}
                     {useGlobalScale && !showUniformNumericDefaultEditor && (
@@ -1076,7 +1203,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                             <div className="flex items-start gap-4 mb-4">
                                 <div className="flex-1 space-y-3">
                                     <div className="grid grid-cols-4 gap-3">
-                                        <div>
+                                        <div id={`builder-issue-domain_id-${dIndex}`}>
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 {primaryLabel} ID
                                             </label>
@@ -1406,9 +1533,23 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
             {authoringIssues.length > 0 ? (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    Fix {authoringIssues.length} authoring{' '}
-                    {authoringIssues.length === 1 ? 'issue' : 'issues'} before saving. Inline
-                    messages mark the fields that need attention.
+                    <p className="font-medium">
+                        Fix {authoringIssues.length} authoring{' '}
+                        {authoringIssues.length === 1 ? 'issue' : 'issues'} before saving:
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                        {authoringIssues.map((issue, index) => (
+                            <li key={`${issue.field}-${issue.domainIndex ?? 'x'}-${issue.targetIndex ?? 'x'}-${index}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => focusBuilderIssueAnchor(issue)}
+                                    className="text-left underline decoration-red-400/60 hover:decoration-red-800"
+                                >
+                                    {issue.message}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             ) : null}
 
@@ -1422,12 +1563,23 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                 </button>
                 <button
                     type="button"
-                    onClick={onCancel}
+                    onClick={handleCancelClick}
                     className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-900 py-2.5 rounded-lg font-medium"
                 >
                     Cancel
                 </button>
             </div>
+
+            <ConfirmDialog
+                isOpen={cancelConfirmOpen}
+                title="Discard unsaved changes?"
+                message="You have unsaved changes in this assessment pack. Discard them and close the builder?"
+                confirmText="Discard changes"
+                cancelText="Keep editing"
+                isDestructive={true}
+                onConfirm={confirmCancelDiscard}
+                onCancel={() => setCancelConfirmOpen(false)}
+            />
 
             <ConfirmDialog
                 isOpen={uniformConfirmOpen}
