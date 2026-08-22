@@ -36,9 +36,12 @@ import {
   AssessmentMatrixSubmitControl,
 } from './AssessmentMatrixHonestySurface';
 import {
+  buildFinalizedReportRouteHash,
   buildReportAuthoringRouteHash,
+  shouldShowFinalizedReportEntry,
   shouldShowReportAuthoringEntry,
 } from './assessmentMatrixReportEntry';
+import { reportAuthoringService } from '../services/reportAuthoring';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -88,6 +91,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
+  const [hasFinalizedReport, setHasFinalizedReport] = useState(false);
 
   // Workflow State
   const [unscoredCount, setUnscoredCount] = useState(0);
@@ -157,6 +161,31 @@ export function AssessmentMatrix({ assessmentId }: Props) {
     if (!selectedCycleId || !assessment) return;
     loadCycleScores();
   }, [selectedCycleId, compareCycleId, assessmentId]);
+
+  useEffect(() => {
+    if (!selectedCycleId || assessment?.status !== 'approved') {
+      setHasFinalizedReport(false);
+      return;
+    }
+
+    let cancelled = false;
+    void reportAuthoringService
+      .getCurrentFinalizedVersion(assessmentId, selectedCycleId)
+      .then((row) => {
+        if (!cancelled) {
+          setHasFinalizedReport(Boolean(row?.embedded_computed));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasFinalizedReport(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessmentId, selectedCycleId, assessment?.status]);
 
   // --- Data Loading ---
 
@@ -557,6 +586,9 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const showAssessmentSnapshotEntry = snapshotAvailability.available;
   const showReportAuthoringEntry =
     shouldShowReportAuthoringEntry(assessment.status, profile?.role) && Boolean(selectedCycleId);
+  const showFinalizedReportEntry =
+    shouldShowFinalizedReportEntry(assessment.status, profile?.role, hasFinalizedReport) &&
+    Boolean(selectedCycleId);
 
   const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
   let matrixWorkflowLabel: string;
@@ -699,6 +731,23 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 >
                   <FileText className="h-4 w-4" aria-hidden />
                   Report
+                </button>
+              ) : null}
+
+              {showFinalizedReportEntry ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.hash = buildFinalizedReportRouteHash(
+                      assessmentId,
+                      selectedCycleId!
+                    );
+                  }}
+                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+                  data-finalized-report-entry
+                >
+                  <FileText className="h-4 w-4" aria-hidden />
+                  Finalized Report
                 </button>
               ) : null}
 

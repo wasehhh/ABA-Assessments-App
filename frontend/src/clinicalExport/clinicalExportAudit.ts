@@ -61,6 +61,8 @@ export function logClinicalExportAudit(input: {
     event: ClinicalExportAuditEvent;
     /** Optional; Snapshot print paths set this. Learner Map may omit. */
     surface?: ClinicalExportAuditSurface;
+    /** Finalized report version (contract §7.3). */
+    version?: number;
 }): void {
     if (!input.orgId || !input.userId) {
         return;
@@ -79,6 +81,7 @@ export function logClinicalExportAudit(input: {
                 mode: input.mode,
                 event: input.event,
                 ...(input.surface ? { surface: input.surface } : {}),
+                ...(input.version !== undefined ? { version: input.version } : {}),
             },
         });
     } catch (err) {

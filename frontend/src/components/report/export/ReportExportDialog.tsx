@@ -11,6 +11,8 @@ interface Props {
     assessmentId: string;
     orgId?: string | null;
     userId?: string | null;
+    /** Finalized report version for audit payload (contract §7.3). */
+    reportVersion?: number;
     onClose: () => void;
     /** When set, acknowledgement continues into this callback instead of closing only (Print gate). */
     onAcknowledgedContinue?: () => void;
@@ -25,6 +27,7 @@ export function recordReportExportAcknowledgement(input: {
     assessmentId: string;
     orgId?: string | null;
     userId?: string | null;
+    reportVersion?: number;
 }): void {
     logClinicalExportAudit({
         orgId: input.orgId,
@@ -34,6 +37,7 @@ export function recordReportExportAcknowledgement(input: {
         channel: 'print',
         mode: REPORT_EXPORT_MODE,
         event: 'acknowledgement',
+        ...(input.reportVersion !== undefined ? { version: input.reportVersion } : {}),
     });
     setReportExportAcknowledged(input.assessmentId);
 }
@@ -47,6 +51,7 @@ export function ReportExportDialog({
     assessmentId,
     orgId,
     userId,
+    reportVersion,
     onClose,
     onAcknowledgedContinue,
     continueLabel = 'Acknowledge and Print',
@@ -68,7 +73,7 @@ export function ReportExportDialog({
             return;
         }
 
-        recordReportExportAcknowledgement({ assessmentId, orgId, userId });
+        recordReportExportAcknowledgement({ assessmentId, orgId, userId, reportVersion });
 
         if (onAcknowledgedContinue) {
             onAcknowledgedContinue();
