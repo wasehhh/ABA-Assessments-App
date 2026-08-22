@@ -37,12 +37,15 @@ import {
     normalizeCanonicalPackForSave,
 } from '../utils/assessmentPackCanonical';
 import {
+    applyCustomizeOverride,
+    applyRevertToInherited,
+} from '../utils/assessmentBuilderOverrideUi';
+import {
     createBuilderTarget,
     getTargetsForSecondaryGroup,
     getUngroupedTargetEntries,
     moveTargetSecondaryGroup,
 } from '../utils/assessmentPackBuilder';
-import { denseTargetScoring } from '../utils/targetScoringAccess';
 import { AssessmentBuilderTargetEditor } from './AssessmentBuilderTargetEditor';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -140,6 +143,41 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         defaultScoring.type === 'numeric' &&
         Boolean(defaultScoring.scale?.length || !defaultScoring.scale_id);
 
+    const workingPack = useMemo<ContentPackData>(
+        () => ({
+            pack_id: initialData?.pack_id || 'draft',
+            org_id: initialData?.org_id || '',
+            title,
+            description,
+            version: initialData?.version || '1.0',
+            structure_labels: buildPackStructureLabels(
+                primaryGroupLabel,
+                targetLabel,
+                secondaryGroupLabel,
+                secondaryGroupingEnabled
+            ),
+            scoring_mode: scoringMode,
+            default_scoring: defaultScoring,
+            ...(scoringScales ? { scoring_scales: scoringScales } : {}),
+            domains,
+        }),
+        [
+            initialData?.pack_id,
+            initialData?.org_id,
+            initialData?.version,
+            title,
+            description,
+            primaryGroupLabel,
+            targetLabel,
+            secondaryGroupLabel,
+            secondaryGroupingEnabled,
+            scoringMode,
+            defaultScoring,
+            scoringScales,
+            domains,
+        ]
+    );
+
     const primaryLabel = secondaryGroupingEnabled
         ? primaryGroupLabel.trim() || NEUTRAL_DEFAULT_PRIMARY_LABEL
         : primaryGroupLabel.trim() || ALPHA_DEFAULT_PRIMARY_LABEL;
@@ -216,10 +254,11 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         if (Object.prototype.hasOwnProperty.call(targetScaleDrafts, key)) {
             return targetScaleDrafts[key];
         }
-        if (!target.scoring) {
-            return defaultScaleCsvFromScoring(defaultScoring);
+        // Inherited targets have no override blob — do not invent a draft from the fallback.
+        if (!target.scoring || target.scoring.type !== 'numeric') {
+            return '';
         }
-        return formatNumericScale(denseTargetScoring(target).scale ?? []);
+        return formatNumericScale(target.scoring.scale ?? []);
     };
 
     const clearAuthoringIssue = (
@@ -399,18 +438,18 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         draftsSnapshot: Record<string, string> = targetScaleDrafts
     ): { ok: true; domains: Domain[] } | { ok: false; error: string; domains: Domain[] } => {
         const target = domainsSnapshot[domainIndex]?.targets[targetIndex];
-        if (!target) {
+        if (!target?.scoring) {
+            // Inherited: never densify via scale commit (B3 §7.3).
             return { ok: true, domains: domainsSnapshot };
         }
-        const scoring = denseTargetScoring(target);
-        if (scoring.type !== 'numeric') {
+        if (target.scoring.type !== 'numeric') {
             return { ok: true, domains: domainsSnapshot };
         }
 
         const key = scaleDraftKey(domainIndex, targetIndex);
         const draft = Object.prototype.hasOwnProperty.call(draftsSnapshot, key)
             ? draftsSnapshot[key]
-            : formatNumericScale(scoring.scale ?? []);
+            : formatNumericScale(target.scoring.scale ?? []);
         const result = commitNumericScaleCsv(draft);
         if (!result.ok) {
             return { ok: false, error: result.error, domains: domainsSnapshot };
@@ -423,18 +462,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             return {
                 ...domain,
                 targets: domain.targets.map((entry, tIndex) => {
-                    if (tIndex !== targetIndex) {
+                    if (tIndex !== targetIndex || !entry.scoring) {
                         return entry;
                     }
-                    const entryScoring = denseTargetScoring(entry);
                     return {
                         ...entry,
                         scoring: {
-                            ...entryScoring,
+                            ...entry.scoring,
                             scale: result.values,
                             scale_labels: reconcileScaleLabels(
                                 result.values,
-                                entryScoring.scale_labels
+                                entry.scoring.scale_labels
                             ),
                         },
                     };
@@ -470,7 +508,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         setDomains(result.domains);
         const key = scaleDraftKey(domainIndex, targetIndex);
         const committed =
-            denseTargetScoring(result.domains[domainIndex].targets[targetIndex]).scale ?? [];
+            result.domains[domainIndex].targets[targetIndex].scoring?.scale ?? [];
         setTargetScaleDrafts((prev) => ({
             ...prev,
             [key]: formatNumericScale(committed),
@@ -487,15 +525,8 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
         domainsSnapshot.forEach((domain, domainIndex) => {
             domain.targets.forEach((target, targetIndex) => {
-                const key = scaleDraftKey(domainIndex, targetIndex);
-                const hasDraft = Object.prototype.hasOwnProperty.call(draftsSnapshot, key);
-                // Inherited + untouched: do not densify on save (B3 Inherited form).
-                // Draft present: weaker Customize-by-edit until B3.5.
-                if (!target.scoring && !hasDraft) {
-                    return;
-                }
-                const scoringType = target.scoring?.type ?? 'numeric';
-                if (scoringType !== 'numeric') {
+                // Override-only: Inherited targets must not densify on save (B3 §7.3).
+                if (!target.scoring || target.scoring.type !== 'numeric') {
                     return;
                 }
                 const result = commitTargetScale(
@@ -525,9 +556,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         targetIndex: number,
         scoringType: ScoringType
     ) => {
-        const updated = [...domains];
-        const target = updated[domainIndex].targets[targetIndex];
-        const scoring = { ...denseTargetScoring(target), type: scoringType };
+        const target = domains[domainIndex]?.targets[targetIndex];
+        if (!target?.scoring) {
+            // Inherited: scoring type edits require Customize first.
+            return;
+        }
+        const scoring = { ...target.scoring, type: scoringType };
 
         if (scoringType === 'checkbox') {
             scoring.task_steps = ['Step 1', 'Step 2', 'Step 3', 'Step 4', 'Step 5'];
@@ -542,18 +576,55 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             delete scoring.task_steps;
         }
 
-        updated[domainIndex].targets[targetIndex] = { ...target, scoring };
+        const updated = [...domains];
+        updated[domainIndex] = {
+            ...updated[domainIndex],
+            targets: updated[domainIndex].targets.map((entry, index) =>
+                index === targetIndex ? { ...entry, scoring } : entry
+            ),
+        };
         setDomains(updated);
         const key = scaleDraftKey(domainIndex, targetIndex);
         setTargetScaleDrafts((prev) => {
             const next = { ...prev };
             if (scoringType === 'numeric') {
-                next[key] = formatNumericScale(
-                    denseTargetScoring(updated[domainIndex].targets[targetIndex]).scale ?? []
-                );
+                next[key] = formatNumericScale(scoring.scale ?? []);
             } else {
                 delete next[key];
             }
+            return next;
+        });
+        clearAuthoringIssue('scale', domainIndex, targetIndex);
+    };
+
+    const customizeTargetOverride = (domainIndex: number, targetIndex: number) => {
+        const nextDomains = applyCustomizeOverride(
+            domains,
+            domainIndex,
+            targetIndex,
+            defaultScoring
+        );
+        setDomains(nextDomains);
+        const scoring = nextDomains[domainIndex]?.targets[targetIndex]?.scoring;
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        setTargetScaleDrafts((prev) => {
+            const next = { ...prev };
+            if (scoring?.type === 'numeric' && scoring.scale) {
+                next[key] = formatNumericScale(scoring.scale);
+            } else {
+                delete next[key];
+            }
+            return next;
+        });
+        clearAuthoringIssue('scale', domainIndex, targetIndex);
+    };
+
+    const revertTargetToInherited = (domainIndex: number, targetIndex: number) => {
+        setDomains(applyRevertToInherited(domains, domainIndex, targetIndex));
+        const key = scaleDraftKey(domainIndex, targetIndex);
+        setTargetScaleDrafts((prev) => {
+            const next = { ...prev };
+            delete next[key];
             return next;
         });
         clearAuthoringIssue('scale', domainIndex, targetIndex);
@@ -1160,6 +1231,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                                     targetLabelText={targetLabelText}
                                                                     secondaryLabel={secondaryLabel}
                                                                     useGlobalScale={useGlobalScale}
+                                                                    workingPack={workingPack}
                                                                     secondaryGroups={
                                                                         domain.secondary_groups
                                                                     }
@@ -1190,6 +1262,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                                     }
                                                                     onUpdateScoringType={
                                                                         updateScoringType
+                                                                    }
+                                                                    onCustomizeOverride={
+                                                                        customizeTargetOverride
+                                                                    }
+                                                                    onRevertToInherited={
+                                                                        revertTargetToInherited
                                                                     }
                                                                     onRemoveTarget={removeTarget}
                                                                     onMoveToGroup={moveTargetToGroup}
@@ -1230,6 +1308,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                             targetLabelText={targetLabelText}
                                                             secondaryLabel={secondaryLabel}
                                                             useGlobalScale={useGlobalScale}
+                                                            workingPack={workingPack}
                                                             secondaryGroups={domain.secondary_groups}
                                                             showMoveToGroup
                                                             domains={domains}
@@ -1255,6 +1334,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                                             }
                                                             onCommitTargetScale={onCommitTargetScale}
                                                             onUpdateScoringType={updateScoringType}
+                                                            onCustomizeOverride={
+                                                                customizeTargetOverride
+                                                            }
+                                                            onRevertToInherited={
+                                                                revertTargetToInherited
+                                                            }
                                                             onRemoveTarget={removeTarget}
                                                             onMoveToGroup={moveTargetToGroup}
                                                         />
@@ -1289,6 +1374,7 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                             targetLabelText={targetLabelText}
                                             secondaryLabel={secondaryLabel}
                                             useGlobalScale={useGlobalScale}
+                                            workingPack={workingPack}
                                             showMoveToGroup={false}
                                             domains={domains}
                                             setDomains={setDomains}
@@ -1299,6 +1385,8 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                             onScaleDraftChange={updateTargetScaleDraft}
                                             onCommitTargetScale={onCommitTargetScale}
                                             onUpdateScoringType={updateScoringType}
+                                            onCustomizeOverride={customizeTargetOverride}
+                                            onRevertToInherited={revertTargetToInherited}
                                             onRemoveTarget={removeTarget}
                                             onMoveToGroup={moveTargetToGroup}
                                         />

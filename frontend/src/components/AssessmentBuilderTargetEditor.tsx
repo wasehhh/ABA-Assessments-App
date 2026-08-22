@@ -1,10 +1,18 @@
 import { Dispatch, SetStateAction } from 'react';
 import { Trash2 } from 'lucide-react';
-import { Domain, ScoringType, SecondaryGroupCatalogEntry, Target } from '../types';
 import {
-    denseTargetScoring,
-    ensureDenseTargetScoring,
-} from '../utils/targetScoringAccess';
+    ContentPackData,
+    Domain,
+    ScoringType,
+    SecondaryGroupCatalogEntry,
+    Target,
+    TargetScoring,
+} from '../types';
+import {
+    formatEffectiveScoringSummary,
+    resolveTargetEffectiveInWorkingPack,
+} from '../utils/assessmentBuilderOverrideUi';
+import { hasTargetScoringOverride } from '../utils/effectiveScoring';
 
 export interface AssessmentBuilderTargetEditorProps {
     domainIndex: number;
@@ -12,7 +20,10 @@ export interface AssessmentBuilderTargetEditorProps {
     target: Target;
     targetLabelText: string;
     secondaryLabel: string;
+    /** True when pack scoring_mode is Uniform — hides per-target scoring UI. */
     useGlobalScale: boolean;
+    /** Canonical working pack for resolveEffectiveScoring (Custom Inherited display). */
+    workingPack: ContentPackData;
     secondaryGroups?: SecondaryGroupCatalogEntry[];
     showMoveToGroup: boolean;
     domains: Domain[];
@@ -33,8 +44,43 @@ export interface AssessmentBuilderTargetEditorProps {
         targetIndex: number,
         scoringType: ScoringType
     ) => void;
+    onCustomizeOverride: (domainIndex: number, targetIndex: number) => void;
+    onRevertToInherited: (domainIndex: number, targetIndex: number) => void;
     onRemoveTarget: (domainIndex: number, targetIndex: number) => void;
     onMoveToGroup: (domainIndex: number, targetIndex: number, secondaryGroupId?: string) => void;
+}
+
+function mutateOverrideFields(
+    domains: Domain[],
+    domainIndex: number,
+    targetIndex: number,
+    mutate: (scoring: TargetScoring) => void
+): Domain[] | null {
+    const updated = domains.map((domain, dIndex) => {
+        if (dIndex !== domainIndex) {
+            return domain;
+        }
+        return {
+            ...domain,
+            targets: domain.targets.map((entry, tIndex) => {
+                if (tIndex !== targetIndex) {
+                    return entry;
+                }
+                if (!hasTargetScoringOverride(entry) || !entry.scoring) {
+                    return entry;
+                }
+                const scoring = { ...entry.scoring };
+                mutate(scoring);
+                return { ...entry, scoring };
+            }),
+        };
+    });
+
+    const target = updated[domainIndex]?.targets[targetIndex];
+    if (!target || !hasTargetScoringOverride(target)) {
+        return null;
+    }
+    return updated;
 }
 
 export function AssessmentBuilderTargetEditor({
@@ -44,6 +90,7 @@ export function AssessmentBuilderTargetEditor({
     targetLabelText,
     secondaryLabel,
     useGlobalScale,
+    workingPack,
     secondaryGroups,
     showMoveToGroup,
     domains,
@@ -55,10 +102,17 @@ export function AssessmentBuilderTargetEditor({
     onScaleDraftChange,
     onCommitTargetScale,
     onUpdateScoringType,
+    onCustomizeOverride,
+    onRevertToInherited,
     onRemoveTarget,
     onMoveToGroup,
 }: AssessmentBuilderTargetEditorProps) {
-    const scoring = denseTargetScoring(target);
+    const isOverride = hasTargetScoringOverride(target);
+    const overrideScoring = isOverride ? target.scoring! : null;
+    const showCustomScoringUi = !useGlobalScale;
+    const effective = showCustomScoringUi
+        ? resolveTargetEffectiveInWorkingPack(target, workingPack)
+        : null;
 
     return (
         <div className="rounded border border-gray-200 bg-white p-3">
@@ -144,141 +198,215 @@ export function AssessmentBuilderTargetEditor({
                             required
                         />
                     </div>
-                    {!useGlobalScale && (
-                        <>
-                            <div>
-                                <label className="mb-1 block text-xs text-gray-600">Scoring Type</label>
-                                <select
-                                    value={scoring.type}
-                                    onChange={(e) =>
-                                        onUpdateScoringType(
-                                            domainIndex,
-                                            targetIndex,
-                                            e.target.value as ScoringType
-                                        )
-                                    }
-                                    className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                    {showCustomScoringUi && (
+                        <div className="space-y-2 rounded border border-gray-100 bg-gray-50 p-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                        isOverride
+                                            ? 'bg-amber-100 text-amber-900'
+                                            : 'bg-emerald-100 text-emerald-900'
+                                    }`}
                                 >
-                                    <option value="numeric">Numeric Scale (e.g., 0-4)</option>
-                                    <option value="checkbox">Task Analysis (Chaining)</option>
-                                    <option value="yesno">Yes/No</option>
-                                    <option value="text">Text Input</option>
-                                </select>
-                            </div>
-                            {scoring.type === 'numeric' && (
-                                <div>
-                                    <label className="mb-1 block text-xs text-gray-600">
-                                        Numeric Scale
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={scaleDraft}
-                                        onChange={(e) =>
-                                            onScaleDraftChange(
-                                                domainIndex,
-                                                targetIndex,
-                                                e.target.value
-                                            )
-                                        }
-                                        onBlur={() =>
-                                            onCommitTargetScale(domainIndex, targetIndex)
-                                        }
-                                        className={`w-full rounded border px-2 py-1 text-xs ${
-                                            scaleError ? 'border-red-400' : 'border-gray-300'
-                                        }`}
-                                        placeholder="e.g., 0,1,2,3,4"
-                                        aria-invalid={Boolean(scaleError)}
-                                    />
-                                    {scaleError ? (
-                                        <p className="mt-1 text-xs text-red-600">{scaleError}</p>
-                                    ) : (
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Comma-separated scores. Decimals and negatives are allowed.
-                                        </p>
-                                    )}
-                                    <div className="mt-3 space-y-2">
-                                        <label className="block text-xs font-medium text-gray-600">
-                                            Score Criteria Definitions (Optional)
-                                        </label>
-                                        {scoring.scale?.map((scoreValue) => (
-                                            <div key={scoreValue} className="flex items-center gap-2">
-                                                <span className="w-6 text-xs font-bold text-gray-700">
-                                                    {scoreValue} =
-                                                </span>
-                                                <input
-                                                    type="text"
-                                                    value={
-                                                        scoring.scale_labels?.[scoreValue] || ''
-                                                    }
-                                                    onChange={(e) => {
-                                                        const updated = [...domains];
-                                                        const currentTarget =
-                                                            updated[domainIndex].targets[targetIndex];
-                                                        const currentScoring =
-                                                            ensureDenseTargetScoring(currentTarget);
-                                                        currentScoring.scale_labels = {
-                                                            ...(currentScoring.scale_labels || {}),
-                                                            [scoreValue]: e.target.value,
-                                                        };
-                                                        setDomains(updated);
-                                                    }}
-                                                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                                                    placeholder={`Criteria for score ${scoreValue}`}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            {scoring.type === 'checkbox' && (
-                                <div className="space-y-3">
-                                    <label className="block text-xs font-medium text-gray-600">
-                                        Task Analysis Steps
-                                    </label>
-                                    {(!scoring.task_steps ||
-                                        scoring.task_steps.length === 0) && (
+                                    {isOverride ? 'Override' : 'Inherited'}
+                                </span>
+                                {!isOverride && effective ? (
+                                    <span className="text-xs text-gray-600">
+                                        {formatEffectiveScoringSummary(effective)}
+                                    </span>
+                                ) : null}
+                                <div className="ml-auto flex gap-2">
+                                    {!isOverride ? (
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                const updated = [...domains];
-                                                ensureDenseTargetScoring(
-                                                    updated[domainIndex].targets[targetIndex]
-                                                ).task_steps = ['Step 1'];
-                                                setDomains(updated);
-                                            }}
-                                            className="text-xs text-emerald-600 underline"
+                                            onClick={() =>
+                                                onCustomizeOverride(domainIndex, targetIndex)
+                                            }
+                                            className="text-xs font-medium text-emerald-700 underline hover:text-emerald-800"
                                         >
-                                            Initialize Steps
+                                            Customize
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onRevertToInherited(domainIndex, targetIndex)
+                                            }
+                                            className="text-xs font-medium text-gray-700 underline hover:text-gray-900"
+                                        >
+                                            Revert to pack default
                                         </button>
                                     )}
-                                    {scoring.task_steps?.map((step, sIndex) => (
-                                        <div key={sIndex} className="flex items-center gap-2">
-                                            <span className="w-4 text-xs text-gray-500">
-                                                {sIndex + 1}.
-                                            </span>
+                                </div>
+                            </div>
+
+                            {isOverride && overrideScoring ? (
+                                <>
+                                    <div>
+                                        <label className="mb-1 block text-xs text-gray-600">
+                                            Scoring Type
+                                        </label>
+                                        <select
+                                            value={overrideScoring.type}
+                                            onChange={(e) =>
+                                                onUpdateScoringType(
+                                                    domainIndex,
+                                                    targetIndex,
+                                                    e.target.value as ScoringType
+                                                )
+                                            }
+                                            className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                                        >
+                                            <option value="numeric">Numeric Scale (e.g., 0-4)</option>
+                                            <option value="checkbox">Task Analysis (Chaining)</option>
+                                            <option value="yesno">Yes/No</option>
+                                            <option value="text">Text Input</option>
+                                        </select>
+                                    </div>
+                                    {overrideScoring.type === 'numeric' && (
+                                        <div>
+                                            <label className="mb-1 block text-xs text-gray-600">
+                                                Numeric Scale
+                                            </label>
                                             <input
                                                 type="text"
-                                                value={step}
-                                                onChange={(e) => {
-                                                    const updated = [...domains];
-                                                    const currentScoring = ensureDenseTargetScoring(
-                                                        updated[domainIndex].targets[targetIndex]
-                                                    );
-                                                    if (!currentScoring.task_steps) {
-                                                        currentScoring.task_steps = [];
-                                                    }
-                                                    currentScoring.task_steps[sIndex] =
-                                                        e.target.value;
-                                                    setDomains(updated);
-                                                }}
-                                                className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                                                placeholder={`Step ${sIndex + 1}`}
+                                                value={scaleDraft}
+                                                onChange={(e) =>
+                                                    onScaleDraftChange(
+                                                        domainIndex,
+                                                        targetIndex,
+                                                        e.target.value
+                                                    )
+                                                }
+                                                onBlur={() =>
+                                                    onCommitTargetScale(domainIndex, targetIndex)
+                                                }
+                                                className={`w-full rounded border px-2 py-1 text-xs ${
+                                                    scaleError ? 'border-red-400' : 'border-gray-300'
+                                                }`}
+                                                placeholder="e.g., 0,1,2,3,4"
+                                                aria-invalid={Boolean(scaleError)}
                                             />
+                                            {scaleError ? (
+                                                <p className="mt-1 text-xs text-red-600">
+                                                    {scaleError}
+                                                </p>
+                                            ) : (
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Comma-separated scores. Decimals and negatives are
+                                                    allowed.
+                                                </p>
+                                            )}
+                                            <div className="mt-3 space-y-2">
+                                                <label className="block text-xs font-medium text-gray-600">
+                                                    Score Criteria Definitions (Optional)
+                                                </label>
+                                                {overrideScoring.scale?.map((scoreValue) => (
+                                                    <div
+                                                        key={scoreValue}
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <span className="w-6 text-xs font-bold text-gray-700">
+                                                            {scoreValue} =
+                                                        </span>
+                                                        <input
+                                                            type="text"
+                                                            value={
+                                                                overrideScoring.scale_labels?.[
+                                                                    scoreValue
+                                                                ] || ''
+                                                            }
+                                                            onChange={(e) => {
+                                                                const next = mutateOverrideFields(
+                                                                    domains,
+                                                                    domainIndex,
+                                                                    targetIndex,
+                                                                    (scoring) => {
+                                                                        scoring.scale_labels = {
+                                                                            ...(scoring.scale_labels ||
+                                                                                {}),
+                                                                            [scoreValue]:
+                                                                                e.target.value,
+                                                                        };
+                                                                    }
+                                                                );
+                                                                if (next) {
+                                                                    setDomains(next);
+                                                                }
+                                                            }}
+                                                            className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                                                            placeholder={`Criteria for score ${scoreValue}`}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </>
+                                    )}
+                                    {overrideScoring.type === 'checkbox' && (
+                                        <div className="space-y-3">
+                                            <label className="block text-xs font-medium text-gray-600">
+                                                Task Analysis Steps
+                                            </label>
+                                            {(!overrideScoring.task_steps ||
+                                                overrideScoring.task_steps.length === 0) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next = mutateOverrideFields(
+                                                            domains,
+                                                            domainIndex,
+                                                            targetIndex,
+                                                            (scoring) => {
+                                                                scoring.task_steps = ['Step 1'];
+                                                            }
+                                                        );
+                                                        if (next) {
+                                                            setDomains(next);
+                                                        }
+                                                    }}
+                                                    className="text-xs text-emerald-600 underline"
+                                                >
+                                                    Initialize Steps
+                                                </button>
+                                            )}
+                                            {overrideScoring.task_steps?.map((step, sIndex) => (
+                                                <div key={sIndex} className="flex items-center gap-2">
+                                                    <span className="w-4 text-xs text-gray-500">
+                                                        {sIndex + 1}.
+                                                    </span>
+                                                    <input
+                                                        type="text"
+                                                        value={step}
+                                                        onChange={(e) => {
+                                                            const next = mutateOverrideFields(
+                                                                domains,
+                                                                domainIndex,
+                                                                targetIndex,
+                                                                (scoring) => {
+                                                                    if (!scoring.task_steps) {
+                                                                        scoring.task_steps = [];
+                                                                    }
+                                                                    scoring.task_steps = [
+                                                                        ...scoring.task_steps,
+                                                                    ];
+                                                                    scoring.task_steps[sIndex] =
+                                                                        e.target.value;
+                                                                }
+                                                            );
+                                                            if (next) {
+                                                                setDomains(next);
+                                                            }
+                                                        }}
+                                                        className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                                                        placeholder={`Step ${sIndex + 1}`}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            ) : null}
+                        </div>
                     )}
                     {showMoveToGroup ? (
                         <div>
