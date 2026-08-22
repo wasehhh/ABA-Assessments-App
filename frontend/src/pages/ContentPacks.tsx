@@ -7,8 +7,8 @@ import { AssessmentBuilder } from '../components/AssessmentBuilder';
 import {
     collectPackOversizedWarnings,
     OVERSIZED_WARNING_ADVICE,
-    PackGroupWarning,
 } from '../utils/assessmentPackAuthoring';
+import { prepareContentPackForUpload } from '../utils/assessmentPackCanonical';
 import {
     DataLoadEmptyState,
     DataLoadErrorPanel,
@@ -39,7 +39,7 @@ export function ContentPacks() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
-  const [importWarnings, setImportWarnings] = useState<PackGroupWarning[]>([]);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
 
   const loadPacks = async () => {
     if (!profile?.org_id) {
@@ -86,17 +86,29 @@ export function ContentPacks() {
 
     try {
       const text = await form.file.text();
-      let packData;
+      let packData: ContentPack['pack_data'];
+      const warnings: string[] = [];
 
       if (form.file.name.endsWith('.json')) {
         packData = JSON.parse(text);
       } else if (form.file.name.endsWith('.csv')) {
         packData = packService.parseCSV(text, form.title, form.description);
-        setImportWarnings(collectPackOversizedWarnings(packData));
+        warnings.push(
+          ...collectPackOversizedWarnings(packData).map(
+            (warning) =>
+              `${warning.domainTitle}: ${warning.targetCount} targets (${warning.level}). ${OVERSIZED_WARNING_ADVICE}`
+          )
+        );
       } else {
         setError('File must be JSON or CSV');
         return;
       }
+
+      // CSV parse already migrates; JSON (and any path) still renormalizes here (OQ-B3-6/7/8).
+      const prepared = prepareContentPackForUpload(packData);
+      packData = prepared.pack;
+      warnings.push(...prepared.warnings);
+      setImportWarnings(warnings);
 
       packData.org_id = profile.org_id;
       await packService.upload(profile.org_id, form.title, form.description, packData, user.id);
@@ -241,13 +253,10 @@ export function ContentPacks() {
               <div className="flex gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <div>
-                  <p className="font-semibold">Oversized group warning (non-blocking)</p>
-                  <p className="mt-1">{OVERSIZED_WARNING_ADVICE}</p>
+                  <p className="font-semibold">Import warning (non-blocking)</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {importWarnings.map((warning, index) => (
-                      <li key={`${warning.domainId}-${warning.tier}-${index}`}>
-                        {warning.domainTitle}: {warning.targetCount} targets ({warning.level})
-                      </li>
+                      <li key={`${index}-${warning.slice(0, 40)}`}>{warning}</li>
                     ))}
                   </ul>
                 </div>

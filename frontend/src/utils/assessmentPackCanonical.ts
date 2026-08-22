@@ -341,3 +341,38 @@ export function seedBuilderWorkingPack(
         ...(migrated.scoring_scales ? { scoring_scales: migrated.scoring_scales } : {}),
     };
 }
+
+export interface ContentPackUploadPreparation {
+    pack: ContentPackData;
+    /** Non-blocking clinician-facing warnings (e.g. Uniform+overrides coerced to Custom). */
+    warnings: string[];
+}
+
+export const UNIFORM_WITH_OVERRIDES_UPLOAD_WARNING =
+    'This pack declared Uniform scoring but included target-specific overrides. It was imported as Custom so those overrides are kept.';
+
+/**
+ * Upload/import entry preparation (OQ-B3-6…9).
+ * Migrates legacy dense packs, renormalizes already-canonical packs (migrate N2 + save N1–N6),
+ * and coerces Uniform+overrides to Custom with a warning (OQ-B3-8) instead of rejecting.
+ */
+export function prepareContentPackForUpload(
+    pack: ContentPackData
+): ContentPackUploadPreparation {
+    let next = migrateLegacyPackToCanonical(pack);
+    const warnings: string[] = [];
+
+    if (
+        next.scoring_mode === 'uniform' &&
+        domainsHaveScoringOverrides(next.domains)
+    ) {
+        next = {
+            ...next,
+            scoring_mode: 'custom',
+        };
+        warnings.push(UNIFORM_WITH_OVERRIDES_UPLOAD_WARNING);
+    }
+
+    next = normalizeCanonicalPackForSave(next);
+    return { pack: next, warnings };
+}

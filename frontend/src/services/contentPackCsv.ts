@@ -10,6 +10,7 @@ import {
     parseNumericScaleCsv,
     parseScaleLabelsCsv,
 } from '../utils/assessmentPackAuthoring';
+import { prepareContentPackForUpload } from '../utils/assessmentPackCanonical';
 
 const CSV_REQUIRED_HEADERS = [
     'domain_id',
@@ -293,5 +294,6 @@ export function parseContentPackCsv(
             : {}),
     };
 
-    return materializePackForSave(pack);
+    // Dense materialize remains for Alpha-safe row assembly; upload form is canonical (OQ-B3-6/9).
+    return prepareContentPackForUpload(materializePackForSave(pack)).pack;
 }
