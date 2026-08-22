@@ -527,6 +527,85 @@ describe('builder identifier validation', () => {
         ).toBe(true);
     });
 
+    it('Uniform mode requires only a complete default_scoring, not per-target scales', () => {
+        const pack: ContentPackData = {
+            ...makeFlatPack(),
+            title: 'Uniform Pack',
+            scoring_mode: 'uniform',
+            default_scoring: {
+                type: 'numeric',
+                scale: [0, 1, 2, 3, 4],
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            },
+            domains: [
+                {
+                    domain_id: 'A',
+                    title: 'Domain A',
+                    targets: [
+                        {
+                            target_id: 'A1',
+                            title: 'A1',
+                            success_criteria: '',
+                            materials: '',
+                        },
+                    ],
+                },
+            ],
+        };
+
+        expect(validateBuilderPackAuthoring(pack)).toEqual([]);
+    });
+
+    it('Custom Inherited targets do not require per-target scales; Overrides do', () => {
+        const pack: ContentPackData = {
+            ...makeFlatPack(),
+            title: 'Custom Pack',
+            scoring_mode: 'custom',
+            default_scoring: {
+                type: 'numeric',
+                scale: [0, 1, 2, 3, 4],
+                scale_labels: {},
+                no_opportunity_allowed: true,
+            },
+            domains: [
+                {
+                    domain_id: 'A',
+                    title: 'Domain A',
+                    targets: [
+                        {
+                            target_id: 'A1',
+                            title: 'Inherited',
+                            success_criteria: '',
+                            materials: '',
+                        },
+                        {
+                            target_id: 'A2',
+                            title: 'Broken override',
+                            success_criteria: '',
+                            materials: '',
+                            scoring: {
+                                type: 'numeric',
+                                scale_labels: {},
+                                no_opportunity_allowed: false,
+                            },
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const issues = validateBuilderPackAuthoring(pack);
+        expect(issues.some((issue) => issue.targetIndex === 0)).toBe(false);
+        expect(
+            issues.some(
+                (issue) =>
+                    issue.targetIndex === 1 &&
+                    issue.message.includes('Enter numeric values separated by commas')
+            )
+        ).toBe(true);
+    });
+
     it('normalizes identifier whitespace on save preparation', () => {
         const pack = makeFlatPack();
         pack.domains[0].domain_id = ' A ';

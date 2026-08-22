@@ -3,13 +3,15 @@ import { AlertTriangle, Download, Info, Plus, Trash2 } from 'lucide-react';
 import {
     ContentPackData,
     Domain,
+    PackDefaultScoring,
+    PackScoringMode,
+    ScoringScaleDefinition,
     ScoringType,
     SecondaryGroupCatalogEntry,
     Target,
 } from '../types';
 import {
     ALPHA_DEFAULT_PRIMARY_LABEL,
-    applyGlobalScaleLabels,
     applySecondaryGroupingDisabled,
     applySecondaryGroupingEnabled,
     BuilderAuthoringIssue,
@@ -17,22 +19,32 @@ import {
     collectPackOversizedWarnings,
     commitNumericScaleCsv,
     formatNumericScale,
+    isSecondaryGroupingEnabled,
     NEUTRAL_DEFAULT_PRIMARY_LABEL,
     NEUTRAL_DEFAULT_SECONDARY_LABEL,
     NEUTRAL_DEFAULT_TARGET_LABEL,
     OVERSIZED_WARNING_ADVICE,
-    prepareBuilderPackForSave,
+    normalizePackIdentifiers,
     reconcileScaleLabels,
     validateBuilderPackAuthoring,
 } from '../utils/assessmentPackAuthoring';
 import {
-    appendTargetToDomain,
+    clearAllTargetScoringOverrides,
+    domainsHaveScoringOverrides,
+    NEW_PACK_DEFAULT_SCALE_CSV,
+    NEW_PACK_DEFAULT_SCALE_VALUES,
+    seedBuilderWorkingPack,
+    normalizeCanonicalPackForSave,
+} from '../utils/assessmentPackCanonical';
+import {
+    createBuilderTarget,
     getTargetsForSecondaryGroup,
     getUngroupedTargetEntries,
     moveTargetSecondaryGroup,
 } from '../utils/assessmentPackBuilder';
 import { denseTargetScoring } from '../utils/targetScoringAccess';
 import { AssessmentBuilderTargetEditor } from './AssessmentBuilderTargetEditor';
+import { ConfirmDialog } from './ConfirmDialog';
 
 interface Props {
     onSave: (packData: ContentPackData) => Promise<void>;
@@ -48,126 +60,65 @@ function collectReservedTargetIds(domains: Domain[]): string[] {
     return domains.flatMap((domain) => domain.targets.map((target) => target.target_id));
 }
 
-function parseDefaultScaleOrFallback(defaultScale: string, fallback: number[] = [0, 1, 2, 3, 4]): number[] {
+function parseDefaultScaleOrFallback(
+    defaultScale: string,
+    fallback: number[] = [...NEW_PACK_DEFAULT_SCALE_VALUES]
+): number[] {
     const result = commitNumericScaleCsv(defaultScale);
     return result.ok ? result.values : [...fallback];
 }
 
-const NEW_PACK_DEFAULT_SCALE = '0,1,2,3,4';
-
-export interface InitialGlobalScaleState {
-    useGlobalScale: boolean;
-    defaultScale: string;
-    globalScaleLabels: Record<number, string>;
-}
-
-function scalesEqual(a: number[], b: number[]): boolean {
-    return a.length === b.length && a.every((value, index) => value === b[index]);
-}
-
-function normalizeScaleLabels(
-    labels: Record<number, string> | undefined
-): Record<number, string> {
-    return labels ? { ...labels } : {};
-}
-
-function scaleLabelsEqual(
-    a: Record<number, string>,
-    b: Record<number, string>
-): boolean {
-    const aEntries = Object.entries(a).sort(
-        ([keyA], [keyB]) => Number(keyA) - Number(keyB)
-    );
-    const bEntries = Object.entries(b).sort(
-        ([keyA], [keyB]) => Number(keyA) - Number(keyB)
-    );
-    if (aEntries.length !== bEntries.length) {
-        return false;
-    }
-    return aEntries.every(
-        ([key, value], index) =>
-            key === bEntries[index][0] && value === bEntries[index][1]
-    );
-}
-
-/**
- * Derive Builder global-scale checkbox / default scale / labels from pack data.
- * New packs (no initialData) keep the historical defaults (checkbox on, 0–4).
- * Existing packs only enable global scale when every numeric target shares the
- * same inline scale array and scale_labels. Numeric targets without an inline
- * `scale` fail closed (checkbox off) — Builder-saved packs always inline scale.
- */
-export function deriveInitialGlobalScaleState(
-    initialData?: ContentPackData & { title?: string; description?: string }
-): InitialGlobalScaleState {
-    if (!initialData) {
-        return {
-            useGlobalScale: true,
-            defaultScale: NEW_PACK_DEFAULT_SCALE,
-            globalScaleLabels: {},
-        };
-    }
-
-    const numericTargets = (initialData.domains ?? []).flatMap((domain) =>
-        domain.targets.filter((target) => target.scoring?.type === 'numeric')
-    );
-
-    if (numericTargets.length === 0) {
-        return {
-            useGlobalScale: false,
-            defaultScale: NEW_PACK_DEFAULT_SCALE,
-            globalScaleLabels: {},
-        };
-    }
-
-    const scales: number[][] = [];
-    const labelsList: Record<number, string>[] = [];
-
-    for (const target of numericTargets) {
-        const scale = target.scoring?.scale;
-        if (scale === undefined) {
-            return {
-                useGlobalScale: false,
-                defaultScale: NEW_PACK_DEFAULT_SCALE,
-                globalScaleLabels: {},
-            };
-        }
-        scales.push(scale);
-        labelsList.push(normalizeScaleLabels(target.scoring?.scale_labels));
-    }
-
-    const sharedScale = scales[0];
-    const sharedLabels = labelsList[0];
-    const allUniform =
-        scales.every((scale) => scalesEqual(scale, sharedScale)) &&
-        labelsList.every((labels) => scaleLabelsEqual(labels, sharedLabels));
-
-    if (!allUniform) {
-        return {
-            useGlobalScale: false,
-            defaultScale: NEW_PACK_DEFAULT_SCALE,
-            globalScaleLabels: {},
-        };
+function stripSecondaryGroupingIfDisabled(pack: ContentPackData): ContentPackData {
+    if (isSecondaryGroupingEnabled(pack.structure_labels)) {
+        return pack;
     }
 
     return {
-        useGlobalScale: true,
-        defaultScale: formatNumericScale(sharedScale),
-        globalScaleLabels: sharedLabels,
+        ...pack,
+        structure_labels: pack.structure_labels
+            ? {
+                  primary_group: pack.structure_labels.primary_group,
+                  target: pack.structure_labels.target,
+              }
+            : undefined,
+        domains: pack.domains.map((domain) => ({
+            ...domain,
+            secondary_groups: undefined,
+            targets: domain.targets.map((target) => {
+                const { secondary_group_id: _removed, ...rest } = target;
+                return rest;
+            }),
+        })),
     };
 }
 
+function defaultScaleCsvFromScoring(scoring: PackDefaultScoring): string {
+    if (scoring.scale && scoring.scale.length > 0) {
+        return formatNumericScale(scoring.scale);
+    }
+    return NEW_PACK_DEFAULT_SCALE_CSV;
+}
+
 export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
-    const initialGlobalScaleState = deriveInitialGlobalScaleState(initialData);
+    const workingSeed = seedBuilderWorkingPack(initialData);
     const [title, setTitle] = useState(initialData?.title || '');
     const [description, setDescription] = useState(initialData?.description || '');
-    const [domains, setDomains] = useState<Domain[]>(initialData?.domains || []);
-    const [defaultScale, setDefaultScale] = useState(initialGlobalScaleState.defaultScale);
+    const [domains, setDomains] = useState<Domain[]>(workingSeed.domains);
+    const [scoringMode, setScoringMode] = useState<PackScoringMode>(workingSeed.scoring_mode);
+    const [defaultScoring, setDefaultScoring] = useState<PackDefaultScoring>(
+        workingSeed.default_scoring
+    );
+    const [scoringScales] = useState<ScoringScaleDefinition[] | undefined>(
+        workingSeed.scoring_scales
+    );
+    const [defaultScale, setDefaultScale] = useState(
+        defaultScaleCsvFromScoring(workingSeed.default_scoring)
+    );
     const [defaultScaleError, setDefaultScaleError] = useState<string | null>(null);
     const [globalScaleLabels, setGlobalScaleLabels] = useState<Record<number, string>>(
-        initialGlobalScaleState.globalScaleLabels
+        { ...(workingSeed.default_scoring.scale_labels ?? {}) }
     );
-    const [useGlobalScale, setUseGlobalScale] = useState(initialGlobalScaleState.useGlobalScale);
+    const [uniformConfirmOpen, setUniformConfirmOpen] = useState(false);
     const [targetScaleDrafts, setTargetScaleDrafts] = useState<Record<string, string>>({});
     const [authoringIssues, setAuthoringIssues] = useState<BuilderAuthoringIssue[]>([]);
     const [primaryGroupLabel, setPrimaryGroupLabel] = useState(
@@ -182,6 +133,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
     const [secondaryGroupingEnabled, setSecondaryGroupingEnabled] = useState(
         Boolean(initialData?.structure_labels?.secondary_group?.trim())
     );
+
+    const useGlobalScale = scoringMode === 'uniform';
+    const showUniformNumericDefaultEditor =
+        useGlobalScale &&
+        defaultScoring.type === 'numeric' &&
+        Boolean(defaultScoring.scale?.length || !defaultScoring.scale_id);
 
     const primaryLabel = secondaryGroupingEnabled
         ? primaryGroupLabel.trim() || NEUTRAL_DEFAULT_PRIMARY_LABEL
@@ -258,6 +215,9 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         const key = scaleDraftKey(domainIndex, targetIndex);
         if (Object.prototype.hasOwnProperty.call(targetScaleDrafts, key)) {
             return targetScaleDrafts[key];
+        }
+        if (!target.scoring) {
+            return defaultScaleCsvFromScoring(defaultScoring);
         }
         return formatNumericScale(denseTargetScoring(target).scale ?? []);
     };
@@ -362,12 +322,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
     const addTarget = (domainIndex: number, secondaryGroupId?: string) => {
         const updated = [...domains];
-        updated[domainIndex] = appendTargetToDomain(
+        const created = createBuilderTarget(
             updated[domainIndex],
             parseDefaultScaleOrFallback(defaultScale),
             secondaryGroupId,
             collectReservedTargetIds(domains)
         );
+        const { scoring: _removed, ...inherited } = created;
+        updated[domainIndex] = {
+            ...updated[domainIndex],
+            targets: [...updated[domainIndex].targets, inherited],
+        };
         setDomains(updated);
     };
 
@@ -522,7 +487,15 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
 
         domainsSnapshot.forEach((domain, domainIndex) => {
             domain.targets.forEach((target, targetIndex) => {
-                if (denseTargetScoring(target).type !== 'numeric') {
+                const key = scaleDraftKey(domainIndex, targetIndex);
+                const hasDraft = Object.prototype.hasOwnProperty.call(draftsSnapshot, key);
+                // Inherited + untouched: do not densify on save (B3 Inherited form).
+                // Draft present: weaker Customize-by-edit until B3.5.
+                if (!target.scoring && !hasDraft) {
+                    return;
+                }
+                const scoringType = target.scoring?.type ?? 'numeric';
+                if (scoringType !== 'numeric') {
                     return;
                 }
                 const result = commitTargetScale(
@@ -592,27 +565,46 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         let workingDomains = domains;
         let workingDefaultScale = defaultScale;
         let workingGlobalLabels = globalScaleLabels;
+        let workingDefaultScoring: PackDefaultScoring = { ...defaultScoring };
         const draftIssues: BuilderAuthoringIssue[] = [];
 
-        if (useGlobalScale) {
-            const globalResult = commitNumericScaleCsv(defaultScale);
-            if (!globalResult.ok) {
-                setDefaultScaleError(globalResult.error);
-                draftIssues.push({
-                    field: 'default_scale',
-                    message: globalResult.error,
-                });
+        if (scoringMode === 'uniform') {
+            if (
+                workingDefaultScoring.type === 'numeric' &&
+                (workingDefaultScoring.scale?.length || !workingDefaultScoring.scale_id)
+            ) {
+                const globalResult = commitNumericScaleCsv(defaultScale);
+                if (!globalResult.ok) {
+                    setDefaultScaleError(globalResult.error);
+                    draftIssues.push({
+                        field: 'default_scale',
+                        message: globalResult.error,
+                    });
+                } else {
+                    setDefaultScaleError(null);
+                    workingDefaultScale = formatNumericScale(globalResult.values);
+                    setDefaultScale(workingDefaultScale);
+                    workingGlobalLabels = reconcileScaleLabels(
+                        globalResult.values,
+                        globalScaleLabels
+                    );
+                    setGlobalScaleLabels(workingGlobalLabels);
+                    workingDefaultScoring = {
+                        ...workingDefaultScoring,
+                        type: 'numeric',
+                        scale: globalResult.values,
+                        scale_labels: workingGlobalLabels,
+                    };
+                    setDefaultScoring(workingDefaultScoring);
+                }
             } else {
-                setDefaultScaleError(null);
-                workingDefaultScale = formatNumericScale(globalResult.values);
-                setDefaultScale(workingDefaultScale);
-                workingGlobalLabels = reconcileScaleLabels(
-                    globalResult.values,
-                    globalScaleLabels
-                );
-                setGlobalScaleLabels(workingGlobalLabels);
+                workingDefaultScoring = {
+                    ...workingDefaultScoring,
+                    scale_labels: {
+                        ...(workingDefaultScoring.scale_labels ?? {}),
+                    },
+                };
             }
-            workingDomains = applyGlobalScaleLabels(workingDomains, workingGlobalLabels);
         } else {
             const committed = commitAllTargetScaleDrafts(workingDomains, targetScaleDrafts);
             workingDomains = committed.domains;
@@ -621,10 +613,9 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
             const nextDrafts: Record<string, string> = { ...targetScaleDrafts };
             workingDomains.forEach((domain, domainIndex) => {
                 domain.targets.forEach((target, targetIndex) => {
-                    const scoring = denseTargetScoring(target);
-                    if (scoring.type === 'numeric' && scoring.scale) {
+                    if (target.scoring?.type === 'numeric' && target.scoring.scale) {
                         nextDrafts[scaleDraftKey(domainIndex, targetIndex)] = formatNumericScale(
-                            scoring.scale
+                            target.scoring.scale
                         );
                     }
                 });
@@ -644,12 +635,20 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                 secondaryGroupLabel,
                 secondaryGroupingEnabled
             ),
+            scoring_mode: scoringMode,
+            default_scoring: workingDefaultScoring,
+            ...(scoringScales ? { scoring_scales: scoringScales } : {}),
             domains: workingDomains,
         };
 
         const validated = validateBuilderPackAuthoring(packData, {
-            useGlobalScale,
-            defaultScaleCsv: workingDefaultScale,
+            scoringMode,
+            defaultScaleCsv:
+                scoringMode === 'uniform' &&
+                workingDefaultScoring.type === 'numeric' &&
+                (workingDefaultScoring.scale?.length || !workingDefaultScoring.scale_id)
+                    ? workingDefaultScale
+                    : undefined,
         });
 
         const mergedIssues = [...draftIssues];
@@ -671,7 +670,29 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
         }
 
         setAuthoringIssues([]);
-        await onSave(prepareBuilderPackForSave(packData));
+        const normalized = normalizePackIdentifiers(
+            normalizeCanonicalPackForSave(stripSecondaryGroupingIfDisabled(packData))
+        );
+        await onSave(normalized);
+    };
+
+    const requestScoringModeChange = (nextChecked: boolean) => {
+        if (nextChecked) {
+            if (domainsHaveScoringOverrides(domains)) {
+                setUniformConfirmOpen(true);
+                return;
+            }
+            setScoringMode('uniform');
+            return;
+        }
+        setScoringMode('custom');
+    };
+
+    const confirmSwitchToUniform = () => {
+        setDomains(clearAllTargetScoringOverrides(domains));
+        setTargetScaleDrafts({});
+        setScoringMode('uniform');
+        setUniformConfirmOpen(false);
     };
 
     const downloadTemplate = () => {
@@ -847,14 +868,14 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                             type="checkbox"
                             id="useGlobalScale"
                             checked={useGlobalScale}
-                            onChange={(e) => setUseGlobalScale(e.target.checked)}
+                            onChange={(e) => requestScoringModeChange(e.target.checked)}
                             className="rounded"
                         />
                         <label htmlFor="useGlobalScale" className="text-sm font-medium text-gray-700">
                             Use same scoring scale for all targets
                         </label>
                     </div>
-                    {useGlobalScale && (
+                    {showUniformNumericDefaultEditor && (
                         <>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Default Scoring Scale
@@ -875,9 +896,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                     }
                                     setDefaultScaleError(null);
                                     setDefaultScale(formatNumericScale(result.values));
-                                    setGlobalScaleLabels((prev) =>
-                                        reconcileScaleLabels(result.values, prev)
+                                    const nextLabels = reconcileScaleLabels(
+                                        result.values,
+                                        globalScaleLabels
                                     );
+                                    setGlobalScaleLabels(nextLabels);
+                                    setDefaultScoring((prev) => ({
+                                        ...prev,
+                                        type: 'numeric',
+                                        scale: result.values,
+                                        scale_labels: nextLabels,
+                                    }));
                                 }}
                                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 ${
                                     defaultScaleError || issueFor('default_scale')
@@ -895,9 +924,10 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                 </p>
                             ) : (
                                 <p className="text-xs text-gray-500 mt-1">
-                                    New targets snapshot this scale when created. Changing it later
-                                    does not rewrite existing target scales. Score criteria below are
-                                    applied to all targets on save.
+                                    All targets inherit this pack default. Changing it updates
+                                    scoring for every target. New targets inherit the default
+                                    rather than copying a snapshot. Score criteria below apply to
+                                    the pack default.
                                 </p>
                             )}
 
@@ -916,12 +946,20 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                                         <input
                                             type="text"
                                             value={globalScaleLabels[scoreValue] || ''}
-                                            onChange={(e) =>
+                                            onChange={(e) => {
+                                                const value = e.target.value;
                                                 setGlobalScaleLabels((prev) => ({
                                                     ...prev,
-                                                    [scoreValue]: e.target.value,
-                                                }))
-                                            }
+                                                    [scoreValue]: value,
+                                                }));
+                                                setDefaultScoring((prev) => ({
+                                                    ...prev,
+                                                    scale_labels: {
+                                                        ...(prev.scale_labels ?? {}),
+                                                        [scoreValue]: value,
+                                                    },
+                                                }));
+                                            }}
                                             className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm"
                                             placeholder={`Definition for score ${scoreValue}`}
                                         />
@@ -930,10 +968,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                             </div>
                         </>
                     )}
+                    {useGlobalScale && !showUniformNumericDefaultEditor && (
+                        <p className="text-xs text-gray-500 mt-1">
+                            All targets inherit this pack default. Changing the default updates
+                            scoring for every target. New targets inherit the default rather than
+                            copying a snapshot.
+                        </p>
+                    )}
                     {!useGlobalScale && (
                         <p className="text-sm text-gray-600">
-                            Customize scoring for each target below. Target-specific scales are kept
-                            when you save and reopen the pack.
+                            Targets inherit the pack default unless they have an override.
+                            Target-specific overrides are kept when you save and reopen the pack.
                         </p>
                     )}
                 </div>
@@ -1295,6 +1340,17 @@ export function AssessmentBuilder({ onSave, onCancel, initialData }: Props) {
                     Cancel
                 </button>
             </div>
+
+            <ConfirmDialog
+                isOpen={uniformConfirmOpen}
+                title="Switch to same scale for all targets?"
+                message="Target-specific scoring overrides will be cleared. Every target will inherit the pack default. This cannot be undone except by Cancel without saving."
+                confirmText="Use pack default for all"
+                cancelText="Keep target overrides"
+                isDestructive={true}
+                onConfirm={confirmSwitchToUniform}
+                onCancel={() => setUniformConfirmOpen(false)}
+            />
         </form>
     );
 }
