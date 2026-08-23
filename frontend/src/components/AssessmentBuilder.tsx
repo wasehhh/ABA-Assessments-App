@@ -60,6 +60,10 @@ interface Props {
     onCancel: () => void;
     initialData?: ContentPackData & { title?: string; description?: string };
     onSessionChange?: (state: { isDirty: boolean }) => void;
+    /** Edit session identity (PR C1b conflict detection). */
+    packId?: string;
+    /** Revision token captured at session open — parent uses for save conflict check. */
+    sessionOpenedAtRevision?: string;
 }
 
 function scaleDraftKey(domainIndex: number, targetIndex: number): string {
@@ -109,7 +113,14 @@ function defaultScaleCsvFromScoring(scoring: PackDefaultScoring): string {
     return NEW_PACK_DEFAULT_SCALE_CSV;
 }
 
-export function AssessmentBuilder({ onSave, onCancel, initialData, onSessionChange }: Props) {
+export function AssessmentBuilder({
+    onSave,
+    onCancel,
+    initialData,
+    onSessionChange,
+    packId,
+    sessionOpenedAtRevision,
+}: Props) {
     const workingSeed = seedBuilderWorkingPack(initialData);
     const initialTitle = initialData?.title || '';
     const initialDescription = initialData?.description || '';
@@ -911,7 +922,12 @@ export function AssessmentBuilder({ onSave, onCancel, initialData, onSessionChan
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+        <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-lg shadow p-6 space-y-6"
+            data-builder-pack-id={packId}
+            data-builder-session-revision={sessionOpenedAtRevision}
+        >
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-gray-900">Build Custom Assessment</h2>
                 <button

@@ -3,6 +3,10 @@ import { auditService } from './audit';
 import { ContentPack, ContentPackData } from '../types';
 import { parseContentPackCsv } from './contentPackCsv';
 
+export type PackUpdateRevisionResult =
+  | { ok: true; pack: ContentPack }
+  | { ok: false; conflict: true };
+
 export const packService = {
   async upload(
     orgId: string,
@@ -74,6 +78,29 @@ export const packService = {
       .single();
     if (error) throw error;
     return data as ContentPack;
+  },
+
+  /**
+   * Optimistic revision check: UPDATE only when updated_at matches session-open token.
+   * Returns conflict when zero rows match (concurrent edit elsewhere).
+   */
+  async updateIfRevisionMatches(
+    id: string,
+    updates: Partial<ContentPack>,
+    expectedUpdatedAt: string
+  ): Promise<PackUpdateRevisionResult> {
+    const { data, error } = await supabase
+      .from('content_packs')
+      .update(updates)
+      .eq('id', id)
+      .eq('updated_at', expectedUpdatedAt)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      return { ok: false, conflict: true };
+    }
+    return { ok: true, pack: data as ContentPack };
   },
 
   async archive(id: string) {

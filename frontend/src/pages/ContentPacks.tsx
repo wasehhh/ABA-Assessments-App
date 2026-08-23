@@ -5,6 +5,7 @@ import { packService } from '../services/packs';
 import { ContentPack } from '../types';
 import { Upload, Plus, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
 import { AssessmentBuilder } from '../components/AssessmentBuilder';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
     collectPackOversizedWarnings,
     OVERSIZED_WARNING_ADVICE,
@@ -42,6 +43,9 @@ export function ContentPacks() {
   const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [builderDirty, setBuilderDirty] = useState(false);
+  const [builderRemountKey, setBuilderRemountKey] = useState(0);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const sessionOpenedAtRevisionRef = useRef<string | null>(null);
   const navigationGuard = useAssessmentBuilderNavigationGuard();
 
   const handleBuilderSessionChange = useCallback((state: { isDirty: boolean }) => {
@@ -51,6 +55,43 @@ export function ContentPacks() {
   useEffect(() => {
     navigationGuard.setBlocking(showBuilder && builderDirty);
   }, [showBuilder, builderDirty, navigationGuard]);
+
+  useEffect(() => {
+    if (editingPack) {
+      sessionOpenedAtRevisionRef.current = editingPack.updated_at;
+    } else {
+      sessionOpenedAtRevisionRef.current = null;
+    }
+  }, [editingPack?.id, editingPack?.updated_at, builderRemountKey]);
+
+  const reloadEditingPackFromServer = async () => {
+    if (!editingPack) {
+      setConflictDialogOpen(false);
+      return;
+    }
+
+    try {
+      const fresh = await packService.getById(editingPack.id);
+      if (!fresh) {
+        setError('This pack is no longer available.');
+        setShowBuilder(false);
+        setEditingPack(null);
+        setBuilderDirty(false);
+        setConflictDialogOpen(false);
+        return;
+      }
+
+      setEditingPack(fresh);
+      sessionOpenedAtRevisionRef.current = fresh.updated_at;
+      setBuilderRemountKey((key) => key + 1);
+      setBuilderDirty(false);
+      setConflictDialogOpen(false);
+      void loadPacks();
+    } catch (err: any) {
+      setError(err.message ?? 'Could not reload this pack.');
+      setConflictDialogOpen(false);
+    }
+  };
 
   const requestBuilderSessionAction = (action: () => void) => {
     navigationGuard.requestLocalAction(action);
@@ -260,15 +301,34 @@ export function ContentPacks() {
 
       {showBuilder && isAdmin && (
         <AssessmentBuilder
-          initialData={editingPack ? { ...editingPack.pack_data, title: editingPack.title, description: editingPack.description } : undefined}
+          key={`${editingPack?.id ?? 'new'}-${builderRemountKey}`}
+          packId={editingPack?.id}
+          sessionOpenedAtRevision={sessionOpenedAtRevisionRef.current ?? undefined}
+          initialData={editingPack ? { ...editingPack.pack_data, title: editingPack.title, description: editingPack.description ?? '' } : undefined}
           onSessionChange={handleBuilderSessionChange}
           onSave={async (data) => {
             if (editingPack) {
-              await packService.update(editingPack.id, {
-                title: data.title,
-                description: data.description,
-                pack_data: { ...data, version: editingPack.version } // Keep version or bump? For now keep.
-              });
+              const expectedRevision = sessionOpenedAtRevisionRef.current;
+              if (!expectedRevision) {
+                setError('Cannot save — pack revision is missing. Reload the page and try again.');
+                return;
+              }
+
+              const result = await packService.updateIfRevisionMatches(
+                editingPack.id,
+                {
+                  title: data.title,
+                  description: data.description,
+                  pack_data: { ...data, version: editingPack.version },
+                },
+                expectedRevision
+              );
+
+              if (!result.ok) {
+                setConflictDialogOpen(true);
+                return;
+              }
+
               loadPacks();
               setShowBuilder(false);
               setEditingPack(null);
@@ -284,6 +344,15 @@ export function ContentPacks() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={conflictDialogOpen}
+        title="Pack changed elsewhere"
+        message="This pack was changed by someone else."
+        confirmText="Reload"
+        variant="alert"
+        onConfirm={() => void reloadEditingPackFromServer()}
+      />
 
       {showForm && isAdmin && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">

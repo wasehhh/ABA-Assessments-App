@@ -142,6 +142,7 @@ export interface ContentPack {
   uploaded_by: string | null;
   uploaded_at: string;
   created_at: string;
+  updated_at: string;
   status: 'active' | 'archived';
 }
 
