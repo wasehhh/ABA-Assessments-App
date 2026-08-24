@@ -1,13 +1,57 @@
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../types';
 
+const UNMAPPED_SETUP_FAILURE =
+  "We couldn't finish setting up your account. Try signing in — if that doesn't work, let your administrator know.";
+
+/**
+ * Maps complete_user_setup raise messages to founder-approved user-facing copy.
+ * Raw database text must never reach the UI.
+ * callSite distinguishes signup vs sign-in so the missing-org-name message is
+ * not shown on a login screen that has no organization field.
+ */
+function mapCompleteUserSetupError(
+  error: { message?: string },
+  callSite: 'signup' | 'signin'
+): Error {
+  const message = error.message ?? '';
+
+  if (message.includes('org name required when no invite exists')) {
+    if (callSite === 'signin') {
+      return new Error(UNMAPPED_SETUP_FAILURE);
+    }
+    return new Error("Enter your organization's name to create a new account.");
+  }
+
+  if (message.includes('multiple case-variant invites match caller email')) {
+    return new Error(
+      "There's more than one invitation for this email address. Ask your administrator to remove the extra one, then try again."
+    );
+  }
+
+  if (message.includes('multiple empty bootstrap organizations exist for caller')) {
+    return new Error(
+      "We couldn't finish setting up your account. Try signing in — that usually completes it."
+    );
+  }
+
+  return new Error(UNMAPPED_SETUP_FAILURE);
+}
+
+async function fetchProfileOrThrow(userId: string): Promise<UserProfile> {
+  const { data: profile, error: profileError } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
+  if (profileError) throw profileError;
+  if (!profile) throw new Error('Sign up failed');
+  return profile;
+}
+
 export const authService = {
   async signUp(email: string, password: string, fullName: string, orgName: string) {
-    // 1. Check for existing invite
-    // We use a public RPC or a client-side check if we made the table public readable (which we shouldn't for privacy).
-    // The safest is RPC 'check_user_invite' which returns info ONLY if exact match.
-    // However, authService doesn't import userService to avoid cycles? imports are fine.
-    // Let's call RPC directly here.
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -16,53 +60,31 @@ export const authService = {
     if (authError) throw authError;
     if (!authData.user) throw new Error('Sign up failed');
 
-    // 1.5 Check for session (Email Confirmation Flow)
+    // Email confirmation path (disabled for Alpha; preserve for later re-enable)
     if (!authData.session) {
-      // User created but not logged in (Email verification required)
-      return { user: authData.user, profile: null, message: 'Please check your email to confirm your account.' };
+      return {
+        user: authData.user,
+        profile: null,
+        message: 'Please check your email to confirm your account.',
+      };
     }
 
-    // 2. Check for invite (Claim it securely)
-    // We call this AFTER signup so we have an auth session to verify email matches.
-    const { data: invite } = await supabase.rpc('claim_invite');
+    const { error: setupError } = await supabase.rpc('complete_user_setup', {
+      p_full_name: fullName,
+      p_org_name: orgName,
+    });
 
-    let profileData: Partial<UserProfile> = {
-      id: authData.user.id,
-      full_name: fullName,
-      email,
-    };
-
-    if (invite) {
-      // 3a. Join Existing Org
-      profileData.org_id = invite.org_id;
-      profileData.role = invite.role;
-      // claim_invite returns the invite without consuming it; the invite row is
-      // deleted by the user_profiles_consume_invite AFTER INSERT trigger once
-      // the profile insert below succeeds.
-    } else {
-      // 2b. Create New Org (Admin)
-      if (!orgName) throw new Error('Organization Name is required for new accounts.');
-
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert([{ name: orgName }])
-        .select()
-        .single();
-
-      if (orgError) throw orgError;
-
-      profileData.org_id = org.id;
-      profileData.role = 'admin';
+    if (setupError) {
+      // Cleanup must not mask the original setup failure (returned error or throw).
+      try {
+        await supabase.rpc('cleanup_failed_signup');
+      } catch {
+        // Intentionally swallowed — caller must see the setup error.
+      }
+      throw mapCompleteUserSetupError(setupError, 'signup');
     }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .insert([profileData])
-      .select()
-      .single();
-
-    if (profileError) throw profileError;
-
+    const profile = await fetchProfileOrThrow(authData.user.id);
     return { user: authData.user, profile };
   },
 
@@ -73,26 +95,25 @@ export const authService = {
     });
     if (error) throw error;
 
-    // Check for pending invites (Late Claim Flow)
+    // Only call setup when no profile exists. complete_user_setup is idempotent,
+    // but skipping the RPC on the common path avoids an extra round-trip every login.
     if (data.user) {
-      let { data: inviteData } = await supabase.rpc('claim_invite');
-      let invite = Array.isArray(inviteData) && inviteData.length > 0 ? inviteData[0] : null; // Handle array return
+      const existing = await this.getUserProfile(data.user.id);
+      if (!existing) {
+        const fullName =
+          (typeof data.user.user_metadata?.full_name === 'string' &&
+            data.user.user_metadata.full_name) ||
+          data.user.email?.split('@')[0] ||
+          '';
 
+        const { error: setupError } = await supabase.rpc('complete_user_setup', {
+          p_full_name: fullName,
+          p_org_name: '',
+        });
 
-
-      if (invite) {
-        // User had a pending invite! Upsert their profile to join the correct org.
-        const { error: upsertError } = await supabase
-          .from('user_profiles')
-          .upsert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0],
-            org_id: invite.org_id,
-            role: invite.role
-          });
-
-        if (upsertError) console.error('Error upserting profile from invite:', upsertError);
+        if (setupError) {
+          throw mapCompleteUserSetupError(setupError, 'signin');
+        }
       }
     }
 
