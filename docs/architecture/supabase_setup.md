@@ -52,6 +52,7 @@ The application expects at minimum the following persistence layer (names as use
 | `assessments` | Assessments linking client + pack snapshot + workflow status. |
 | `assessment_cycles` | Per-assessment cycle rows (longitudinal scoring). |
 | `assessment_scores` | Per-target (and cycle-aware) score rows. |
+| `assessment_communication_reports` | Layer 2C clinician-authored communication report entity, versioned per assessment + cycle. |
 | `audit_logs` | Append-only style audit trail for selected actions. |
 | **`users` view** | `CREATE VIEW users AS SELECT * FROM user_profiles` (or equivalent). Referenced for compatibility with older policy/sql expectations (`frontend/supabase/migrations/20251211000000_add_users_view.sql`). |
 
@@ -61,14 +62,18 @@ RLS policies must allow org-scoped reads/writes consistent with the SPA’s quer
 
 ## 4. Required RPC functions
 
-These functions are **required** for signup/invite flows used by `frontend/src/services/auth.ts` and invite checks:
+These functions are **required**. Per-row notes record client call sites (`frontend/src/services/auth.ts`, `frontend/src/services/users.ts`) and database-internal status:
 
 | Function | Purpose |
 |----------|---------|
 | `check_user_invite(lookup_email text)` | Looks up a pending invite by email (security definer pattern). The client expects a **set-returning** shape consumable as rows (see `authService.checkInvite`). |
-| `claim_invite()` | Runs post-auth to attach the signed-in user to an invite’s org/role and consume the invite row. |
+| `claim_invite()` | As of `20260813` §8.2: returns the matching `user_invites` row as JSON for the current session email, or null; does not consume the invite. Not called from client code; retained as a database-internal function. |
+| `complete_user_setup(p_full_name text, p_org_name text)` | `SECURITY DEFINER` with pinned `search_path` (`public, pg_temp`). Returns table `(ok boolean, mode text, org_id uuid, role text)`. Called from `authService.signUp` (after an immediate session) and `authService.signIn` (when no profile exists). |
+| `cleanup_failed_signup()` | `SECURITY DEFINER` with pinned `search_path` (`public, pg_temp`). Returns table `(ok boolean, deleted_organizations integer)`. Called from `authService.signUp` after a `complete_user_setup` failure. |
 
 **Important:** The root snapshot defines early variants of these functions; `20260106_update_rpc.sql` updates `check_user_invite` to return **`org_name`** as well (join to `organizations`). For Alpha, apply the supplemental RPC patch after the baseline definitions so invite UX matches the current frontend expectations.
+
+Authoritative contract for the signup/setup path: `docs/architecture/user_lifecycle_contract.md`. This document does not restate it.
 
 ---
 
@@ -116,6 +121,10 @@ Do not assume the two trees are identical; reconcile drift before treating eithe
 | `database/migrations/20260108_audit_view_policy.sql` | Admin SELECT policy on `audit_logs`. |
 | `database/migrations/20260108_org_update_policy.sql` | Admin UPDATE policy on `organizations`. |
 | `database/migrations/20260727_assessment_scores_score_numeric.sql` | Ensure `assessment_scores.score` is `numeric` (decimal-safe; idempotent). |
+| `database/migrations/20260813_user_profile_authorization.sql` | M10 close: `user_profiles_guard_privileged_columns` trigger + hardened INSERT policy on `user_profiles`; **replaces** the snapshot’s delete-on-claim `claim_invite()` with a return-don’t-consume version. |
+| `database/migrations/20260819_assessment_communication_reports.sql` | Creates `assessment_communication_reports` (Layer 2C clinician-authored report entity) + its RLS. |
+| `database/migrations/20260823_content_packs_updated_at.sql` | Adds `content_packs.updated_at` + `set_updated_at()` BEFORE UPDATE trigger. |
+| `database/migrations/20260824_ul_a1_complete_user_setup_functions.sql` | Adds `public.complete_user_setup(p_full_name, p_org_name)` and `public.cleanup_failed_signup()` (SECURITY DEFINER, pinned `search_path`). |
 
 **Not canonical schema setup** (operational / one-off data fixes—do not use as standard Alpha provisioning):
 
@@ -154,6 +163,17 @@ On an **empty** Supabase database (or one you intend to wipe—see script warnin
 6. Run **`database/migrations/20260108_org_update_policy.sql`**.
 7. Run **`database/migrations/20260727_assessment_scores_score_numeric.sql`**.  
    - Ensures `assessment_scores.score` is `numeric` so decimal scores persist (idempotent).
+8. Run **`database/migrations/20260813_user_profile_authorization.sql`**.  
+   - Establishes M10 close: `user_profiles_guard_privileged_columns` trigger + hardened INSERT policy on `user_profiles`; **replaces** the snapshot’s delete-on-claim `claim_invite()` with a return-don’t-consume version.
+   - **Warning:** Skipping this step leaves self-role-escalation open with no RLS fallback. The trigger is the sole UPDATE boundary — `Allow update own profile` remains `(auth.uid() = id)` with no column restriction.
+   - Postgres 14+ syntax fork: if `execute function` errors on an older server, use `execute procedure`.
+   - The trigger fires for every writer including the Supabase SQL Editor and `service_role` where `auth.uid()` is NULL, so dashboard edits to any user’s `role`/`status` will fail. Read this file’s OPERATIONAL NOTE for the break-glass path.
+9. Run **`database/migrations/20260819_assessment_communication_reports.sql`**.  
+   - Establishes `assessment_communication_reports` (Layer 2C clinician-authored report entity) and its RLS.
+10. Run **`database/migrations/20260823_content_packs_updated_at.sql`**.  
+    - Establishes `content_packs.updated_at` and the `set_updated_at()` BEFORE UPDATE trigger.
+11. Run **`database/migrations/20260824_ul_a1_complete_user_setup_functions.sql`**.  
+    - Establishes `public.complete_user_setup(p_full_name, p_org_name)` and `public.cleanup_failed_signup()` (SECURITY DEFINER, pinned `search_path`).
 
 Optional after baseline:
 
@@ -161,7 +181,7 @@ Optional after baseline:
 
 **Do not** run the **`frontend/supabase/migrations/`** CLI chain **and** the full **`database/migrations/`** snapshot on the same database without a deliberate merge plan—they overlap in intent and will conflict.
 
-**Alternative (CLI migrations path):** If you provision exclusively via `frontend/supabase/migrations` in order, you **must** still apply invite/RPC definitions equivalent to the snapshot function section **plus** `database/migrations/20260106_update_rpc.sql`, then reconcile whether remaining patches (`20260107*`, `20260108*`) from **`database/migrations/`** are already represented in your merged state. This path is **higher risk** of drift unless diffed carefully against the snapshot.
+**Alternative (CLI migrations path):** If you provision exclusively via `frontend/supabase/migrations` in order, you **must** still apply invite/RPC definitions equivalent to the snapshot function section **plus** `database/migrations/20260106_update_rpc.sql`, then reconcile whether remaining patches (`20260107*`, `20260108*`) from **`database/migrations/`** are already represented in your merged state. You **must** also apply these required supplemental SQL files, which are not present in `frontend/supabase/migrations/`: **`database/migrations/20260813_user_profile_authorization.sql`**, **`database/migrations/20260819_assessment_communication_reports.sql`**, **`database/migrations/20260823_content_packs_updated_at.sql`**, and **`database/migrations/20260824_ul_a1_complete_user_setup_functions.sql`**. This path is **higher risk** of drift unless diffed carefully against the snapshot.
 
 ---
 
@@ -175,7 +195,8 @@ Use this after applying the canonical sequence (or an explicitly reviewed equiva
 | ☐ | Login works (`signInWithPassword`). |
 | ☐ | **First-admin signup (new org, no invite):** First signup creates **organization** and **admin** profile (`user_profiles`). (Requires immediate session at signup; see §2.1 — disable email confirmation for Alpha unless a post-confirmation bootstrap is implemented.) |
 | ☐ | Invite lookup works (`check_user_invite` / UI prefetch). |
-| ☐ | Claim invite works (`claim_invite` after session exists). |
+| ☐ | **Invite-based signup:** Completes via `complete_user_setup` and results in a profile row bound to the inviting organization, with no empty bootstrap organization left behind. |
+| ☐ | Authenticated non-admin user cannot change their own `user_profiles.role` or `status` (rejects with `42501`). |
 | ☐ | Create client works. |
 | ☐ | Create assessment works. |
 | ☐ | Score target works (scores persist). |
@@ -193,4 +214,4 @@ Use this after applying the canonical sequence (or an explicitly reviewed equiva
 
 ---
 
-_Document version aligns with repository layout as of Phase 0 / AIM Alpha preparation. Update this file when SQL inventory or canonical order changes._
+_Document version aligns with repository layout as of 2026-08-24 (canonical SQL inventory through `database/migrations/20260824_ul_a1_complete_user_setup_functions.sql`). Update this file when SQL inventory or canonical order changes._
