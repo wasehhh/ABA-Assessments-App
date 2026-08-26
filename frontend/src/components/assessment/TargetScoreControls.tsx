@@ -8,6 +8,8 @@ interface Props {
     current: number | null;
     scoresEditable: boolean;
     onScoreUpdate: (value: number) => void;
+    /** When true, buttons may wrap to additional rows (long scales on tablet only). */
+    allowWrap?: boolean;
 }
 
 /** Shared score buttons for numeric, yes/no, and checkbox targets (matrix + detail modal). */
@@ -17,18 +19,21 @@ export function TargetScoreControls({
     current,
     scoresEditable,
     onScoreUpdate,
+    allowWrap = false,
 }: Props) {
     const effective = resolveEffectiveScoring(target, pack);
+    const wrapClass = allowWrap ? 'flex-wrap' : 'flex-nowrap';
 
     if (effective.type === 'yes_no') {
         return (
-            <div className="flex flex-wrap gap-2" data-matrix-target-score-controls>
+            <div className={`flex ${wrapClass} gap-2`} data-matrix-target-score-controls>
                 <button
                     type="button"
                     disabled={!scoresEditable}
                     onClick={() => onScoreUpdate(0)}
                     className={`
-                        rounded-lg border px-3 py-1.5 text-sm font-medium transition-all
+                        inline-flex items-center justify-center min-h-11 min-w-11 h-11 px-3
+                        rounded-lg border text-sm font-medium transition-all
                         ${
                             current === 0
                                 ? 'border-gray-600 bg-gray-600 text-white shadow-sm'
@@ -44,7 +49,8 @@ export function TargetScoreControls({
                     disabled={!scoresEditable}
                     onClick={() => onScoreUpdate(1)}
                     className={`
-                        rounded-lg border px-3 py-1.5 text-sm font-medium transition-all
+                        inline-flex items-center justify-center min-h-11 min-w-11 h-11 px-3
+                        rounded-lg border text-sm font-medium transition-all
                         ${
                             current === 1
                                 ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
@@ -63,7 +69,7 @@ export function TargetScoreControls({
     const useCompactButtons = effective.type !== 'checkbox';
 
     return (
-        <div className="flex flex-wrap gap-1.5" data-matrix-target-score-controls>
+        <div className={`flex ${wrapClass} gap-1.5`} data-matrix-target-score-controls>
             {scale.map((val) => {
                 const { text, title } = formatMatrixScoreButtonLabel(
                     val,
@@ -79,8 +85,8 @@ export function TargetScoreControls({
                         disabled={!scoresEditable}
                         onClick={() => onScoreUpdate(val)}
                         className={`
-                            ${useCompactButtons ? 'h-9 min-w-9 px-1.5' : 'min-h-9 px-2.5'}
-                            rounded-lg text-sm font-medium transition-all
+                            ${useCompactButtons ? 'h-11 min-w-11 px-1.5' : 'min-h-11 min-w-11 px-2.5'}
+                            inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all
                             ${
                                 current === val
                                     ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-200'

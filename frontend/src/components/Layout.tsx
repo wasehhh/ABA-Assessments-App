@@ -1,19 +1,30 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
     navigateWithOptionalGuard,
     useOptionalAssessmentBuilderNavigationGuard,
 } from '../context/AssessmentBuilderNavigationGuard';
-import { Clipboard, LogOut, LayoutDashboard, Users, Package, FileText, Menu, X, Settings, Shield, Building2 } from 'lucide-react';
+import { Clipboard, LayoutDashboard, Users, Package, FileText, Menu, X, Settings, Shield, Building2, ChevronDown } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
 }
 
+const drawerItemClass =
+  'block w-full min-h-11 text-left px-3 py-2.5 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50';
+
 export function Layout({ children }: Props) {
   const { profile, signOut } = useAuth();
   const navigationGuard = useOptionalAssessmentBuilderNavigationGuard();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const isAdmin = profile?.role === 'admin';
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowAccountMenu(false);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const navigate = (targetHash: string) => {
     navigateWithOptionalGuard(navigationGuard, targetHash);
@@ -33,18 +44,23 @@ export function Layout({ children }: Props) {
     await performSignOut();
   };
 
+  const closeDrawerAndNavigate = (targetHash: string) => {
+    navigate(targetHash);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 xl:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center shrink-0">
               <Clipboard className="w-8 h-8 text-emerald-600 mr-2" />
               <span className="text-xl font-bold text-gray-900">Evalis</span>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-6">
+            {/* Desktop Navigation — lg (1024) per tablet contract §3.1 */}
+            <div className="hidden lg:flex items-center gap-4 xl:gap-6 shrink-0" data-layout-desktop-nav>
               <button onClick={() => navigate('#/dashboard')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="font-medium">Dashboard</span>
@@ -61,13 +77,13 @@ export function Layout({ children }: Props) {
                 <FileText className="w-5 h-5" />
                 <span className="font-medium">Assessments</span>
               </button>
-              {profile?.role === 'admin' && (
+              {isAdmin && (
                 <button onClick={() => navigate('#/users')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                   <Users className="w-5 h-5" />
                   <span className="font-medium">Team</span>
                 </button>
               )}
-              {profile?.role === 'admin' && (
+              {isAdmin && (
                 <>
                   <button onClick={() => navigate('#/org-settings')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
                     <Building2 className="w-5 h-5" />
@@ -81,69 +97,169 @@ export function Layout({ children }: Props) {
               )}
             </div>
 
-            {/* Desktop Profile & Logout */}
-            <div className="hidden md:flex items-center gap-4">
-              <div className="text-right">
-                <button
-                  onClick={() => navigate('#/settings')}
-                  className="hover:text-emerald-600 transition group text-right"
-                >
-                  <p className="text-sm font-medium text-gray-900 group-hover:text-emerald-600 transition">{profile?.full_name}</p>
-                  <span className="text-xs text-gray-500 capitalize group-hover:text-emerald-500 transition block">
-                    {profile?.role?.replace('_', ' ')}
-                  </span>
-                </button>
+            {/* Desktop Profile & Account — lg (1024); single Account menu per §3.1 amendment */}
+            <div className="hidden lg:flex items-center gap-2 xl:gap-3 shrink-0" data-layout-desktop-account>
+              <div className="text-right max-w-[7rem]">
+                <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name}</p>
+                <span className="text-xs text-gray-500 capitalize block">
+                  {profile?.role?.replace('_', ' ')}
+                </span>
               </div>
-              <button
-                onClick={() => navigate('#/settings')}
-                className="text-gray-400 hover:text-emerald-600 transition"
-                title="Account Settings"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-              <div className="h-6 w-px bg-gray-200 mx-2"></div>
-              <button onClick={() => void handleSignOut()} className="text-gray-600 hover:text-gray-900 transition" title="Sign Out">
-                <LogOut className="w-5 h-5" />
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAccountMenu(!showAccountMenu);
+                  }}
+                  className="inline-flex items-center gap-1.5 min-h-11 min-w-11 px-2.5 rounded-lg text-sm font-medium text-gray-600 hover:text-emerald-600 hover:bg-gray-50 transition"
+                  aria-label="Account"
+                  aria-expanded={showAccountMenu}
+                  aria-haspopup="menu"
+                  data-layout-desktop-account-trigger
+                >
+                  <Settings className="w-5 h-5" aria-hidden />
+                  <span>Account</span>
+                  <ChevronDown className="w-4 h-4" aria-hidden />
+                </button>
+                {showAccountMenu && (
+                  <div
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50"
+                    role="menu"
+                    data-layout-desktop-account-menu
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        navigate('#/settings');
+                        setShowAccountMenu(false);
+                      }}
+                      className="block w-full min-h-11 text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-emerald-600"
+                    >
+                      Account Settings
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowAccountMenu(false);
+                        void handleSignOut();
+                      }}
+                      className="block w-full min-h-11 text-left px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      aria-label="Sign Out"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center">
+            {/* Compact menu button — below lg (Tablet + Phone) */}
+            <div className="lg:hidden flex items-center">
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-gray-600 hover:text-gray-900 p-2"
+                className="inline-flex items-center justify-center min-h-11 min-w-11 text-gray-600 hover:text-gray-900 rounded-lg"
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={isMobileMenuOpen}
               >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {isMobileMenuOpen ? <X className="w-6 h-6" aria-hidden /> : <Menu className="w-6 h-6" aria-hidden />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Compact drawer — below lg; Org/Audit admin-gated; scoring vs secondary grouping per §3.2 */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100">
+          <div className="lg:hidden border-t border-gray-100" data-layout-compact-drawer>
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white shadow-lg">
-              <button onClick={() => { navigate('#/dashboard'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Dashboard</button>
-              <button onClick={() => { navigate('#/clients'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Clients</button>
-              <button onClick={() => { navigate('#/packs'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Packs</button>
-              <button onClick={() => { navigate('#/assessments'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Assessments</button>
-              {profile?.role === 'admin' && (
-                <button onClick={() => { navigate('#/users'); setIsMobileMenuOpen(false); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50">Team</button>
-              )}
-              <div className="border-t border-gray-200 my-2 pt-2">
-                <div className="px-3 py-2 flex items-center justify-between">
-                  <button onClick={() => { navigate('#/settings'); setIsMobileMenuOpen(false); }}>
-                    <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
-                    <p className="text-xs text-gray-500 capitalize">{profile?.role}</p>
-                  </button>
+              <button
+                type="button"
+                onClick={() => closeDrawerAndNavigate('#/clients')}
+                className={drawerItemClass}
+              >
+                Clients
+              </button>
+              <button
+                type="button"
+                onClick={() => closeDrawerAndNavigate('#/assessments')}
+                className={drawerItemClass}
+              >
+                Assessments
+              </button>
+
+              <div className="border-t border-gray-200 my-2 pt-2" data-layout-drawer-secondary>
+                <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  More
+                </p>
+                <button
+                  type="button"
+                  onClick={() => closeDrawerAndNavigate('#/dashboard')}
+                  className={drawerItemClass}
+                >
+                  Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => closeDrawerAndNavigate('#/packs')}
+                  className={drawerItemClass}
+                >
+                  Packs
+                </button>
+                {isAdmin && (
                   <button
-                    onClick={() => { navigate('#/settings'); setIsMobileMenuOpen(false); }}
-                    className="p-2 text-gray-400 hover:text-emerald-600"
+                    type="button"
+                    onClick={() => closeDrawerAndNavigate('#/users')}
+                    className={drawerItemClass}
                   >
-                    <Settings className="w-5 h-5" />
+                    Team
                   </button>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => closeDrawerAndNavigate('#/org-settings')}
+                    className={drawerItemClass}
+                    data-layout-drawer-org
+                  >
+                    Org
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => closeDrawerAndNavigate('#/audit-log')}
+                    className={drawerItemClass}
+                    data-layout-drawer-audit
+                  >
+                    Audit
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => closeDrawerAndNavigate('#/settings')}
+                  className={drawerItemClass}
+                >
+                  Account Settings
+                </button>
+              </div>
+
+              <div className="border-t border-gray-200 my-2 pt-2">
+                <div className="px-3 py-2">
+                  <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
+                  <p className="text-xs text-gray-500 capitalize">{profile?.role?.replace('_', ' ')}</p>
                 </div>
-                <button onClick={() => void handleSignOut()} className="block w-full text-left px-3 py-2 text-red-600 font-medium hover:bg-red-50">Sign Out</button>
+                <button
+                  type="button"
+                  onClick={() => void handleSignOut()}
+                  className="block w-full min-h-11 text-left px-3 py-2.5 text-red-600 font-medium hover:bg-red-50 rounded-md"
+                  aria-label="Sign Out"
+                >
+                  Sign Out
+                </button>
               </div>
             </div>
           </div>

@@ -19,6 +19,21 @@ function makeNumericTarget(scaleLabels: Record<number, string>): Target {
     };
 }
 
+function makeYesNoTarget(): Target {
+    return {
+        target_id: 'A1',
+        title: 'Yes no target',
+        success_criteria: 'Criteria',
+        materials: '',
+        scoring: {
+            type: 'yes_no',
+            scale: [0, 1],
+            scale_labels: {},
+            no_opportunity_allowed: false,
+        },
+    };
+}
+
 function makePack(target: Target): ContentPackData {
     return {
         pack_id: 'pack-1',
@@ -28,6 +43,29 @@ function makePack(target: Target): ContentPackData {
         version: '1.0',
         domains: [{ domain_id: 'B', title: 'Domain B', targets: [target] }],
     };
+}
+
+/** Tailwind hit-target classes that enforce ≥44 CSS px on both axes (contract §2.2). */
+function assertFortyFourHitTargetClasses(classAttr: string) {
+    const hasMinH11 = /\bmin-h-11\b/.test(classAttr);
+    const hasH11 = /\bh-11\b/.test(classAttr);
+    const hasMinW11 = /\bmin-w-11\b/.test(classAttr);
+    expect(hasMinH11 || hasH11).toBe(true);
+    expect(hasMinW11).toBe(true);
+    expect(classAttr).not.toMatch(/\bh-9\b/);
+    expect(classAttr).not.toMatch(/\bmin-w-9\b/);
+    expect(classAttr).not.toMatch(/\bmin-h-9\b/);
+}
+
+function buttonClassAttrs(markup: string): string[] {
+    const attrs: string[] = [];
+    const re = /<button\b([^>]*)>/g;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(markup)) !== null) {
+        const classMatch = match[1].match(/class="([^"]*)"/);
+        if (classMatch) attrs.push(classMatch[1]);
+    }
+    return attrs;
 }
 
 describe('TargetScoreControls numeric buttons', () => {
@@ -75,5 +113,70 @@ describe('TargetScoreControls numeric buttons', () => {
         expect(markup).not.toContain('aria-label=');
         expect(markup).toContain('title="0"');
         expect(markup).toMatch(/>0</);
+    });
+
+    it('keeps numeric score buttons at least 44×44 CSS px (both axes)', () => {
+        const target = makeNumericTarget({});
+        const markup = renderToStaticMarkup(
+            createElement(TargetScoreControls, {
+                target,
+                pack: makePack(target),
+                current: null,
+                scoresEditable: true,
+                onScoreUpdate: vi.fn(),
+            })
+        );
+        const classes = buttonClassAttrs(markup);
+        expect(classes.length).toBeGreaterThanOrEqual(5);
+        for (const classAttr of classes) {
+            assertFortyFourHitTargetClasses(classAttr);
+        }
+    });
+
+    it('keeps Yes/No score buttons at least 44×44 CSS px (both axes)', () => {
+        const target = makeYesNoTarget();
+        const markup = renderToStaticMarkup(
+            createElement(TargetScoreControls, {
+                target,
+                pack: makePack(target),
+                current: null,
+                scoresEditable: true,
+                onScoreUpdate: vi.fn(),
+            })
+        );
+        expect(markup).toMatch(/>Yes</);
+        expect(markup).toMatch(/>No</);
+        const classes = buttonClassAttrs(markup);
+        expect(classes).toHaveLength(2);
+        for (const classAttr of classes) {
+            assertFortyFourHitTargetClasses(classAttr);
+        }
+    });
+
+    it('uses nowrap by default and flex-wrap only when allowWrap is set', () => {
+        const target = makeNumericTarget({});
+        const nowrapMarkup = renderToStaticMarkup(
+            createElement(TargetScoreControls, {
+                target,
+                pack: makePack(target),
+                current: null,
+                scoresEditable: true,
+                onScoreUpdate: vi.fn(),
+            })
+        );
+        expect(nowrapMarkup).toContain('flex-nowrap');
+
+        const wrapMarkup = renderToStaticMarkup(
+            createElement(TargetScoreControls, {
+                target,
+                pack: makePack(target),
+                current: null,
+                scoresEditable: true,
+                onScoreUpdate: vi.fn(),
+                allowWrap: true,
+            })
+        );
+        expect(wrapMarkup).toContain('flex-wrap');
+        expect(wrapMarkup).not.toContain('flex-nowrap');
     });
 });

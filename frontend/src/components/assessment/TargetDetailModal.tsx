@@ -100,9 +100,10 @@ export function TargetDetailModal({
                     <button
                         type="button"
                         onClick={handleClose}
-                        className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 shrink-0"
+                        className="inline-flex items-center justify-center min-h-11 min-w-11 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 shrink-0"
+                        aria-label="Close"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5" aria-hidden />
                     </button>
                 </div>
 

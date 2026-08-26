@@ -197,7 +197,7 @@ export function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-medium py-2.5 rounded-lg transition"
+              className="w-full min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-medium py-2.5 rounded-lg transition"
             >
               {loading ? 'Processing...' : isSignUp ? (inviteOrgName ? `Join ${inviteOrgName}` : 'Create Account') : 'Sign In'}
             </button>
@@ -205,12 +205,13 @@ export function Login() {
 
           <div className="mt-6 text-center">
             <button
+              type="button"
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError('');
                 setInviteOrgName(null);
               }}
-              className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+              className="inline-flex items-center justify-center min-h-11 min-w-11 px-3 text-emerald-600 hover:text-emerald-700 text-sm font-medium"
             >
               {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
             </button>

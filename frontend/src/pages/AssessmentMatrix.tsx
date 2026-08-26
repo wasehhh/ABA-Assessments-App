@@ -624,10 +624,12 @@ export function AssessmentMatrix({ assessmentId }: Props) {
             {/* Left: Title & Nav */}
             <div className="flex items-start gap-4 min-w-0 md:items-center">
               <button
+                type="button"
                 onClick={() => window.location.hash = '#/assessments'}
-                className="p-2 -ml-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                className="inline-flex items-center justify-center min-h-11 min-w-11 -ml-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                aria-label="Back to Assessments"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5" aria-hidden />
               </button>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-gray-900 truncate flex flex-wrap items-center gap-x-2 gap-y-0.5">

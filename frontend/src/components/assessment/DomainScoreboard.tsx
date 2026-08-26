@@ -9,6 +9,12 @@ import {
 } from '../../utils/matrixDisplayHelpers';
 import { Search, ArrowUp, ArrowDown, ArrowRight, CheckCircle } from 'lucide-react';
 import { TargetScoreControls } from './TargetScoreControls';
+import { resolveTabletScoreTrackLayout } from '../../utils/matrixTabletScoreTrack';
+
+/** Desktop score-column floor: ≥94px content after px-2 padding → 110px column min. */
+const DESKTOP_SCORE_COLUMN_FLOOR_PX = 110;
+/** Desktop score column when viewport allows 5-across with slack (§2.3). */
+const DESKTOP_SCORE_COLUMN_PREFERRED_PX = 260;
 
 interface Props {
     domain: Domain;
@@ -95,7 +101,95 @@ export function DomainScoreboard({
         ? filteredSections.reduce((count, section) => count + section.targets.length, 0)
         : filteredTargets.length;
 
-    const renderTargetRow = (target: Target) => {
+    const tabletScoreTrackLayout = useMemo(
+        () => resolveTabletScoreTrackLayout(domain, pack),
+        [domain, pack]
+    );
+
+    const renderTabletTargetIdentity = (target: Target, isAtMaxScore: boolean) => (
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+            <div
+                className={`mt-2 h-2 w-2 flex-shrink-0 rounded-full ${isAtMaxScore ? 'bg-emerald-500' : 'bg-gray-300'}`}
+            />
+            <div className="min-w-0">
+                <span className="block font-mono text-xs text-gray-500">{target.target_id}</span>
+                <span className="block truncate font-medium text-gray-900">{target.title}</span>
+            </div>
+        </div>
+    );
+
+    const renderTabletViewControl = (target: Target) => (
+        <div className="shrink-0">
+            <button
+                type="button"
+                onClick={() => onViewDetail(target.target_id)}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm font-medium text-gray-500 hover:text-emerald-600"
+            >
+                View
+            </button>
+        </div>
+    );
+
+    const renderTabletTargetRow = (target: Target) => {
+        const currentRow = getScoreRow(target.target_id, scores);
+        const current = currentRow?.score ?? null;
+        const interpretation = interpretTargetScore(target, currentRow, pack);
+        const isAtMaxScore = interpretation.competencyState === 'at_maximum';
+        const { trackWidthPx, useWrapLayout } = tabletScoreTrackLayout;
+
+        if (useWrapLayout) {
+            return (
+                <div
+                    key={target.target_id}
+                    className="space-y-3 px-4 py-4 transition-colors hover:bg-gray-50"
+                    data-matrix-tablet-target-row
+                    data-matrix-tablet-score-wrap
+                >
+                    <div className="flex items-start gap-4">
+                        {renderTabletTargetIdentity(target, isAtMaxScore)}
+                        {renderTabletViewControl(target)}
+                    </div>
+                    <div className="min-w-0" data-matrix-tablet-score-track>
+                        <TargetScoreControls
+                            target={target}
+                            pack={pack}
+                            current={current}
+                            scoresEditable={scoresEditable}
+                            onScoreUpdate={(val) => onScoreUpdate(target.target_id, val)}
+                            allowWrap
+                        />
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div
+                key={target.target_id}
+                className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-gray-50"
+                data-matrix-tablet-target-row
+            >
+                {renderTabletTargetIdentity(target, isAtMaxScore)}
+                <div
+                    className="flex shrink-0 items-center"
+                    style={{ flex: `0 0 ${trackWidthPx}px`, minWidth: trackWidthPx }}
+                    data-matrix-tablet-score-track
+                    data-matrix-tablet-score-track-width={trackWidthPx}
+                >
+                    <TargetScoreControls
+                        target={target}
+                        pack={pack}
+                        current={current}
+                        scoresEditable={scoresEditable}
+                        onScoreUpdate={(val) => onScoreUpdate(target.target_id, val)}
+                    />
+                </div>
+                {renderTabletViewControl(target)}
+            </div>
+        );
+    };
+
+    const renderDesktopTargetRow = (target: Target) => {
         const currentRow = getScoreRow(target.target_id, scores);
         const current = currentRow?.score ?? null;
         const prev = getScoreRow(target.target_id, previousScores)?.score ?? null;
@@ -130,7 +224,13 @@ export function DomainScoreboard({
                         )}
                     </div>
                 </td>
-                <td className="px-6 py-4">
+                <td
+                    className="px-2 py-4"
+                    style={{
+                        minWidth: DESKTOP_SCORE_COLUMN_PREFERRED_PX,
+                    }}
+                    data-matrix-desktop-score-cell
+                >
                     <TargetScoreControls
                         target={target}
                         pack={pack}
@@ -141,8 +241,9 @@ export function DomainScoreboard({
                 </td>
                 <td className="px-6 py-4 text-right">
                     <button
+                        type="button"
                         onClick={() => onViewDetail(target.target_id)}
-                        className="text-sm font-medium text-gray-500 hover:text-emerald-600"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center px-2 text-sm font-medium text-gray-500 hover:text-emerald-600"
                     >
                         View
                     </button>
@@ -193,7 +294,27 @@ export function DomainScoreboard({
             </div>
 
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                <table className="w-full text-left">
+                {/* Tablet: identity | reserved score track | View (§2.3 Approach C) */}
+                <div
+                    className="divide-y divide-gray-100 lg:hidden"
+                    data-matrix-tablet-scoreboard
+                    data-matrix-tablet-track-width={tabletScoreTrackLayout.trackWidthPx}
+                    data-matrix-tablet-wrap-layout={tabletScoreTrackLayout.useWrapLayout ? 'true' : 'false'}
+                >
+                    {showSecondarySections
+                        ? filteredSections.map((section) => (
+                              <Fragment key={section.secondary_group_id ?? section.title}>
+                                  <div className="bg-gray-100/80 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                      {section.title}
+                                  </div>
+                                  {section.targets.map((target) => renderTabletTargetRow(target))}
+                              </Fragment>
+                          ))
+                        : filteredTargets.map((target) => renderTabletTargetRow(target))}
+                </div>
+
+                {/* Desktop: table with score-column floor (§2.3) */}
+                <table className="hidden w-full text-left lg:table">
                     <thead className="border-b border-gray-200 bg-gray-50">
                         <tr>
                             <th className="w-1/2 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -202,7 +323,11 @@ export function DomainScoreboard({
                             <th className="hidden px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:table-cell">
                                 Trend
                             </th>
-                            <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            <th
+                                className="px-2 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                                style={{ minWidth: DESKTOP_SCORE_COLUMN_PREFERRED_PX }}
+                                data-matrix-desktop-score-column
+                            >
                                 Score
                             </th>
                             <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -224,10 +349,10 @@ export function DomainScoreboard({
                                               {section.title}
                                           </td>
                                       </tr>
-                                      {section.targets.map((target) => renderTargetRow(target))}
+                                      {section.targets.map((target) => renderDesktopTargetRow(target))}
                                   </Fragment>
                               ))
-                            : filteredTargets.map((target) => renderTargetRow(target))}
+                            : filteredTargets.map((target) => renderDesktopTargetRow(target))}
                     </tbody>
                 </table>
 
