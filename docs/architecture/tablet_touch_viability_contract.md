@@ -13,7 +13,7 @@ This document is the **first** tablet behaviour contract in `docs/architecture/`
 
 **Do not commit this document as part of an implementation PR unless separately instructed.**
 
-**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns form-factor commitments, tablet surface scope, touch rules on the scoring path, navigation breakpoint intent, assessment header placement of every control, the non-sticky assessment context row, domain-identity-while-scrolling behaviour, score-criterion discoverability without an extra scoring tap, and Login tablet obligations. It references lifecycle status meaning and vault G4/G5 by rule name. It does not restate Effective Scoring, Snapshot bead rendering, Report consolidation, or Builder Phase D.
+**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns form-factor commitments, tablet surface scope, touch rules on the scoring path, score-column / reserved-track layout (including measured reflow cliffs), navigation breakpoint intent, Sign Out in-viewport guarantees by axis, assessment header placement of every control, the non-sticky assessment context row, domain-identity-while-scrolling behaviour, score-criterion discoverability without an extra scoring tap, and Login tablet obligations. It references lifecycle status meaning and vault G4/G5 by rule name. It does not restate Effective Scoring, Snapshot bead rendering, Report consolidation, or Builder Phase D.
 
 ---
 
@@ -114,7 +114,7 @@ Boundaries are justified against **QA-measured clinic viewports** (1024×768, 76
 
 **Boundary rule:** Out-of-scope surfaces must remain **reachable and not broken** from a tablet (a therapist who opens Packs or Snapshot must not hit a dead end or a blank trap). They carry **no** tablet layout, hit-target, or sticky-chrome obligation. A future reader **must not** re-expand tablet scope to those surfaces without a new founder decision.
 
-## 1.3 What “supported” means for Tablet class
+## 1.3 What “supported” means for Tablet class (and Sign Out at 1024)
 
 On Tablet class viewports, for in-scope surfaces:
 
@@ -123,6 +123,9 @@ On Tablet class viewports, for in-scope surfaces:
 3. Touch rules in §2 apply to scoring controls.
 4. Domain identity remains determinable while scrolling (§5).
 5. Login meets §3.5.
+6. Score controls use **Approach C** layout (§2.3) so 44px buttons do not force one-button-per-row reflow.
+
+**Additionally (Desktop class lower bound / tablet landscape):** at **width = 1024**, Sign Out must remain in-viewport without horizontal page scroll (§3.1) — width-scoped, not pointer-scoped.
 
 ---
 
@@ -144,27 +147,121 @@ Login primary controls follow the same hit-target and T1/T5 spirit (§3.5); Logi
 
 ## 2.2 Score button size (the control this section is about)
 
-**Current:** 36×36 (`h-9 min-w-9`) in `TargetScoreControls`.
+**Shipped (T1):** 44×44 (`h-11 min-w-11`) in `TargetScoreControls` for the compact (non-checkbox) path. Pre-T1 was 36×36.
 
-**Recommended minimum:** **44×44 CSS px** (`min-h-11 min-w-11` or equivalent).
+**Binding minimum:** **44×44 CSS px** stands.
 
 | Compared option | Pros | Cons |
 |-----------------|------|------|
 | **Keep 36×36** | No scroll regression | Below common touch guidance; QA already shows dense 19-target domains; miss-taps risk wrong clinical scores |
-| **44×44 (recommended)** | Matches common platform guidance (≈ Apple HIG / WCAG 2.5.5 target size spirit); clear primary control | Modest extra vertical scroll |
-| **48×48** | More forgiving gloved/large-finger use | Higher scroll cost; weaker density on 19-target domains without proven device need |
+| **44×44 (stands)** | Protects against miss-taps that write a **wrong clinical score** | Scroll cost is a **layout** problem, not a size delta — see §2.3 |
+| **48×48** | More forgiving gloved/large-finger use | Higher density cost; not required without device evidence |
+| **Quiet revert to 36×36** | Shorter domain scroll | **Rejected by default** — trades away wrong-score protection; only reconsider with an explicit safety argument |
 
-**Justification:** Score buttons are the highest-frequency, highest-stakes touch targets in the product. 36px was an incidental Tailwind size, not a touch decision. 44px is the smallest size that clearly treats touch as first-class without assuming a device SKU (**OQ-TT-1 A**).
+**Justification:** Score buttons are the highest-frequency, highest-stakes touch targets in the product. 36px was an incidental Tailwind size, not a touch decision. **44×44 stands** (§2.2). The T1 scroll regression is resolved by **layout** (§2.3), not by shrinking the hit target.
 
-**Yes/No buttons** in the same component must meet the same minimum hit target (they are already taller via padding but must be verified ≥ 44px in both axes).
+**Yes/No buttons** in the same component must meet the same minimum hit target (verify ≥ 44px in both axes).
 
-## 2.3 Scroll cost of enlarging score buttons
+## 2.3 Score control size vs domain scroll — measured falsification and layout answer
 
-QA baseline: last score control on a 19-target domain at **y ≈ 2847** with 36px buttons.
+### 2.3.1 What was measured (post–slice T1, 768×1024, same 19-target Domain A)
 
-**Estimate (planning):** row height increase ≈ **+8 CSS px** per target when the button was the limiting dimension (36 → 44). For 19 targets ≈ **+152 px** total document height (~**+5%** vs 2847).
+| | Baseline (36px) | After T1 (44px) | Prior contract §2.3 estimate |
+|--|-----------------|-----------------|------------------------------|
+| Last score control, document y | ≈ **2847** | **4499** | — |
+| Delta | — | **+1652 px (+58%)** | **+152 px (+5%)** |
 
-That cost is **acceptable** relative to miss-tap clinical risk. Density-vs-touch tension is **not** the product-wide problem here — dense evidence grids (Snapshot, Learner Map) are **out of tablet scope** and must not be resized to “help” Matrix (§6).
+**Root cause (measured):** SCORE `<th>` ≈ **140.2px** wide with `px-6` (48px padding) → content box ≈ **92px**. Two 44px buttons + `gap-1.5` (6px) need **94px**. **Two pixels short** → every scale reflows to **one button per row**. Measured group heights under that reflow: three-value ≈ **144px** tall; five-value ≈ **244px** tall — across all 19 rows.
+
+At 36px, `36+6+36 = 78` fitted inside 92; buttons shared a row. The prior estimate assumed row height would grow by the size delta (+8px × 19). **Rows did not grow — they reflowed.** The cost function is a **cliff**, not a slope; the design sat two pixels from its edge.
+
+**§2.3 did not underestimate a slope; it modelled the wrong thing.**
+
+### 2.3.2 General principle (apply elsewhere in this contract)
+
+> **A per-element size estimate is not a layout estimate.** Enlarging an element inside a constrained container costs whatever the **reflow** costs — which may be discontinuous when a wrap threshold is crossed.
+
+Apply this whenever the contract specifies a minimum control size inside a fixed or percentage column (score cells, sticky legends, header strips, modal footers). Before accepting a size change, state the **container content width**, the **row capacity arithmetic**, and whether the change crosses a wrap cliff.
+
+### 2.3.3 Capacity arithmetic (44px buttons, `gap-1.5` = 6px)
+
+Content width required for **n** buttons on one row:
+
+`n × 44 + (n − 1) × 6` → n=2: **94** · n=3: **144** · n=4: **188** · n=5: **244**
+
+### 2.3.4 Approaches compared (at width 768)
+
+Assume Matrix main content ≈ **720px** (`768 − 48` for `sm:px-6` page padding). `DomainScoreboard` table today: target `w-1/2`, Trend `sm:table-cell` (visible at 768), Score ≈140px, Details with View.
+
+#### Approach A — Widen SCORE column / cut padding (keep table)
+
+`px-6` spends **48px** of a ~140px column on padding (~34% of the column).
+
+| Change | Score content width | Buttons on one row |
+|--------|---------------------|--------------------|
+| Status quo (T1) | ~92 | **1** (cliff) |
+| Keep ~140, `px-2` (16px pad) | ~124 | **2** (94 fits; 144 does not) |
+| Score column 192, `px-2` | ~176 | **3** |
+| Score column ≥260, `px-2` | ≥244 | **5** |
+
+To put a **5-value** scale on one row inside the table at 768, Score needs ≥244 content (≥260 with `px-2`). Remaining for Target+Trend+Details ≈ `720 − 260 = 460`. With Trend+Details ~160, Target ≈ **300** (below today’s half-width). **Honest:** 768 will not give a single-row 5-value scale **alongside** a generous target-name column and Trend+Details without starving identity. A 5-across table row at 768 is a squeeze, not a free lunch.
+
+**Predicted height if only clearing the 2px cliff (2-across wrap):** depends on how many 3- vs 5-value targets Domain A has. Under 2-across: 3-value group height `44×2+6 = 94` (was 144); 5-value `44×3+12 = 144` (was 244). **Without a scale-length histogram, total document y cannot be predicted from arithmetic alone** — do not invent one. Approach A alone is incomplete for a usable prediction.
+
+#### Approach B — Reflow the score group (same table cell)
+
+e.g. CSS grid `auto-fit` / forced 2-column button grid inside the cell.
+
+Still bounded by cell content width. If cell stays ~92px, grid cannot place two 44px tracks. If cell is widened to ≥94 (Approach A’s floor), B and A converge: wrap cost matches 2-across math above. **Does not beat A** without the same width fix; horizontal scroll inside the cell is **rejected** (breaks scanning and invites mis-taps).
+
+#### Approach C — Tablet-specific row: reserved score track (**selected**)
+
+On **Tablet class**, do not put 44px controls inside a ~140px table column. Present each target as a **horizontal flex row**:
+
+| Track | Role | Width rule |
+|-------|------|------------|
+| Identity | `target_id` + title | `flex: 1; min-width: 0`; truncate; must remain **legible enough to identify** what is scored |
+| Score | `TargetScoreControls` | **`flex: 0 0 auto`**; width ≥ that target’s one-row requirement (for uniform tracks, reserve **≥ 244** so 5-value scales never wrap) |
+| View | Details | ≥ 44×44 |
+
+**Arithmetic at 768 (5-value reserve):**
+
+- Content width ≈ 720
+- Score track 244 + View ≈ 56 + gaps ≈ 16 → **316**
+- Identity remains **720 − 316 ≈ 404px** — sufficient for mono id + truncated title
+
+Buttons stay on **one row** for scales up to 5 (and typically beyond: 7×44+6×6 = 344 still leaves identity ≈ 720 − 344 − 72 ≈ 304).
+
+**Desktop (`width ≥ 1024`):** keep the table, but apply a **score-column floor** so the T1 cliff cannot recur: score cell content width ≥ **94** after padding (2-across minimum); prefer content ≥ **244** when the viewport allows. Reducing score-cell padding from `px-6` toward `px-2`/`px-3` is an allowed means. Desktop must not regress to one-button-per-row wrap for ordinary numeric scales.
+
+**Predicted last-control document y (same 19-target Domain A):**
+
+Baseline shared-row geometry at 36px: **2847**.  
+Restoring shared-row geometry at 44px adds only the button-height delta:
+
+`2847 + 19 × (44 − 36) = 2847 + 152 = ` **2999**
+
+That prediction holds when identity | scores | view remain **one band per target** (as in the baseline table row), not a name-above-buttons stack that adds a second band. Approach C’s reserved track is explicitly that one-band structure.
+
+**Acceptance gate (not a second guess):** QA must re-measure Domain A at 768×1024 after this layout ships. **Pass if last score control y ≤ 3100** (allows minor chrome variance around 2999). If y remains ≫ 3100, the layout did not restore shared-row geometry — stop and re-open, do not ship another unmeasured estimate.
+
+#### Approach D — Name-above-buttons card stack
+
+Full-width score band under the title (card). Score width ≈ 688+ → 5-across easy. **T4 and 44px satisfied.** Height cost: second band per target (title band + score band) vs baseline side-by-side — likely materially taller than 2999. Exact add depends on title wrapping; **not predicted here without measurement**. Inferior to C when C already fits 5-across beside a 404px identity track.
+
+### 2.3.5 Selection
+
+**Approach C (tablet reserved score track) + desktop score-column floor.** Keeps **44×44** and **T4**; restores one-row button groups; predicts **≈2999** (~**+5%** vs 2847, not +58%); leaves target identity ~404px at 768 for 5-value scales.
+
+**Not selected:** quiet revert to 36px; Approach A alone without a predicted height; Approach D without measurement.
+
+### 2.3.6 Pre-existing domain length (observation only — §7)
+
+At 36px the same domain was already ≈ **2847px** long. T1 exposed a scrolling problem more than it created one. Whether a domain of that length is workable for clinical cadence is a **founder question** (**OQ-TT-13**); it interacts with slice T3 orientation work. **Not solved in this amendment.**
+
+### 2.3.7 Unverified control path
+
+`TargetScoreControls` uses `useCompactButtons = effective.type !== 'checkbox'`. The **checkbox** branch (`useCompactButtons === false`) has **no live target** in any pack this organisation holds — neither QA nor unit tests exercised it under T1. It remains an **unverified class path**. It matters when a clinic pack uses **checkbox** scales: that branch must meet ≥44×44 and must not introduce its own wrap cliff inside the reserved score track / desktop column floor.
 
 ## 2.4 Score criterion text without adding a scoring tap
 
@@ -196,7 +293,21 @@ That cost is **acceptable** relative to miss-tap clinical risk. Density-vs-touch
 - `width < 1024` → compact nav + drawer
 - `width ≥ 1024` → desktop horizontal nav
 
-This aligns the breakpoint with the Desktop/Tablet classes in §1.1 rather than with an accidental 768 edge. The breakpoint fix stands **independently** of device-sharing posture (§3.3): Sign Out must be inside the viewport at 768 regardless.
+This aligns the breakpoint with the Desktop/Tablet classes in §1.1 rather than with an accidental 768 edge.
+
+**Post-T1 regression at 1024×768 (measured):** Desktop account cluster gained visible “Account Settings” and “Sign Out” text (T2/T5). That widened the cluster: page overflow **≈99px**; Sign Out at **x≈1052.6** against a 1024 viewport. Tablet **landscape** uses this desktop chrome (width ≥ 1024) while remaining a clinic tablet — exactly the case **OQ-TT-2** exists for.
+
+**Fix (binding):** On the `lg+` desktop account cluster, do **not** place side-by-side labeled Account Settings + Sign Out + full name block if that overflows. Use a **single in-viewport Account control** (button or menu) that opens Settings and Sign Out with visible names **inside** the panel. Icon-only cluster items with `aria-label` only are acceptable **only if** the opened panel still exposes visible “Sign Out” / “Account Settings” text.
+
+**In-viewport guarantee — axis (must not contradict OQ-TT-2):**
+
+| Concern | Axis | Rule |
+|---------|------|------|
+| Touch / hit targets / criterion text (§2) | **Pointer-scoped** (coarse) | OQ-TT-2 A — unchanged |
+| Layout chrome (drawer vs desktop nav) | **Width-scoped** | `< 1024` drawer; `≥ 1024` desktop nav |
+| **Sign Out reachable without horizontal page scroll** | **Width-scoped for all Alpha-supported widths ≥ 768**, including **1024** | A therapist who rotates to landscape must still reach Sign Out. **Not** pointer-scoped: a fine pointer at 1024 does not excuse off-screen Sign Out |
+
+Drawer below 1024 already satisfies Sign Out in-viewport; §3.3’s personal-assignment posture only reduces **prominence**, not this reachability rule.
 
 ## 3.2 What a therapist needs on the scoring path
 
@@ -217,9 +328,9 @@ This aligns the breakpoint with the Desktop/Tablet classes in §1.1 rather than 
 
 | Implication | Binding |
 |-------------|---------|
-| Sign Out prominence | **Normal secondary control** — visible text label (or labeled control), ≥ 44×44 hit target in the compact drawer / account cluster; **not** a hero action, not icon-only with `title` alone |
+| Sign Out prominence | **Normal secondary control** — not a hero action. In the **drawer** (`width < 1024`): visible “Sign Out” text, ≥ 44×44. On **desktop nav** (`width ≥ 1024`): inside the Account panel (§3.1), with visible name when opened — not `title`-only |
 | Session persistence | May be **relied on** (therapist expects to stay signed in across sessions on their device) |
-| In-viewport requirement | **Unchanged** — at Tablet class, Sign Out must not require horizontal page scroll (nav breakpoint fix §3.1) |
+| In-viewport requirement | **Width-scoped for all Alpha widths ≥ 768**, including **1024×768 landscape** (§3.1). Personal assignment does not waive this |
 
 **Operational assumption — not a product property:** Personal assignment describes **how AIM runs its clinic devices today**. It is **not** an Evalis product invariant. **Revisit condition:** if devices are later **shared between therapists**, Sign Out prominence and session-persistence posture in this section **must be revisited** (return to shared-device conservative design: stronger Sign Out affordance; do not assume lingering sessions are safe). A future reader who sees weak Sign Out chrome should check whether AIM still personally assigns tablets before treating this section as still valid.
 
@@ -390,6 +501,8 @@ While scrolling a domain:
 
 ## 5.2 Vertical sticky budget (1024px-tall viewport)
 
+**Document height assumed under §2.3 Approach C:** last score control ≈ **2999** on the reference 19-target Domain A (vs measured **4499** under T1 reflow, vs **2847** at 36px shared-row). The ≤112px sticky ceiling is absolute, not a fraction of document height. **The ceiling survives** at ~3000: content below sticky+footer remains ≥856 on a 1024-tall viewport. What failed under T1 was **scroll length**, not sticky math. T3 sticky domain bar / legend work should assume **~3000** reference height after Approach C lands (re-measure if the §2.3 acceptance gate fails).
+
 **Only sticky regions** count against the ceiling. The assessment context row is **non-sticky** and is **excluded**.
 
 | Region | Budget (CSS px) | Sticky? | Notes |
@@ -397,7 +510,7 @@ While scrolling a domain:
 | Assessment primary strip | **≤ 72** | Yes | Single compact row on Tablet; wrap identity only if unavoidable, still ≤ 72 |
 | Assessment context row (Compare) | ≤ 48 proposed | **No** | Scrolls away; **0 sticky cost** |
 | Domain context bar (`top` = primary strip height) | **≤ 40** | Yes | Title + scale legend compression; verify legend on ABLLS pack |
-| **Combined sticky ceiling** | **≤ 112** | — | Leaves **≥ 912** of a 1024px-tall viewport before fixed footer |
+| **Combined sticky ceiling** | **≤ 112** | — | Leaves **≥ 912** of a 1024px-tall viewport before fixed footer; holds under ~3000 domain document height |
 | Domain footer (fixed bottom) | **≤ 56** | Fixed | Prev domain / Submit (**OQ-TT-8 A**); content area then ≥ **856** |
 
 If the sticky budget cannot be met, **drop or relocate** search/filter chrome off the sticky stack (filters may live in non-sticky domain chrome that scrolls away) — never grow sticky chrome by stacking search + legend + actions. **Do not** move Compare into the sticky stack to “save a scroll.”
@@ -433,11 +546,12 @@ Matrix “View” must meet a usable hit target on Tablet class (≥ 44px tall t
 
 | Work | Nature |
 |------|--------|
-| Raise nav breakpoint `md` → `lg`; add Org/Audit to drawer; label Sign Out as secondary | Mostly mechanical |
-| Label Back; enlarge score buttons; enlarge View/Close; Login hit targets | Mechanical with visual QA |
+| Raise nav breakpoint `md` → `lg`; drawer Org/Audit; Account panel so Sign Out fits at 1024 | Mostly mechanical |
+| Label Back; **44px stands**; **Approach C score track** (tablet) + desktop score-column floor; Login hit targets | Layout redesign after T1 falsification |
 | Header → primary + context row + More; gate New Cycle on `approved` | **Redesign** (IA) |
-| Sticky domain bar + scale legend (ABLLS verification) | Redesign; sticky offsets |
+| Sticky domain bar + scale legend (ABLLS verification) | Redesign; sticky offsets; assumes ~3000 domain height post–Approach C |
 | Modal sheet behaviour / Done flush | Moderate redesign |
+| Checkbox `TargetScoreControls` path | Unverified until a clinic pack uses checkbox scales |
 
 ## 6.2 G4 / G5 — hard fence
 
@@ -445,7 +559,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 
 - Snapshot and Learner Map are **out of tablet scope**.
 - This contract must **not** change bead, cell, evidence-mark, or Snapshot/Learner Map density rendering to “match” Matrix touch sizes.
-- Score button sizing applies to **`TargetScoreControls` used by Matrix and Target Detail Modal** only.
+- Score button sizing applies to **`TargetScoreControls` used by Matrix and Target Detail Modal** only; tablet reserved score track must not alter Snapshot/Learner Map mark geometry.
+- Checkbox branch of `TargetScoreControls` is unverified (§2.3.7).
 - If an implementation proposal would alter Snapshot/Learner Map mark geometry or export DOM in service of tablet Matrix, **stop** — that is a G4/G5 regression risk for screens this contract does not own.
 
 ## 6.3 Regression watchlist
@@ -457,6 +572,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 - Trend column visible when a compare cycle is active.
 - Layout drawer: Sign Out still works with Assessment Builder navigation guard when on Packs (out of tablet scope but must not break).
 - Layout nav scrolls away on Matrix — not sticky.
+- At **1024×768**: Sign Out in-viewport (Account panel); no ~99px page overflow from labeled account cluster.
+- After Approach C: Domain A last score control y ≤ **3100** at 768×1024; no one-button-per-row wrap for ordinary numeric scales.
 
 ---
 
@@ -468,7 +585,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 |----|------------|-----|-------|
 | **OQ-TT-1** | **A** — design to measured CSS viewports; no device SKU assumed | SPM accepted | Do not invent iPad |
 | **OQ-TT-2** | **A** — touch rules follow coarse pointer; layout chrome follows width | SPM accepted | 1024×768: Desktop chrome + touch scoring rules when coarse |
-| **OQ-TT-3** | **A** — nav split at `lg` (1024) | SPM accepted | Sign Out in-viewport at 768 |
+| **OQ-TT-3** | **A** — nav split at `lg` (1024) | SPM accepted | Sign Out in-viewport at 768; **extended 2026-08-25:** also at 1024 via Account panel (§3.1) |
 | **OQ-TT-4** | **Personally assigned** tablets | Founder | Overturns shared posture; **operational assumption about AIM, not a product property** — revisit Sign Out/session if devices become shared (§3.3) |
 | **OQ-TT-5** | **Compare stays** on tablet scoring path | Founder | Clinical ABA practice; **not** re-argued. Placement = non-sticky context row (SPM) so §1.3 holds |
 | **OQ-TT-6** | **A** — Approve to overflow | SPM accepted | |
@@ -483,6 +600,9 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 | **OQ-TT-10** | Login + on-screen keyboard: is native scroll-into-view enough? | A: yes until QA fails · B: custom keyboard avoidance | **A** |
 | **OQ-TT-11** | Context row height if Compare UI cannot fit ≤ 48px | A: allow wrap to ≤ 72 non-sticky · B: compact control redesign | **A** — still non-sticky; never steal sticky ceiling |
 | **OQ-TT-12** | Hide trend column when Compare = None? | A: hide · B: always show empty trend | **A** |
+| **OQ-TT-13** | Is a ~2800–3000px domain document workable for clinical cadence on tablet portrait? | A: accept for Alpha · B: require orientation / domain-chunking work (T3+) · C: other | **Observation only** — 36px baseline was already ≈2847; founder clinical judgement; interacts with T3 |
+| **OQ-TT-14** | Approach C acceptance gate: last y ≤ 3100 after layout fix | A: 3100 · B: stricter (≤ 3000) · C: relative (≤ baseline_36 + 10%) | **A** as proposed default; measure, do not re-estimate |
+| **OQ-TT-15** | Desktop Account control: menu panel vs icon+aria with separate Sign Out icon | A: single Account menu (recommended in §3.1) · B: two icons with aria-labels only | **A** — visible names inside panel |
 
 ---
 
@@ -505,14 +625,15 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 
 **Tablet class (768 ≤ width < 1024):**
 
-- [ ] Compact nav/drawer at `< lg` (not overflowing desktop nav); Sign Out in-viewport as **normal secondary** control (≥ 44px, visible name) — not off-canvas
+- [ ] Compact nav/drawer at `< lg` (not overflowing desktop nav); Sign Out in-viewport as **normal secondary** control (≥ 44px, visible name in drawer) — not off-canvas
 - [ ] Clients and Assessments reachable; out-of-scope routes reachable via secondary entries without dead ends
 - [ ] Normal Layout nav present on Matrix and **scrolls away** (not a third sticky)
 - [ ] Primary strip: no internal horizontal scroller; Submit + save visible while scoring when applicable
 - [ ] Non-sticky context row hosts Compare (usable without opening More); does not consume sticky ceiling
 - [ ] New Cycle absent unless `approved`; Approve only in More when submitted + role
-- [ ] Score buttons ≥ 44×44; criterion text not `title`-only; scale legend verified against a real ABLLS pack (or Model B fallback documented)
-- [ ] Domain identity determinable after scroll (sticky domain bar within ≤112px combined sticky ceiling)
+- [ ] Score buttons ≥ 44×44 (**size stands**); **Approach C** reserved score track — ordinary numeric scales on **one row**; Domain A last score control y ≤ **3100** at 768×1024
+- [ ] Criterion text not `title`-only; scale legend verified against a real ABLLS pack (or Model B fallback documented)
+- [ ] Domain identity determinable after scroll (sticky domain bar within ≤112px combined sticky ceiling; assume ~3000 domain height)
 - [ ] Fixed domain footer retained for Alpha
 - [ ] Target Detail usable (sheet, 44px controls, notes flush on Done/Close)
 - [ ] One-tap scoring preserved
@@ -524,6 +645,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 - [ ] Same three-slot IA (primary + context row + More); reduced sibling clutter
 - [ ] Compare in context row (not relocated to header pile or More-only)
 - [ ] Admin overflow actions reachable
+- [ ] Score column floor: content width ≥ 94 after padding (no T1 wrap cliff); prefer ≥ 244 when space allows
+- [ ] **1024×768:** Sign Out in-viewport via Account panel; no horizontal page overflow from account cluster
 
 **G4/G5:**
 
@@ -532,6 +655,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 **Operational caveat:**
 
 - [ ] Document / runbook notes that personal tablet assignment is an AIM operational assumption; shared devices invalidate §3.3 posture
+- [ ] Checkbox `TargetScoreControls` path noted as unverified until a clinic pack uses it
 
 ---
 
@@ -541,3 +665,4 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 |------|--------|
 | 2026-08-25 | Initial tablet & touch viability contract from founder scope statement and QA measurements; verified against Matrix/Layout/score control code |
 | 2026-08-25 | Amendment: lock OQ-TT-1…9; personally assigned tablets (§3.3); Compare in non-sticky context row (SPM); keep Layout nav (scrolls away); Login obligations (§3.5); ABLLS legend verification; acceptance checklist updated |
+| 2026-08-25 | Amendment: §2.3 falsified (+58% reflow cliff); Approach C reserved score track + predicted y≈2999; 1024 Sign Out width-scoped guarantee; sticky budget assumes ~3000; checkbox path unverified; OQ-TT-13…15 |
