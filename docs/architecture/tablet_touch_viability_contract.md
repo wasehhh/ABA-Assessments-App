@@ -1,0 +1,543 @@
+# Tablet & Touch Viability Contract
+
+| Field | Value |
+|-------|--------|
+| **Document type** | Product architecture specification (tablet / touch viability + assessment header IA) |
+| **Status** | Authoritative contract — founder/SPM decisions locked 2026-08-25; Builder implements without further product interpretation on resolved OQs |
+| **Binding context** | Founder statement 2026-08-25: tablet is for conducting and scoring assessments; everything else is a computer surface |
+| **Evidence base** | QA measurements at 1440×900, 1024×768, 768×1024 with touch emulation (2026) |
+| **References** | [`assessment_lifecycle.md`](../product/assessment_lifecycle.md) · vault G4 (Display = Export) / G5 (Snapshot = Matrix) — rule names only · SPM Operating Contract §5.5 (Reference-Not-Duplicate) |
+| **Verified against** | `Layout.tsx` · `AssessmentMatrix.tsx` · `AssessmentMatrixHonestySurface.tsx` · `DomainScoreboard.tsx` · `TargetScoreControls.tsx` · `TargetDetailModal.tsx` · `assessments.ts` `startNewCycle` · `Login.tsx` (scope only; not QA-measured) |
+
+This document is the **first** tablet behaviour contract in `docs/architecture/`. Existing responsive behaviour is incidental Tailwind breakpoint usage, not designed intent. It defines how Evalis behaves on clinic tablets used for in-session scoring, and restructures the assessment header as one information-architecture problem that must also reduce desktop clutter.
+
+**Do not commit this document as part of an implementation PR unless separately instructed.**
+
+**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns form-factor commitments, tablet surface scope, touch rules on the scoring path, navigation breakpoint intent, assessment header placement of every control, the non-sticky assessment context row, domain-identity-while-scrolling behaviour, score-criterion discoverability without an extra scoring tap, and Login tablet obligations. It references lifecycle status meaning and vault G4/G5 by rule name. It does not restate Effective Scoring, Snapshot bead rendering, Report consolidation, or Builder Phase D.
+
+---
+
+# 0. Verified facts (design against these)
+
+## 0.1 Navigation (`Layout.tsx`)
+
+- Desktop nav and profile/sign-out cluster: `hidden md:flex` (Tailwind `md` = **768px**).
+- Mobile drawer: `md:hidden` — therefore **at exactly 768 (iPad portrait) the desktop nav renders**, not the drawer.
+- QA: at 768, `scrollWidth` 999 vs `clientWidth` 768 (**231px overflow**). Routes therapists need (Clients, Assessments) remain in view; **Audit, profile, Account Settings, and Sign Out** fall outside the viewport and require horizontal page scroll.
+- Drawer omits Org and Audit (admin-only desktop items). Sign Out **is** in the drawer when the drawer is shown (`< 768`).
+
+## 0.2 Scoring path (`AssessmentMatrix` + `DomainScoreboard` + `TargetScoreControls`)
+
+- Assessment header: `sticky top-0 z-30` (`AssessmentMatrix.tsx`).
+- Domain title: `<h2>` is **not sticky** (`DomainScoreboard.tsx`) — QA: after scrolling a 19-target domain, domain heading at **y ≈ −1586**.
+- Score buttons: `h-9 min-w-9` → **36×36 CSS px** (`TargetScoreControls.tsx`); criterion text in `title` / conditional `aria-label` only; visible label is bare numeral (or Yes/No).
+- **`title` tooltips do not fire on touch** — criterion text unreachable mid-session without AT.
+- One tap scores one target; no horizontal scroll required to score at 768×1024.
+- 19-target domain: 71 score buttons; 14 in first 1024px; last button **y ≈ 2847**.
+- Domain scoreboard also has a **fixed bottom** domain-nav / Submit footer (`z-20`).
+- Matrix route is wrapped in **`Layout`** (`App.tsx`) — top app nav and assessment sticky header both consume vertical space before content.
+
+## 0.3 Assessment header control set (complete sibling set)
+
+Enumerated from `AssessmentMatrix.tsx` header (right actions + left identity):
+
+| Control | Current gating (code) |
+|---------|------------------------|
+| Back (chevron) | Always; **no** `aria-label` / `title` |
+| Learner name + pack title | Always |
+| Cycle badge | Always |
+| Workflow badge | Always |
+| Save status | When saving / saved / error |
+| Compare With Another Cycle + select | `hidden md:flex` — **visible at 768+** |
+| Submit | `AssessmentMatrixSubmitControl` — `hidden sm:flex`; only when scorable |
+| Approve | `submitted` + admin / senior_therapist; `hidden sm:flex` |
+| New Cycle | admin / senior_therapist; `hidden sm:flex`; **not** gated on `approved` |
+| Learner Map | Always (sm+); navigates off Matrix |
+| Report | Authoring entry conditions |
+| Finalized Report | Finalized row conditions |
+| View Assessment Snapshot | Snapshot availability |
+| Export menu | Always (icon); Printable Report / Matrix CSV / Analytics CSV |
+
+QA: at 768 the actions cluster becomes an overflowing row (~**1050px** content width); Export past viewport.
+
+**Known defect:** `startNewCycle` throws unless `assessment.status === 'approved'` (`assessments.ts`), but the button is shown whenever the role matches — visibility bug this contract dissolves structurally.
+
+## 0.4 Target Detail Modal
+
+Close ~36×36; score buttons same compact 36×36; Clinical Notes save on blur; Previous/Next ~149×36 / 125×38. Matrix “View” control is text-only (~32×20).
+
+## 0.5 Login
+
+`Login.tsx` is in tablet scope (§1.2) but was **not** included in the QA measurement pass. Obligations are defined in §3.5 from product necessity, not from measured defects.
+
+---
+
+# 1. Supported form factors and surface scope
+
+## 1.1 Viewport classes (CSS pixels)
+
+Boundaries are justified against **QA-measured clinic viewports** (1024×768, 768×1024), not against inventing a specific tablet SKU. AIM’s exact devices are **not** assumed (**OQ-TT-1 RESOLVED — A**, 2026-08-25).
+
+| Class | CSS viewport | Alpha status | Obligation |
+|-------|--------------|--------------|------------|
+| **Desktop** | `width ≥ 1024` | **Supported** | Full product; computer-primary surfaces designed here |
+| **Tablet** | `768 ≤ width < 1024` | **Supported** | Scoring-path tablet obligations in this contract |
+| **Phone** | `width < 768` | **Out of scope** | Must remain *reachable and not broken* (no hard dead-ends); **no** tablet layout obligation |
+
+**Locked (OQ-TT-2 — A, 2026-08-25):** Treat **1024×768 landscape** as **Desktop class for layout chrome** (desktop nav may fit), but still apply **scoring-path touch rules** (§2) whenever the primary pointer is coarse / touch. Layout chrome follows width; touch rules follow pointer.
+
+**Not supported as design targets:** foldables, watch, print layouts, split-screen widths below 768.
+
+## 1.2 Tablet surface scope (founder-binding)
+
+**In tablet scope (must meet this contract):**
+
+- Login (§3.5)
+- Navigation needed to reach an assessment (Clients list, Assessments list, and any Client → Assessment entry already used in product)
+- Assessment Matrix (overview + domain scoreboard)
+- Domain Scoreboard
+- Target Detail Modal
+- Submit
+
+**Explicitly NOT in tablet scope (computer surfaces):**
+
+- Content Packs and Assessment Builder
+- Team Members
+- Organization Settings
+- Audit Log
+- Report Authoring
+- Finalized Report
+- Assessment Snapshot
+- Learner Map
+- Profile / Account Settings
+- Dashboard
+
+**Boundary rule:** Out-of-scope surfaces must remain **reachable and not broken** from a tablet (a therapist who opens Packs or Snapshot must not hit a dead end or a blank trap). They carry **no** tablet layout, hit-target, or sticky-chrome obligation. A future reader **must not** re-expand tablet scope to those surfaces without a new founder decision.
+
+## 1.3 What “supported” means for Tablet class
+
+On Tablet class viewports, for in-scope surfaces:
+
+1. No horizontal page scroll required to reach **Sign Out**, primary nav destinations for scoring (Clients, Assessments), or in-session scoring controls.
+2. Assessment **primary strip** has **no internal horizontal scroller** and no clipped primary actions (§4.3). The non-sticky context row (§4.4) must also fit without page-level horizontal scroll.
+3. Touch rules in §2 apply to scoring controls.
+4. Domain identity remains determinable while scrolling (§5).
+5. Login meets §3.5.
+
+---
+
+# 2. Touch as a first-class input (scoring path)
+
+## 2.1 Binding rules
+
+On the scoring path (Matrix, Domain Scoreboard, Target Detail Modal, Submit), for Tablet class and for touch-primary use on landscape tablets (**OQ-TT-2 A**):
+
+| ID | Rule |
+|----|------|
+| **T1** | No control may depend on `:hover` alone to be **discoverable or operable**. Hover may enhance desktop; touch must have an equivalent visible affordance. |
+| **T2** | No information a therapist needs **mid-session** may exist **only** in a `title` attribute. (`title` is not a touch UI.) |
+| **T3** | Primary scoring controls meet a **minimum hit target** of **44×44 CSS px** (see §2.2). |
+| **T4** | Scoring cadence remains **one tap → one score**. No long-press, double-tap, or mandatory modal open to apply a score. |
+| **T5** | Icon-only controls on the tablet scoring path (Back, Close, and nav icon controls) must have an accessible name (`aria-label` or visible text). |
+
+Login primary controls follow the same hit-target and T1/T5 spirit (§3.5); Login is not part of the one-tap scoring cadence.
+
+## 2.2 Score button size (the control this section is about)
+
+**Current:** 36×36 (`h-9 min-w-9`) in `TargetScoreControls`.
+
+**Recommended minimum:** **44×44 CSS px** (`min-h-11 min-w-11` or equivalent).
+
+| Compared option | Pros | Cons |
+|-----------------|------|------|
+| **Keep 36×36** | No scroll regression | Below common touch guidance; QA already shows dense 19-target domains; miss-taps risk wrong clinical scores |
+| **44×44 (recommended)** | Matches common platform guidance (≈ Apple HIG / WCAG 2.5.5 target size spirit); clear primary control | Modest extra vertical scroll |
+| **48×48** | More forgiving gloved/large-finger use | Higher scroll cost; weaker density on 19-target domains without proven device need |
+
+**Justification:** Score buttons are the highest-frequency, highest-stakes touch targets in the product. 36px was an incidental Tailwind size, not a touch decision. 44px is the smallest size that clearly treats touch as first-class without assuming a device SKU (**OQ-TT-1 A**).
+
+**Yes/No buttons** in the same component must meet the same minimum hit target (they are already taller via padding but must be verified ≥ 44px in both axes).
+
+## 2.3 Scroll cost of enlarging score buttons
+
+QA baseline: last score control on a 19-target domain at **y ≈ 2847** with 36px buttons.
+
+**Estimate (planning):** row height increase ≈ **+8 CSS px** per target when the button was the limiting dimension (36 → 44). For 19 targets ≈ **+152 px** total document height (~**+5%** vs 2847).
+
+That cost is **acceptable** relative to miss-tap clinical risk. Density-vs-touch tension is **not** the product-wide problem here — dense evidence grids (Snapshot, Learner Map) are **out of tablet scope** and must not be resized to “help” Matrix (§6).
+
+## 2.4 Score criterion text without adding a scoring tap
+
+**Hard constraint:** therapist must score with **one tap per target**. Opening Target Detail solely to read scale meaning is forbidden as the *only* path.
+
+**Models compared:**
+
+| Model | Mechanism | Adds tap to score? | Verdict |
+|-------|-----------|--------------------|---------|
+| **A — Domain scale legend** | Sticky domain chrome shows the active scale’s value→label pairs when targets share a common effective scale | No | **Primary** (**OQ-TT-7 A**) |
+| **B — Labels on every button** | Visible criterion under/beside numeral on each button | No | Use when scales **differ per target** in the domain; costs more height |
+| **C — Long-press / tooltip** | Reveal criterion on press-hold | Effectively yes / undiscoverable | **Rejected** |
+| **D — Modal-only criteria** | Must open View | Yes | **Rejected** as sole path |
+
+**Binding approach:** Model A for homogeneous scales within the domain (**full labels, may wrap**; no page-level horizontal scroll). **Verification obligation (OQ-TT-7):** the legend must be checked against a **real ABLLS pack** before implementation — a legend that wraps acceptably on a three-value scale may not on a clinic pack. Model B fallback for heterogeneous per-target scales (short visible text on buttons, not `title`-only). Target Detail remains the place for full clinical prose — opened deliberately via View, not required for each score.
+
+---
+
+# 3. Navigation on tablet
+
+## 3.1 Breakpoint placement
+
+**Current defect:** drawer gated `md:hidden` / desktop `hidden md:flex` → at **768** desktop nav overflows and Sign Out is off-canvas.
+
+**Binding change of intent:** Tablet class (`768 ≤ width < 1024`) must use the **drawer (or equivalent compact nav)**, not the overflowing desktop cluster.
+
+**Locked (OQ-TT-3 — A, 2026-08-25):** Move the desktop/drawer split from Tailwind **`md` (768)** to **`lg` (1024)** so:
+
+- `width < 1024` → compact nav + drawer
+- `width ≥ 1024` → desktop horizontal nav
+
+This aligns the breakpoint with the Desktop/Tablet classes in §1.1 rather than with an accidental 768 edge. The breakpoint fix stands **independently** of device-sharing posture (§3.3): Sign Out must be inside the viewport at 768 regardless.
+
+## 3.2 What a therapist needs on the scoring path
+
+**Must be reachable without horizontal scroll on Tablet class:**
+
+| Item | Priority |
+|------|----------|
+| **Sign Out** | **Normal secondary** — must be in-viewport (drawer/account cluster), not off-canvas; not elevated as shared-device critical (§3.3) |
+| Clients | High — reach learners |
+| Assessments | High — reach Matrix |
+| Back to Assessments from Matrix | High — labeled control |
+
+**Must remain reachable (no tablet layout obligation):** Dashboard, Packs, Team, Org, Audit, Settings — via drawer/list entries so routes stay open. Present them in a **secondary group** (e.g. “More” / admin tools) so they do not compete with scoring destinations. Org and Audit (currently missing from the sub-768 drawer) **must be added** for reachability when the user is admin — still without tablet layout polish.
+
+## 3.3 Sign Out and session posture (personally assigned tablets)
+
+**Locked (OQ-TT-4 — personally assigned, 2026-08-25):** AIM clinic tablets are **personally assigned**, not shared between therapists. The earlier conservative shared-device posture is overturned.
+
+| Implication | Binding |
+|-------------|---------|
+| Sign Out prominence | **Normal secondary control** — visible text label (or labeled control), ≥ 44×44 hit target in the compact drawer / account cluster; **not** a hero action, not icon-only with `title` alone |
+| Session persistence | May be **relied on** (therapist expects to stay signed in across sessions on their device) |
+| In-viewport requirement | **Unchanged** — at Tablet class, Sign Out must not require horizontal page scroll (nav breakpoint fix §3.1) |
+
+**Operational assumption — not a product property:** Personal assignment describes **how AIM runs its clinic devices today**. It is **not** an Evalis product invariant. **Revisit condition:** if devices are later **shared between therapists**, Sign Out prominence and session-persistence posture in this section **must be revisited** (return to shared-device conservative design: stronger Sign Out affordance; do not assume lingering sessions are safe). A future reader who sees weak Sign Out chrome should check whether AIM still personally assigns tablets before treating this section as still valid.
+
+## 3.4 Expressing out-of-scope surfaces
+
+| Expression | Meaning |
+|------------|---------|
+| Route remains registered | No removal of `#/packs`, Snapshot, etc. |
+| Nav entry allowed | Secondary group in drawer |
+| Layout obligation | **None** — incidental responsive behaviour sufficient if not broken |
+| QA bar | Can open and leave; no guaranteed fit, sticky, or 44px redesign |
+
+## 3.5 Login (tablet scope — previously unspecified)
+
+Login is the first step of a tablet session. QA did **not** measure it; these obligations are product-minimal, not defect-driven.
+
+| Obligation | Rule |
+|------------|------|
+| Hit targets | Primary actions (Sign In / Sign Up submit, mode toggle) ≥ **44×44** CSS px |
+| Horizontal scroll | Login card/form must not require horizontal page scroll on Tablet class |
+| Hover | T1 applies — no hover-only path to submit or switch modes |
+| On-screen keyboard | When a field is focused, the focused control must remain operable (scroll into view if the keyboard covers it). **Proposed default:** rely on normal document scroll / `scrollIntoView` behaviour; no custom keyboard-avoidance chrome unless QA proves failure (**OQ-TT-10**) |
+| Sticky / session chrome | **None required** — Login is not a scoring surface |
+| Beyond §2 | No further Login-specific layout system; incidental responsive form layout is acceptable if the rows above hold |
+
+---
+
+# 4. Assessment header information architecture
+
+## 4.1 Problem statement
+
+One control row mixes **therapist in-session scoring actions** with **supervisor / administrative / evidence-document actions**. At 768 it overflows. On desktop it is reported as cluttered. This is **one IA problem** with one model — not a tablet-only patch and a separate desktop cleanup.
+
+## 4.2 Models compared
+
+### Model 1 — Primary strip + single overflow (“More”)
+
+All non-primary actions collapse into one overflow menu; primary strip holds identity + Submit + save.
+
+| Pros | Cons |
+|------|------|
+| Guarantees no horizontal scroller at 768 | Overflow becomes a junk drawer; New Cycle can still appear when illegal unless extra rules |
+| Simple to implement | Cannot host mid-session Compare without either overflowing the strip or burying Compare |
+
+### Model 2 — Role- and workflow-state-scoped presentation only
+
+Show a control only if role ∧ workflow make it meaningful; keep them all in one row when visible.
+
+| Pros | Cons |
+|------|------|
+| Dissolves New Cycle bug | At 768, lawful buttons still overflow |
+| Honest UI | Does not by itself fix density; Compare in-strip still breaks §1.3 |
+
+### Model 3 — **Scoped primary strip + non-sticky context row + grouped overflow** (**selected**)
+
+Three structural slots:
+
+1. **Primary sticky strip:** identity + cycle + workflow + save + **Submit when scorable** + **More**.
+2. **Non-sticky assessment context row:** mid-session controls that must stay **reachable while scoring** but must **not** consume sticky ceiling or widen the primary strip — **Compare lives here** (SPM resolution, 2026-08-25).
+3. **Overflow (“More”):** secondary / computer / supervisor actions, each gated by role ∧ workflow ∧ availability.
+
+Same three-slot structure on **Desktop and Tablet** — one placement model.
+
+| Pros | Cons |
+|------|------|
+| Holds §1.3 (no primary-strip horizontal scroller) | Requires explicit placement (§4.3–§4.4) |
+| Compare usable mid-session without sticky budget cost | Context row scrolls away — therapist scrolls up to change compare cycle (acceptable) |
+| Dissolves New Cycle structurally | — |
+| Fixes desktop clutter with the same model | — |
+
+**Selection:** **Model 3** (extended with the context row). Founder requires Compare on the tablet scoring path; SPM requires it **outside** the sticky primary strip so §1.3 and §5.2 hold. That collision is **resolved** — not re-opened — in §4.4.
+
+## 4.3 Placement of every control
+
+| Control | Location | Appears when |
+|---------|----------|--------------|
+| **Back** | Primary strip | Always; **labeled** (visible text or `aria-label` e.g. “Back to Assessments”) |
+| **Learner name** | Primary identity | Always |
+| **Pack title** | Primary identity (secondary line OK) | Always |
+| **Cycle badge** | Primary | Always |
+| **Workflow badge** | Primary | Always |
+| **Save status** | Primary | Whenever saving / saved / error (unchanged semantics) |
+| **Submit** | Primary strip (and may remain mirrored in domain footer) | Existing scorable-cycle rules (`showSubmitAssessmentButton`); must be visible without opening More |
+| **More** | Primary strip | When any overflow item is available |
+| **Compare With Another Cycle** + select | **Non-sticky assessment context row** (§4.4) — **both Tablet and Desktop** | When ≥1 other cycle exists to compare; comparison load error inline in this row when present |
+| **Approve** | Overflow | `status === 'submitted'` ∧ admin \| senior_therapist (**OQ-TT-6 A**) |
+| **New Cycle** | Overflow | **`status === 'approved'`** ∧ admin \| senior_therapist — **never** when not approved (dissolves defect) |
+| **Learner Map** | Overflow | Existing availability; computer surface |
+| **Report** | Overflow | Existing authoring-entry conditions |
+| **Finalized Report** | Overflow | Existing finalized-row conditions |
+| **View Assessment Snapshot** | Overflow | Existing snapshot availability |
+| **Export menu** | Overflow submenu or grouped overflow section | Existing export permissions; computer-oriented |
+
+**Rules:**
+
+- A control that cannot succeed in the current workflow state is **not shown** (not shown disabled-with-surprise-error). Exception: Submit may remain visible but disabled with an honest reason (existing honesty surface).
+- Primary strip must fit Tablet class width **without** `overflow-x` scrolling.
+- Desktop uses the **same** placement model (primary + context row + More) — Compare does **not** return to the header sibling pile or live only in More at ≥1024.
+
+### 4.3.1 What else belongs in the context row?
+
+Re-examined after introducing the third slot. **Only Compare** (label, select, and comparison-load honesty message) belongs there.
+
+| Candidate | Move to context row? | Why |
+|-----------|----------------------|-----|
+| Compare | **Yes** | Founder: mid-session prior-performance reference; must not be in More; cannot fit primary strip without violating §1.3 |
+| Approve / New Cycle | **No** | Rare workflow transitions; overflow + gating is correct |
+| Learner Map / Report / Snapshot / Export | **No** | Computer surfaces; leave Matrix when used; More is correct |
+| Domain search / filters | **No** | Domain-scoped; stay in Domain Scoreboard non-sticky chrome below the sticky domain bar (§5.2) |
+| Save / Submit | **No** | Must remain sticky while scoring |
+
+## 4.4 Cycle comparison — binding placement
+
+**Locked (OQ-TT-5 — Compare stays on tablet scoring path, 2026-08-25):** Referencing prior performance during assessment is normal ABA practice. Compare is **not** hidden and **not** buried in More.
+
+**Collision with §1.3:** Keeping Compare “as today” in the sticky header sibling row recreates the QA-measured ~1050px overflowing pane. That fails Tablet class acceptance.
+
+**SPM resolution (decided — do not re-open):** Compare remains **present and usable** on the tablet scoring path, **outside the sticky primary strip**, in the **non-sticky assessment context row** that scrolls away with the page. Intent preserved (reachable while scoring, not behind More); primary strip stays inside §5.2; **zero cost to the ≤112px sticky ceiling**.
+
+### 4.4.1 Context row geometry
+
+| Property | Binding |
+|----------|---------|
+| **Document order** | Immediately **below** the sticky primary strip; **above** Matrix main content (overview or domain scoreboard) |
+| **Sticky?** | **No** — `position` static/relative; scrolls away |
+| **Sticky budget** | **Does not consume** the §5.2 ceiling |
+| **Relative to sticky domain bar** | When a domain is open, order is: primary strip (sticky) → context row (scrolls) → domain context bar (sticky, `top` = primary height) → domain content. After the user scrolls past the context row, the domain bar sits directly under the primary strip |
+| **Height** | **Proposed default ≤ 48 CSS px** when Compare is shown (single row: label + select); wrap only if forced — list as **OQ-TT-11** if packs/cycles force taller UI |
+| **Width** | Must not introduce page-level horizontal scroll on Tablet class |
+
+### 4.4.2 Desktop-class treatment of Compare
+
+**Same context row on Desktop (`width ≥ 1024`).** Compare does **not** move back into the primary strip or into More at desktop widths.
+
+**Justification:** One consistent placement beats a control that lives in three places across two viewports. Desktop also benefits from a thinner sticky primary strip. Mid-session compare behaviour is identical for therapists and supervisors reviewing on a computer.
+
+### 4.4.3 Trend column (Domain Scoreboard)
+
+Earlier draft language that hid the trend column because Compare would be absent on tablet is **void**.
+
+| State | Tablet class | Desktop |
+|-------|--------------|---------|
+| Compare = None | Trend column **may hide** (saves horizontal space) — **proposed default** | Same |
+| Compare = a prior cycle | Trend column **shows** (existing `sm:table-cell` / equivalent must not hide trend when comparison data is active) | Shows |
+
+Trend remains driven by `previousScores` / compare selection — no change to analytics meaning.
+
+## 4.5 Visibility while scoring (sticky + context)
+
+While scrolling a domain:
+
+- **Primary strip** remains sticky (Submit + save + identity + cycle/workflow + More).
+- **Context row** (Compare) is visible at the top of the domain view until the user scrolls it away; change compare cycle by scrolling back up — not via sticky chrome.
+- **Domain context bar** sticks below the primary strip (after context row has scrolled away, or below context row when still in view — normal document flow).
+- **Domain footer** may remain (**OQ-TT-8 A**); budgets in §5.2.
+
+---
+
+# 5. Scoring surface on tablet portrait
+
+## 5.1 Domain identity while scrolling
+
+**Requirement:** Therapist must always be able to determine **which domain** they are scoring after the static `h2` has scrolled away.
+
+**Mechanism (binding intent):** A **sticky domain context bar** under the assessment primary strip (and under the context row while that row is still in view), containing at minimum: domain title (truncate OK) and optional short progress (“N targets”), plus scale legend per §2.4 / OQ-TT-7. It is **not** a second full header of actions.
+
+**Rejected:** Relying only on memory; repeating domain title only inside each row (too noisy); making the whole DomainScoreboard header sticky with search/filters (too tall).
+
+## 5.2 Vertical sticky budget (1024px-tall viewport)
+
+**Only sticky regions** count against the ceiling. The assessment context row is **non-sticky** and is **excluded**.
+
+| Region | Budget (CSS px) | Sticky? | Notes |
+|--------|-----------------|---------|-------|
+| Assessment primary strip | **≤ 72** | Yes | Single compact row on Tablet; wrap identity only if unavoidable, still ≤ 72 |
+| Assessment context row (Compare) | ≤ 48 proposed | **No** | Scrolls away; **0 sticky cost** |
+| Domain context bar (`top` = primary strip height) | **≤ 40** | Yes | Title + scale legend compression; verify legend on ABLLS pack |
+| **Combined sticky ceiling** | **≤ 112** | — | Leaves **≥ 912** of a 1024px-tall viewport before fixed footer |
+| Domain footer (fixed bottom) | **≤ 56** | Fixed | Prev domain / Submit (**OQ-TT-8 A**); content area then ≥ **856** |
+
+If the sticky budget cannot be met, **drop or relocate** search/filter chrome off the sticky stack (filters may live in non-sticky domain chrome that scrolls away) — never grow sticky chrome by stacking search + legend + actions. **Do not** move Compare into the sticky stack to “save a scroll.”
+
+**Interaction with Layout (**OQ-TT-9 — keep normal app navigation**, 2026-08-25):** On Tablet Matrix, keep the **normal app Layout navigation** (compact drawer nav at `< lg`). **No** thin session-only bar and **no** fullscreen Matrix-only chrome.
+
+This does **not** conflict with the sticky budget: **Layout nav must scroll away** (it is not sticky). It must **not** stack as a third sticky region above the primary strip. After the user scrolls, sticky stack = primary strip + domain context bar only (≤112px). Stating both plainly: normal nav is present at page top; sticky scoring chrome does not include it.
+
+## 5.3 Target Detail Modal — tablet treatment
+
+The modal is the therapist’s **in-session clinical reference**. It is in tablet scope.
+
+**Minimum obligations:**
+
+| Item | Rule |
+|------|------|
+| Hit targets | Close, Prev, Next, score buttons ≥ 44×44 |
+| Presentation | Near-full-viewport sheet on Tablet class (usable reading width); avoid tiny centered card with heavy unused margin |
+| Notes save | Blur-only save is fragile on touch — add an explicit **Done / Close** path that flushes notes (blur may remain as additional) |
+| Scoring | Same `TargetScoreControls` sizing and criterion rules as the matrix |
+
+**Non-goals for the modal:** redesigning clinical field content; making the modal required for scoring.
+
+## 5.4 View control
+
+Matrix “View” must meet a usable hit target on Tablet class (≥ 44px tall tap area, not ~20px text height alone).
+
+---
+
+# 6. Migration and risk
+
+## 6.1 Mechanical vs redesign
+
+| Work | Nature |
+|------|--------|
+| Raise nav breakpoint `md` → `lg`; add Org/Audit to drawer; label Sign Out as secondary | Mostly mechanical |
+| Label Back; enlarge score buttons; enlarge View/Close; Login hit targets | Mechanical with visual QA |
+| Header → primary + context row + More; gate New Cycle on `approved` | **Redesign** (IA) |
+| Sticky domain bar + scale legend (ABLLS verification) | Redesign; sticky offsets |
+| Modal sheet behaviour / Done flush | Moderate redesign |
+
+## 6.2 G4 / G5 — hard fence
+
+Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
+
+- Snapshot and Learner Map are **out of tablet scope**.
+- This contract must **not** change bead, cell, evidence-mark, or Snapshot/Learner Map density rendering to “match” Matrix touch sizes.
+- Score button sizing applies to **`TargetScoreControls` used by Matrix and Target Detail Modal** only.
+- If an implementation proposal would alter Snapshot/Learner Map mark geometry or export DOM in service of tablet Matrix, **stop** — that is a G4/G5 regression risk for screens this contract does not own.
+
+## 6.3 Regression watchlist
+
+- Submit honesty / disabled reasons still visible when Submit is disabled.
+- Footer Submit and header Submit staying in sync.
+- Admin paths: Approve, New Cycle (only when approved), exports still reachable via More.
+- Compare: selection still loads comparison scores; context row on Tablet **and** Desktop; score save unaffected when compare is None or set.
+- Trend column visible when a compare cycle is active.
+- Layout drawer: Sign Out still works with Assessment Builder navigation guard when on Packs (out of tablet scope but must not break).
+- Layout nav scrolls away on Matrix — not sticky.
+
+---
+
+# 7. Decision log and remaining questions
+
+## 7.1 Resolved (2026-08-25)
+
+| ID | Resolution | By | Notes |
+|----|------------|-----|-------|
+| **OQ-TT-1** | **A** — design to measured CSS viewports; no device SKU assumed | SPM accepted | Do not invent iPad |
+| **OQ-TT-2** | **A** — touch rules follow coarse pointer; layout chrome follows width | SPM accepted | 1024×768: Desktop chrome + touch scoring rules when coarse |
+| **OQ-TT-3** | **A** — nav split at `lg` (1024) | SPM accepted | Sign Out in-viewport at 768 |
+| **OQ-TT-4** | **Personally assigned** tablets | Founder | Overturns shared posture; **operational assumption about AIM, not a product property** — revisit Sign Out/session if devices become shared (§3.3) |
+| **OQ-TT-5** | **Compare stays** on tablet scoring path | Founder | Clinical ABA practice; **not** re-argued. Placement = non-sticky context row (SPM) so §1.3 holds |
+| **OQ-TT-6** | **A** — Approve to overflow | SPM accepted | |
+| **OQ-TT-7** | **A with wrap** + **ABLLS pack verification before implementation** | SPM accepted | Legend may fail on clinic packs even if fine on short scales |
+| **OQ-TT-8** | **A** — keep fixed domain footer for Alpha; revisit if sticky budget fails QA | SPM accepted | |
+| **OQ-TT-9** | **Keep normal app navigation** on tablet Matrix | Founder | No thin session bar / fullscreen session; Layout **must scroll away**, not become a third sticky (§5.2) |
+
+## 7.2 Still open / proposed defaults
+
+| ID | Question | Options | Recommendation |
+|----|----------|---------|----------------|
+| **OQ-TT-10** | Login + on-screen keyboard: is native scroll-into-view enough? | A: yes until QA fails · B: custom keyboard avoidance | **A** |
+| **OQ-TT-11** | Context row height if Compare UI cannot fit ≤ 48px | A: allow wrap to ≤ 72 non-sticky · B: compact control redesign | **A** — still non-sticky; never steal sticky ceiling |
+| **OQ-TT-12** | Hide trend column when Compare = None? | A: hide · B: always show empty trend | **A** |
+
+---
+
+# 8. What this contract deliberately does not cover
+
+| Topic | Reason |
+|-------|--------|
+| Report consolidation | Separate contract / round |
+| Assessment Builder Phase D | Separate |
+| Honesty-surface gaps (Learner Map retry, outer `loadData` TypeError, Report Authoring first-open) | Explicitly excluded |
+| Tablet layouts for out-of-scope surfaces | Founder boundary |
+| Visual style (colour, type, spacing scale) | Structure and behaviour only |
+| Phone layouts (`width < 768`) | Out of scope |
+| Implementation prompts / file-level change lists | Non-goal for this task |
+| Changing Snapshot / Learner Map mark rendering | G4/G5 fence |
+
+---
+
+# 9. Acceptance checklist (Overseer)
+
+**Tablet class (768 ≤ width < 1024):**
+
+- [ ] Compact nav/drawer at `< lg` (not overflowing desktop nav); Sign Out in-viewport as **normal secondary** control (≥ 44px, visible name) — not off-canvas
+- [ ] Clients and Assessments reachable; out-of-scope routes reachable via secondary entries without dead ends
+- [ ] Normal Layout nav present on Matrix and **scrolls away** (not a third sticky)
+- [ ] Primary strip: no internal horizontal scroller; Submit + save visible while scoring when applicable
+- [ ] Non-sticky context row hosts Compare (usable without opening More); does not consume sticky ceiling
+- [ ] New Cycle absent unless `approved`; Approve only in More when submitted + role
+- [ ] Score buttons ≥ 44×44; criterion text not `title`-only; scale legend verified against a real ABLLS pack (or Model B fallback documented)
+- [ ] Domain identity determinable after scroll (sticky domain bar within ≤112px combined sticky ceiling)
+- [ ] Fixed domain footer retained for Alpha
+- [ ] Target Detail usable (sheet, 44px controls, notes flush on Done/Close)
+- [ ] One-tap scoring preserved
+- [ ] Login: primary actions ≥ 44px; no horizontal scroll; focused field remains operable with on-screen keyboard
+- [ ] Trend column available when a compare cycle is selected
+
+**Desktop (width ≥ 1024):**
+
+- [ ] Same three-slot IA (primary + context row + More); reduced sibling clutter
+- [ ] Compare in context row (not relocated to header pile or More-only)
+- [ ] Admin overflow actions reachable
+
+**G4/G5:**
+
+- [ ] No Snapshot/Learner Map bead/cell geometry changes attributable to this work
+
+**Operational caveat:**
+
+- [ ] Document / runbook notes that personal tablet assignment is an AIM operational assumption; shared devices invalidate §3.3 posture
+
+---
+
+# Document history
+
+| Date | Change |
+|------|--------|
+| 2026-08-25 | Initial tablet & touch viability contract from founder scope statement and QA measurements; verified against Matrix/Layout/score control code |
+| 2026-08-25 | Amendment: lock OQ-TT-1…9; personally assigned tablets (§3.3); Compare in non-sticky context row (SPM); keep Layout nav (scrolls away); Login obligations (§3.5); ABLLS legend verification; acceptance checklist updated |
