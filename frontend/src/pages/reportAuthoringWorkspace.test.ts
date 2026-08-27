@@ -113,4 +113,40 @@ describe('ReportAuthoring page wiring', () => {
         expect(source).toContain('reportAuthoringService.finalizeReport');
         expect(source).toContain('loadOrCreateDraftReport');
     });
+
+    it('does not keep the stale finalized-view gate or pending-view copy', () => {
+        const pageSource = readFileSync(resolve(__dirname, './ReportAuthoring.tsx'), 'utf8');
+        const loadSource = readFileSync(
+            resolve(__dirname, './reportAuthoringWorkspaceLoad.ts'),
+            'utf8'
+        );
+        expect(pageSource).not.toContain(
+            'Creating a new version will be available once the finalized report view ships.'
+        );
+        expect(pageSource).not.toContain('The finalized report view is not available yet');
+        expect(loadSource).not.toContain(
+            'Creating a new version will be available once the finalized report view ships.'
+        );
+        expect(pageSource).toContain('beginNewVersionDraftFromFinalized');
+        expect(loadSource).toContain('createNewVersionDraftFromFinalized');
+        expect(pageSource).toContain('data-report-authoring-needs-new-version');
+        expect(pageSource).toContain('data-report-authoring-create-new-version');
+        expect(pageSource).toContain('data-report-authoring-existing-draft');
+    });
+
+    it('does not create a new version from loadOrCreateDraftReport', () => {
+        const source = readFileSync(
+            resolve(__dirname, './reportAuthoringWorkspaceLoad.ts'),
+            'utf8'
+        );
+        const loadStart = source.indexOf('export async function loadOrCreateDraftReport');
+        const createStart = source.indexOf(
+            'export async function beginNewVersionDraftFromFinalized'
+        );
+        expect(loadStart).toBeGreaterThanOrEqual(0);
+        expect(createStart).toBeGreaterThan(loadStart);
+        const loadFn = source.slice(loadStart, createStart);
+        expect(loadFn).not.toContain('createNewVersionDraftFromFinalized');
+        expect(loadFn).toContain("'needs_new_version'");
+    });
 });

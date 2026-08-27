@@ -19,13 +19,18 @@ import {
 import { ReportAuthoringForm } from '../components/reportAuthoring/ReportAuthoringForm';
 import { ReportAuthoringReferencePanel } from '../components/reportAuthoring/ReportAuthoringReferencePanel';
 import { readReportAuthoringCycleIdFromHash } from './assessmentMatrixReportEntry';
+import {
+    beginNewVersionDraftFromFinalized,
+    loadCycleReferenceScores,
+    loadOrCreateDraftReport,
+} from './reportAuthoringWorkspaceLoad';
 import { Assessment, AssessmentCycle } from '../types';
 
 interface Props {
     assessmentId: string;
 }
 
-type PageState = 'loading' | 'ready' | 'error';
+type PageState = 'loading' | 'ready' | 'error' | 'needs_new_version';
 
 function normalizeWorkspaceError(error: unknown): string {
     if (error instanceof ReportAuthoringError) {
@@ -35,26 +40,6 @@ function normalizeWorkspaceError(error: unknown): string {
         return error.message;
     }
     return 'Unable to load the report authoring workspace.';
-}
-
-async function loadOrCreateDraftReport(
-    assessmentId: string,
-    cycleId: string
-): Promise<AssessmentCommunicationReport> {
-    const versions = await reportAuthoringService.listReportVersions(assessmentId, cycleId);
-    const existingDraft = versions.find((row) => row.status === 'draft');
-    if (existingDraft) {
-        return existingDraft;
-    }
-
-    const hasFinalized = versions.some((row) => row.status === 'finalized');
-    if (hasFinalized) {
-        throw new ReportAuthoringError(
-            'A finalized report already exists for this cycle. Creating a new version will be available once the finalized report view ships.'
-        );
-    }
-
-    return reportAuthoringService.createDraftReport(assessmentId, cycleId);
 }
 
 export function ReportAuthoring({ assessmentId }: Props) {
@@ -74,6 +59,10 @@ export function ReportAuthoring({ assessmentId }: Props) {
     const [finalizeSuccess, setFinalizeSuccess] = useState<string | null>(null);
     const [referenceScores, setReferenceScores] = useState<any[]>([]);
     const [referencePreviousScores, setReferencePreviousScores] = useState<any[]>([]);
+    const [cycles, setCycles] = useState<AssessmentCycle[]>([]);
+    const [createVersionState, setCreateVersionState] = useState<'idle' | 'creating'>('idle');
+    const [createVersionError, setCreateVersionError] = useState<string | null>(null);
+    const [existingDraftNotice, setExistingDraftNotice] = useState<string | null>(null);
 
     const cycleId = readReportAuthoringCycleIdFromHash();
 
@@ -84,6 +73,8 @@ export function ReportAuthoring({ assessmentId }: Props) {
             setPageState('loading');
             setPageError(null);
             setFinalizeSuccess(null);
+            setCreateVersionError(null);
+            setExistingDraftNotice(null);
 
             if (!canManageReportAuthoring(profile?.role)) {
                 if (!cancelled) {
@@ -114,32 +105,13 @@ export function ReportAuthoring({ assessmentId }: Props) {
                     );
                 }
 
-                const cycles = await assessmentService.getCycles(assessmentId);
-                const selectedCycle = cycles.find((entry) => entry.id === cycleId);
+                const cycleList = await assessmentService.getCycles(assessmentId);
+                const selectedCycle = cycleList.find((entry) => entry.id === cycleId);
                 if (!selectedCycle) {
                     throw new ReportAuthoringError('Assessment cycle not found for this assessment.');
                 }
 
-                const draftRow = await loadOrCreateDraftReport(assessmentId, cycleId);
-                if (draftRow.status !== 'draft') {
-                    throw new ReportAuthoringError(
-                        'This report is no longer a draft and cannot be edited here.'
-                    );
-                }
-
-                const scores = await assessmentService.getScores(assessmentId, selectedCycle.id);
-                let previousScores: any[] = [];
-                if (selectedCycle.cycle_number > 1) {
-                    const previousCycle = cycles.find(
-                        (entry) => entry.cycle_number === selectedCycle.cycle_number - 1
-                    );
-                    if (previousCycle) {
-                        previousScores = await assessmentService.getScores(
-                            assessmentId,
-                            previousCycle.id
-                        );
-                    }
-                }
+                const workspace = await loadOrCreateDraftReport(assessmentId, cycleId);
 
                 if (cancelled) {
                     return;
@@ -147,6 +119,31 @@ export function ReportAuthoring({ assessmentId }: Props) {
 
                 setAssessment(assessmentData);
                 setCycle(selectedCycle);
+                setCycles(cycleList);
+
+                if (workspace.kind === 'needs_new_version') {
+                    setReportRow(null);
+                    setPageState('needs_new_version');
+                    return;
+                }
+
+                const draftRow = workspace.report;
+                if (draftRow.status !== 'draft') {
+                    throw new ReportAuthoringError(
+                        'This report is no longer a draft and cannot be edited here.'
+                    );
+                }
+
+                const { scores, previousScores } = await loadCycleReferenceScores(
+                    assessmentId,
+                    selectedCycle,
+                    cycleList
+                );
+
+                if (cancelled) {
+                    return;
+                }
+
                 setReportRow(draftRow);
                 setAuthoring(draftRow.authoring ?? createEmptyReportAuthoring());
                 setReferenceScores(scores);
@@ -234,12 +231,60 @@ export function ReportAuthoring({ assessmentId }: Props) {
             const finalized = await reportAuthoringService.finalizeReport(reportRow.id);
             setReportRow(finalized);
             setFinalizeState('done');
-            setFinalizeSuccess(
-                `Report version ${finalized.version} finalized successfully. The finalized report view is not available yet — your document is saved.`
-            );
+            setFinalizeSuccess(`Report version ${finalized.version} finalized successfully.`);
         } catch (error) {
             setFinalizeState('error');
             setFinalizeError(normalizeWorkspaceError(error));
+        }
+    };
+
+    const enterDraftWorkspace = async (draftRow: AssessmentCommunicationReport) => {
+        if (!assessment || !cycle) {
+            return;
+        }
+
+        if (draftRow.status !== 'draft') {
+            throw new ReportAuthoringError(
+                'This report is no longer a draft and cannot be edited here.'
+            );
+        }
+
+        const { scores, previousScores } = await loadCycleReferenceScores(
+            assessmentId,
+            cycle,
+            cycles
+        );
+        setReportRow(draftRow);
+        setAuthoring(draftRow.authoring ?? createEmptyReportAuthoring());
+        setReferenceScores(scores);
+        setReferencePreviousScores(previousScores);
+        setPageState('ready');
+    };
+
+    const handleCreateNewVersion = async () => {
+        if (!cycleId) {
+            return;
+        }
+
+        setCreateVersionState('creating');
+        setCreateVersionError(null);
+
+        try {
+            const result = await beginNewVersionDraftFromFinalized(assessmentId, cycleId);
+            if (result.kind === 'existing_draft') {
+                await enterDraftWorkspace(result.report);
+                setExistingDraftNotice(
+                    'A draft already exists for this cycle. You are editing that draft. Only one draft can exist at a time.'
+                );
+                return;
+            }
+
+            setExistingDraftNotice(null);
+            await enterDraftWorkspace(result.report);
+        } catch (error) {
+            setCreateVersionError(normalizeWorkspaceError(error));
+        } finally {
+            setCreateVersionState('idle');
         }
     };
 
@@ -254,7 +299,83 @@ export function ReportAuthoring({ assessmentId }: Props) {
         );
     }
 
-    if (pageState === 'error' || !assessment || !cycle || !reportRow || !referenceProfile) {
+    if (pageState === 'error') {
+        return (
+            <div className="mx-auto max-w-3xl px-4 py-12" data-report-authoring-error>
+                <button
+                    type="button"
+                    onClick={() => {
+                        window.location.hash = `#/assessment/${assessmentId}`;
+                    }}
+                    className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                    <ArrowLeft className="h-4 w-4" aria-hidden />
+                    Back to assessment
+                </button>
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
+                    {pageError ?? 'Unable to open the report authoring workspace.'}
+                </div>
+            </div>
+        );
+    }
+
+    if (pageState === 'needs_new_version' && assessment && cycle) {
+        const offerClientName = assessment.client
+            ? `${assessment.client.first_name ?? ''} ${assessment.client.last_name ?? ''}`.trim()
+            : 'Assessment';
+
+        return (
+            <div className="mx-auto max-w-3xl px-4 py-12" data-report-authoring-needs-new-version>
+                <button
+                    type="button"
+                    onClick={() => {
+                        window.location.hash = `#/assessment/${assessmentId}`;
+                    }}
+                    className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                >
+                    <ArrowLeft className="h-4 w-4" aria-hidden />
+                    Back to assessment
+                </button>
+                <div className="rounded-lg border border-gray-200 bg-white px-5 py-6">
+                    <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-emerald-700" aria-hidden />
+                        <h1 className="text-xl font-semibold text-gray-900">
+                            This cycle already has a finalized report.
+                        </h1>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">
+                        {offerClientName}
+                        <span className="mx-2 text-gray-300" aria-hidden>
+                            ·
+                        </span>
+                        Cycle {cycle.cycle_number}
+                    </p>
+                    <p className="mt-4 text-sm text-gray-700">
+                        The finalized report cannot be edited. Create a new version to amend it. The
+                        current finalized document stays in place until you finalize the new version.
+                    </p>
+                    {createVersionError ? (
+                        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                            {createVersionError}
+                        </div>
+                    ) : null}
+                    <button
+                        type="button"
+                        onClick={() => void handleCreateNewVersion()}
+                        disabled={createVersionState === 'creating'}
+                        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+                        data-report-authoring-create-new-version
+                    >
+                        {createVersionState === 'creating'
+                            ? 'Creating new version…'
+                            : 'Create new version'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (pageState !== 'ready' || !assessment || !cycle || !reportRow || !referenceProfile) {
         return (
             <div className="mx-auto max-w-3xl px-4 py-12" data-report-authoring-error>
                 <button
@@ -335,6 +456,14 @@ export function ReportAuthoring({ assessmentId }: Props) {
                 </div>
             </div>
 
+            {existingDraftNotice ? (
+                <div
+                    className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                    data-report-authoring-existing-draft
+                >
+                    {existingDraftNotice}
+                </div>
+            ) : null}
             {saveError ? (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                     {saveError}
