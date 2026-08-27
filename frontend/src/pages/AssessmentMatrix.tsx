@@ -778,15 +778,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 {showExportMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     <button
-                      onClick={() => {
-                        window.open(`#/assessment/${assessmentId}/report`, '_blank');
-                        setShowExportMenu(false);
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50 hover:text-emerald-600 border-b border-gray-100"
-                    >
-                      View Printable Report
-                    </button>
-                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleMatrixExport('matrix');

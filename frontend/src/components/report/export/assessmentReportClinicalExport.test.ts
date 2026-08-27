@@ -106,14 +106,19 @@ describe('Assessment Report note non-leakage (OQ-7)', () => {
         }
     });
 
-    it('does not read or render ReportTargetRow.note in AssessmentReport.tsx', () => {
-        const source = readFileSync(
-            resolve(__dirname, '../../../pages/AssessmentReport.tsx'),
+    it('does not read or render score notes in the finalized report surface', () => {
+        const pageSource = readFileSync(
+            resolve(__dirname, '../../../pages/FinalizedAssessmentReport.tsx'),
+            'utf8'
+        );
+        const documentSource = readFileSync(
+            resolve(__dirname, '../FinalizedReportDocument.tsx'),
             'utf8'
         );
 
-        expect(source).not.toContain('targetRow.note');
-        expect(source).not.toMatch(/\bnote:\s*targetRow/);
+        expect(pageSource).not.toContain('targetRow.note');
+        expect(pageSource).not.toMatch(/\bnote:\s*targetRow/);
+        expect(documentSource).not.toContain('.note');
     });
 
     it('does not reference score notes in report components', () => {
@@ -130,10 +135,10 @@ describe('Assessment Report note non-leakage (OQ-7)', () => {
     });
 });
 
-describe('AssessmentReport print gate wiring', () => {
+describe('FinalizedAssessmentReport print gate wiring', () => {
     it('gates only print — view loads without acknowledgement check', () => {
         const source = readFileSync(
-            resolve(__dirname, '../../../pages/AssessmentReport.tsx'),
+            resolve(__dirname, '../../../pages/FinalizedAssessmentReport.tsx'),
             'utf8'
         );
 
@@ -146,7 +151,7 @@ describe('AssessmentReport print gate wiring', () => {
 
     it('logs print audit before window.print and omits surface', () => {
         const source = readFileSync(
-            resolve(__dirname, '../../../pages/AssessmentReport.tsx'),
+            resolve(__dirname, '../../../pages/FinalizedAssessmentReport.tsx'),
             'utf8'
         );
 

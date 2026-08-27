@@ -10,7 +10,6 @@ import { ContentPacks } from './pages/ContentPacks';
 import { Assessments } from './pages/Assessments';
 import { AssessmentMatrix } from './pages/AssessmentMatrix';
 import { Users } from './pages/Users';
-import { AssessmentReport } from './pages/AssessmentReport';
 import { FinalizedAssessmentReport } from './pages/FinalizedAssessmentReport';
 import { ReportAuthoring } from './pages/ReportAuthoring';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
@@ -192,12 +191,6 @@ function AppRouter() {
   const finalizedReportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report\/finalized$/);
   if (finalizedReportMatch) {
     return <FinalizedAssessmentReport assessmentId={finalizedReportMatch[1]} />;
-  }
-
-  const reportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report$/);
-  if (reportMatch) {
-    // Standalone layout for report
-    return <AssessmentReport assessmentId={reportMatch[1]} />;
   }
 
   const learnerMapExportMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/learner-map\/export$/);
