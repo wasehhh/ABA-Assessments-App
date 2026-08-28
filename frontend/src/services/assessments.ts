@@ -38,6 +38,17 @@ function normalizeAssessmentScoreRow(row: AssessmentScore): AssessmentScore {
   };
 }
 
+/**
+ * Postgres unique_violation. SQLSTATE 23505.
+ * Source: PostgreSQL Appendix A — PostgreSQL Error Codes, Class 23 Integrity
+ * Constraint Violation (`unique_violation` = 23505).
+ * https://www.postgresql.org/docs/current/errcodes-appendix.html
+ * PostgREST / supabase-js expose it as PostgrestError.code.
+ */
+function isPostgresUniqueViolation(error: { code?: string } | null | undefined): boolean {
+  return error?.code === '23505';
+}
+
 export const assessmentService = {
   async create(
     orgId: string,
@@ -411,6 +422,8 @@ export const assessmentService = {
   /**
    * Creates a missing assessment_scores row for the active cycle/target.
    * If a row already exists server-side, updates it instead (idempotent save).
+   * On unique_violation (Postgres 23505) from a concurrent insert, re-reads
+   * and routes to updateScore so CREATE vs UPDATE audit stays honest.
    */
   async createScore(params: {
     assessmentId: string;
@@ -490,7 +503,24 @@ export const assessmentService = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (!isPostgresUniqueViolation(error)) {
+        throw error;
+      }
+
+      const { data: raced, error: racedError } = await supabase
+        .from('assessment_scores')
+        .select('id')
+        .eq('assessment_id', assessmentId)
+        .eq('assessment_cycle_id', cycleId)
+        .eq('target_id', targetId)
+        .maybeSingle();
+
+      if (racedError) throw racedError;
+      if (!raced?.id) throw error;
+
+      return this.updateScore(raced.id, score, note, assessorId, orgId, metadata);
+    }
 
     if (orgId) {
       await auditService.log({
