@@ -11,10 +11,15 @@ import {
 import {
     AssessmentCommunicationReport,
     ReportAuthoring,
+    REPORT_AUTHORING_TEMPLATE_VERSION,
+    REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
 } from '../services/reportAuthoringTypes';
 import {
+    FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE,
     FINALIZED_REPORT_SECTION_ORDER,
+    finalizedReportAllowsPrintEmission,
     finalizedReportHasRenderableSnapshot,
+    PRESENT_LEVELS_CORRUPT_EMBED_MESSAGE,
 } from '../utils/finalizedReportPresentation';
 
 const authoringFixture: ReportAuthoring = {
@@ -164,7 +169,18 @@ describe('FinalizedAssessmentReport page contract', () => {
         expect(pageSource).toContain('canPrintFinalizedReport');
         expect(pageSource).toContain('ReportExportDialog');
         expect(pageSource).toContain('data-finalized-report-print');
-        expect(pageSource).toMatch(/canPrint\s*\?\s*\(/);
+        expect(pageSource).toContain('offerPrint');
+        expect(pageSource).toContain('finalizedReportAllowsPrintEmission');
+    });
+
+    it('does not offer Print / Save PDF when Present Levels is corrupt', () => {
+        expect(pageSource).toContain('data-finalized-report-print-unavailable');
+        expect(pageSource).toContain('FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE');
+        expect(FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE).not.toContain('computed_schema_version');
+        expect(pageSource).not.toContain('computed_schema_version');
+        expect(pageSource).toMatch(
+            /if\s*\(\s*!finalizedReportAllowsPrintEmission\(reportRow\.embedded_computed\)\s*\)/
+        );
     });
 
     it('does not require acknowledgement to view the page', () => {
@@ -209,8 +225,310 @@ describe('FinalizedReportDocument six-section template', () => {
         expect(markup).toContain('15 hours / week');
         expect(markup).toContain('Client demonstrates emerging skills across domains.');
         expect(markup).toContain('Jamie Lee');
-        expect(markup).toContain('Manding');
+        expect(markup).toContain('Goal 1 · Communication');
         expect(markup).not.toContain('CONFIDENTIAL_NOTE');
+    });
+
+    it('omits Present Levels numerics on a legacy fat row and fabricates nothing', () => {
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: finalizedRowFixture,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+
+        expect(markup).toContain('data-present-levels-without-change-metrics');
+        expect(markup).not.toContain('data-present-levels-change');
+        expect(markup).not.toContain('This is a first assessment');
+        expect(markup).not.toContain('Skills improved');
+        expect(markup).not.toContain('Skills regressed');
+        expect(markup).not.toContain('Newly assessed');
+        expect(markup).not.toContain('No longer scored');
+        expect(markup).not.toContain('Points Captured');
+        expect(markup).not.toMatch(/\b60%/);
+    });
+
+    it('does not render removed Present Levels or target-list sections', () => {
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: finalizedRowFixture,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+        const documentSource = readFileSync(
+            resolve(__dirname, '../components/report/FinalizedReportDocument.tsx'),
+            'utf8'
+        );
+
+        expect(markup).not.toContain('Assessment Score Distribution');
+        expect(markup).not.toContain('Domain summary');
+        expect(markup).not.toContain('Manding');
+        expect(markup).not.toContain('2/2');
+        expect(documentSource).not.toContain('ReportAssessmentScoreDistribution');
+        expect(documentSource).not.toContain('ReportDomainScoreDistribution');
+        expect(documentSource).not.toContain('ReportDomainSummaryTable');
+    });
+
+    it('renders transition counts and comparison lines from a slim change-metric embed', () => {
+        const slimReport: AssessmentCommunicationReport = {
+            ...finalizedRowFixture,
+            embedded_computed: {
+                ...finalizedRowFixture.embedded_computed!,
+                computed_schema_version: REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
+                present_levels: {
+                    mode: 'dual_comparison',
+                    comparison_method: 'per_target_last_and_first_scored',
+                    first_assessment: null,
+                    comparisons: [
+                        {
+                            role: 'last_assessed',
+                            label_key: 'since_last_assessed',
+                            anchor_span: {
+                                earliest_cycle_number: 2,
+                                latest_cycle_number: 2,
+                                earliest_date: '2026-04-01',
+                                latest_date: '2026-04-01',
+                                available: true,
+                            },
+                            anchors_by_cycle_number: { '2': 3 },
+                            skills_improved: 2,
+                            skills_regressed: 1,
+                            newly_assessed: 0,
+                            no_longer_scored: 0,
+                        },
+                        {
+                            role: 'first_assessed',
+                            label_key: 'since_first_assessed',
+                            anchor_span: {
+                                earliest_cycle_number: 1,
+                                latest_cycle_number: 1,
+                                earliest_date: '2026-01-01',
+                                latest_date: '2026-01-01',
+                                available: true,
+                            },
+                            anchors_by_cycle_number: { '1': 3 },
+                            skills_improved: 1,
+                            skills_regressed: 0,
+                            newly_assessed: 0,
+                            no_longer_scored: 1,
+                        },
+                    ],
+                },
+                target_skills: undefined,
+            },
+        };
+
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: slimReport,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+
+        expect(markup).toContain('data-present-levels-change');
+        expect(markup).toContain('Since each skill was last assessed');
+        expect(markup).toContain('Since each skill was first assessed');
+        expect(markup).toContain('Skills improved');
+        expect(markup).toContain('Skills regressed');
+        expect(markup).toContain('Newly assessed');
+        expect(markup).toContain('No longer scored');
+        expect(markup).toContain('Prior scores used for comparison range from');
+        expect(markup).not.toContain('vs previous cycle');
+        expect(markup).not.toContain('vs Cycle 1');
+        expect(markup).not.toContain('Points Captured');
+        expect(markup).not.toContain('Assessment Score Distribution');
+        expect(markup).not.toContain('Manding');
+    });
+
+    it('does not treat a slim-shaped embed missing computed_schema_version as change metrics', () => {
+        const slimWithoutVersion: AssessmentCommunicationReport = {
+            ...finalizedRowFixture,
+            embedded_computed: {
+                ...finalizedRowFixture.embedded_computed!,
+                present_levels: {
+                    mode: 'first_assessment',
+                    comparison_method: 'per_target_last_and_first_scored',
+                    first_assessment: {
+                        statement_key: 'first_assessment',
+                        counts: {
+                            demonstrated: 4,
+                            emerging: 3,
+                            not_demonstrated: 2,
+                            unscored: 1,
+                        },
+                    },
+                    comparisons: [],
+                },
+            },
+        };
+
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: slimWithoutVersion,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+
+        expect(markup).toContain('data-present-levels-without-change-metrics');
+        expect(markup).not.toContain('data-present-levels-change');
+        expect(markup).not.toContain('data-present-levels-corrupt-embed');
+        expect(markup).not.toContain('This is a first assessment');
+        expect(markup).not.toContain('Skills improved');
+    });
+
+    it('surfaces a declared change-metric schema that is missing mode or comparison_method', () => {
+        const malformedBodies = [
+            {
+                rollup: {
+                    totalDomains: 1,
+                    incompleteDomains: 0,
+                    scoredTargets: 0,
+                    totalTargets: 0,
+                    coveragePercentage: 0,
+                    pointsCapturedPercentage: 0,
+                },
+                assessment_band_distribution: {
+                    unscored: 0,
+                    not_yet: 0,
+                    in_progress: 0,
+                    at_maximum: 0,
+                    showsInProgressBucket: false,
+                },
+                domains: [],
+            },
+            { mode: 'first_assessment' },
+            { comparison_method: 'per_target_last_and_first_scored' },
+        ] as const;
+
+        for (const presentLevels of malformedBodies) {
+            const report: AssessmentCommunicationReport = {
+                ...finalizedRowFixture,
+                embedded_computed: {
+                    ...finalizedRowFixture.embedded_computed!,
+                    computed_schema_version: REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
+                    present_levels: presentLevels as never,
+                },
+            };
+
+            const markup = renderToStaticMarkup(
+                createElement(FinalizedReportDocument, {
+                    report,
+                    structureLabels: { primary_group: 'Domain', target: 'Target' },
+                })
+            );
+
+            expect(markup).toContain('data-present-levels-corrupt-embed');
+            expect(markup).toContain(PRESENT_LEVELS_CORRUPT_EMBED_MESSAGE);
+            expect(markup).not.toContain('data-present-levels-without-change-metrics');
+            expect(markup).not.toContain('data-present-levels-change');
+            expect(markup).not.toContain('Skills improved');
+            expect(markup).not.toContain('This is a first assessment');
+            expect(markup).not.toContain('Points Captured');
+        }
+    });
+
+    it('keeps REPORT_AUTHORING_TEMPLATE_VERSION at 1 so existing drafts still finalize', () => {
+        expect(REPORT_AUTHORING_TEMPLATE_VERSION).toBe(1);
+        expect(authoringFixture.template_version).toBe(1);
+        expect(REPORT_AUTHORING_TEMPLATE_VERSION).not.toBe(REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION);
+    });
+
+    it('does not allow print emission on a corrupt Present Levels body', () => {
+        expect(finalizedReportAllowsPrintEmission(finalizedRowFixture.embedded_computed!)).toBe(true);
+
+        const slimValid = {
+            ...finalizedRowFixture.embedded_computed!,
+            computed_schema_version: REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
+            present_levels: {
+                mode: 'first_assessment' as const,
+                comparison_method: 'per_target_last_and_first_scored' as const,
+                first_assessment: {
+                    statement_key: 'first_assessment' as const,
+                    counts: { demonstrated: 1, emerging: 0, not_demonstrated: 0, unscored: 0 },
+                },
+                comparisons: [],
+            },
+        };
+        expect(finalizedReportAllowsPrintEmission(slimValid)).toBe(true);
+
+        const corruptDeclared = {
+            ...finalizedRowFixture.embedded_computed!,
+            computed_schema_version: REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
+        };
+        expect(finalizedReportAllowsPrintEmission(corruptDeclared)).toBe(false);
+    });
+
+    it('renders a stored goal domain_title instead of the raw domain id', () => {
+        const titledReport: AssessmentCommunicationReport = {
+            ...finalizedRowFixture,
+            authoring: {
+                ...authoringFixture,
+                sections: {
+                    ...authoringFixture.sections,
+                    measurable_treatment_goals: {
+                        goals: [
+                            {
+                                ...authoringFixture.sections.measurable_treatment_goals.goals[0]!,
+                                domain_id: 'A',
+                                domain_title: 'Communication',
+                            },
+                        ],
+                    },
+                },
+            },
+            embedded_computed: {
+                ...finalizedRowFixture.embedded_computed!,
+                computed_schema_version: REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION,
+                present_levels: {
+                    mode: 'first_assessment',
+                    comparison_method: 'per_target_last_and_first_scored',
+                    first_assessment: {
+                        statement_key: 'first_assessment',
+                        counts: { demonstrated: 1, emerging: 0, not_demonstrated: 0, unscored: 0 },
+                    },
+                    comparisons: [],
+                },
+            },
+        };
+
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: titledReport,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+
+        expect(markup).toContain('Goal 1 · Communication');
+        expect(markup).not.toContain('Goal 1 · A');
+        expect(markup).not.toContain('Goal 1 · DOM_A');
+    });
+
+    it('does not resolve goal domain titles from live pack data at render', () => {
+        const documentSource = readFileSync(
+            resolve(__dirname, '../components/report/FinalizedReportDocument.tsx'),
+            'utf8'
+        );
+        const presentationSource = readFileSync(
+            resolve(__dirname, '../utils/finalizedReportPresentation.ts'),
+            'utf8'
+        );
+        expect(documentSource).toContain('resolveGoalDomainHeading');
+        expect(documentSource).not.toContain('pack_snapshot');
+        expect(documentSource).not.toContain('assessmentService');
+        expect(presentationSource).toContain('goal.domain_title');
+        expect(presentationSource).not.toContain('pack_snapshot');
+    });
+
+    it('does not regress legacy fat-embed goal domain headings', () => {
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: finalizedRowFixture,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+
+        expect(markup).toContain('Goal 1 · Communication');
+        expect(markup).not.toContain('Goal 1 · DOM_A');
     });
 });
 

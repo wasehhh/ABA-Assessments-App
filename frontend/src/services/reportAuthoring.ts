@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Assessment, AssessmentCycle, AssessmentScore, ContentPackData, UserProfile } from '../types';
+import { ReportPriorCycleInput } from '../utils/reportPresentLevelsChange';
 import { assessmentService } from './assessments';
 import { buildEmbeddedComputedFromReportProfile } from './reportEmbeddedComputed';
 import { canManageReportAuthoring } from './reportAuthoringRoles';
@@ -23,6 +24,42 @@ export class ReportAuthoringError extends Error {
 }
 
 export { ReportAuthoringValidationError };
+
+/** User-facing refuse when a goal domain title cannot be resolved from the frozen pack. */
+export const GOAL_DOMAIN_TITLE_RESOLVE_ERROR =
+    "Unable to finalize this report: a treatment goal's domain title could not be resolved from the frozen pack. The report was not signed.";
+
+export function stampGoalDomainTitlesFromPack(
+    authoring: ReportAuthoring,
+    packSnapshot: ContentPackData
+): ReportAuthoring {
+    const titleByDomainId = new Map(
+        packSnapshot.domains.map((domain) => [domain.domain_id, domain.title])
+    );
+
+    return {
+        ...authoring,
+        sections: {
+            ...authoring.sections,
+            measurable_treatment_goals: {
+                goals: authoring.sections.measurable_treatment_goals.goals.map((goal) => {
+                    const title = titleByDomainId.get(goal.domain_id);
+                    if (title == null || title.trim() === '') {
+                        throw new ReportAuthoringError(GOAL_DOMAIN_TITLE_RESOLVE_ERROR);
+                    }
+                    return {
+                        ...goal,
+                        domain_title: title.trim(),
+                    };
+                }),
+            },
+        },
+    };
+}
+
+/** User-facing refuse when prior-cycle history cannot be loaded for cycle_number > 1. */
+export const PRIOR_CYCLE_HISTORY_LOAD_ERROR =
+    "Unable to finalize this report: this cycle's prior assessment history could not be loaded. The report was not signed.";
 
 async function getCurrentUserProfile(): Promise<UserProfile> {
     const {
@@ -145,26 +182,59 @@ async function assertNoDraftForScope(assessmentId: string, cycleId: string): Pro
     }
 }
 
-async function loadScoresForCycle(
+async function loadFinalizePresentLevelsInputs(
     assessmentId: string,
     cycle: AssessmentCycle
-): Promise<{ scores: AssessmentScore[]; previousScores: AssessmentScore[] }> {
+): Promise<{ scores: AssessmentScore[]; priorCycles: ReportPriorCycleInput[] }> {
     const scores = await assessmentService.getScores(assessmentId, cycle.id);
 
     if (cycle.cycle_number <= 1) {
-        return { scores, previousScores: [] };
+        return { scores, priorCycles: [] };
     }
 
-    const cycles = await assessmentService.getCycles(assessmentId);
-    const previousCycle = cycles.find(
-        (entry) => entry.cycle_number === cycle.cycle_number - 1
-    );
-    if (!previousCycle) {
-        return { scores, previousScores: [] };
+    let cycles: AssessmentCycle[] | null;
+    try {
+        cycles = await assessmentService.getCycles(assessmentId);
+    } catch {
+        throw new ReportAuthoringError(PRIOR_CYCLE_HISTORY_LOAD_ERROR);
     }
 
-    const previousScores = await assessmentService.getScores(assessmentId, previousCycle.id);
-    return { scores, previousScores };
+    if (!Array.isArray(cycles)) {
+        throw new ReportAuthoringError(PRIOR_CYCLE_HISTORY_LOAD_ERROR);
+    }
+
+    const priorRecords = cycles
+        .filter((entry) => entry.cycle_number < cycle.cycle_number)
+        .sort((left, right) => left.cycle_number - right.cycle_number);
+
+    if (priorRecords.length === 0) {
+        throw new ReportAuthoringError(PRIOR_CYCLE_HISTORY_LOAD_ERROR);
+    }
+
+    const priorCycles: ReportPriorCycleInput[] = [];
+    try {
+        for (const prior of priorRecords) {
+            const priorScores = await assessmentService.getScores(assessmentId, prior.id);
+            priorCycles.push({
+                cycle_id: prior.id,
+                cycle_number: prior.cycle_number,
+                start_date: prior.start_date,
+                end_date: prior.end_date,
+                scores: priorScores ?? [],
+            });
+        }
+    } catch (error) {
+        if (error instanceof ReportAuthoringError) {
+            throw error;
+        }
+        throw new ReportAuthoringError(PRIOR_CYCLE_HISTORY_LOAD_ERROR);
+    }
+
+    if (priorCycles.length === 0) {
+        throw new ReportAuthoringError(PRIOR_CYCLE_HISTORY_LOAD_ERROR);
+    }
+
+    return { scores, priorCycles };
 }
 
 export const reportAuthoringService = {
@@ -261,8 +331,15 @@ export const reportAuthoringService = {
         const assessment = await loadApprovedAssessment(existing.assessment_id);
         const cycle = await loadCycleForAssessment(existing.assessment_id, existing.cycle_id);
         validateAuthoringForFinalize(existing.authoring, assessment.pack_snapshot as ContentPackData);
+        const authoringToPersist = stampGoalDomainTitlesFromPack(
+            existing.authoring,
+            assessment.pack_snapshot as ContentPackData
+        );
 
-        const { scores, previousScores } = await loadScoresForCycle(existing.assessment_id, cycle);
+        const { scores, priorCycles } = await loadFinalizePresentLevelsInputs(
+            existing.assessment_id,
+            cycle
+        );
         const snapshotAt = new Date();
         const embeddedComputed = buildEmbeddedComputedFromReportProfile({
             assessment: {
@@ -275,7 +352,7 @@ export const reportAuthoringService = {
             },
             cycle,
             scores,
-            previousScores,
+            priorCycles,
             finalizedByUserId: profile.id,
             authoringClinicianName: profile.full_name,
             snapshotAt,
@@ -287,6 +364,7 @@ export const reportAuthoringService = {
             .from('assessment_communication_reports')
             .update({
                 status: 'finalized',
+                authoring: authoringToPersist,
                 embedded_computed: embeddedComputed,
                 embedded_generated_at: finalizedAt,
                 finalized_by: profile.id,

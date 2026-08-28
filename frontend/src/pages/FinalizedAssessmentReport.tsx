@@ -21,7 +21,9 @@ import {
 } from '../components/DataLoadSurface';
 import {
     defaultStructureLabelsFromPack,
+    finalizedReportAllowsPrintEmission,
     finalizedReportHasRenderableSnapshot,
+    FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE,
 } from '../utils/finalizedReportPresentation';
 import { readFinalizedReportCycleIdFromHash } from './assessmentMatrixReportEntry';
 import { executeProtectedLoad, type DataLoadState } from '../utils/dataLoadHonesty';
@@ -115,7 +117,10 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
     };
 
     const runPrint = () => {
-        if (!reportRow) {
+        if (!reportRow?.embedded_computed) {
+            return;
+        }
+        if (!finalizedReportAllowsPrintEmission(reportRow.embedded_computed)) {
             return;
         }
 
@@ -133,6 +138,12 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
     };
 
     const handlePrintClick = () => {
+        if (!reportRow?.embedded_computed) {
+            return;
+        }
+        if (!finalizedReportAllowsPrintEmission(reportRow.embedded_computed)) {
+            return;
+        }
         if (hasReportExportAcknowledged(assessmentId)) {
             runPrint();
             return;
@@ -202,6 +213,10 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
     const structureLabels = defaultStructureLabelsFromPack(assessment.pack_snapshot);
     const clientName = reportRow.embedded_computed?.overview.client_name ?? '—';
     const packLabel = `${reportRow.embedded_computed?.overview.pack_title} (v${reportRow.embedded_computed?.overview.pack_version})`;
+    const printEmissionAllowed =
+        reportRow.embedded_computed != null &&
+        finalizedReportAllowsPrintEmission(reportRow.embedded_computed);
+    const offerPrint = canPrint && printEmissionAllowed;
 
     return (
         <div className="assessment-report-print bg-white text-gray-900 min-h-screen max-w-4xl mx-auto px-6 py-10 sm:px-10 sm:py-12 print:min-h-0 print:max-w-none print:px-10 print:py-8 print:text-black">
@@ -232,7 +247,17 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
 
             <FinalizedReportDocument report={reportRow} structureLabels={structureLabels} />
 
-            {canPrint ? (
+            {canPrint && !printEmissionAllowed ? (
+                <div
+                    className="fixed bottom-8 right-8 z-10 max-w-sm rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-800 shadow-lg print:hidden"
+                    data-finalized-report-print-unavailable
+                    role="status"
+                >
+                    {FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE}
+                </div>
+            ) : null}
+
+            {offerPrint ? (
                 <>
                     <div className="fixed bottom-8 right-8 z-10 print:hidden">
                         <button

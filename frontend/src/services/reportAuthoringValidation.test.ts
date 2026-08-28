@@ -7,7 +7,7 @@ import {
     ReportAuthoringValidationError,
     validateAuthoringForFinalize,
 } from './reportAuthoringValidation';
-import { ReportAuthoring } from './reportAuthoringTypes';
+import { ReportAuthoring, REPORT_AUTHORING_TEMPLATE_VERSION } from './reportAuthoringTypes';
 
 const pack: ContentPackData = {
     pack_id: 'pack-1',
@@ -71,6 +71,13 @@ function validAuthoring(): ReportAuthoring {
 
 describe('reportAuthoringValidation finalize rules', () => {
     it('accepts a fully populated authoring payload', () => {
+        expect(() => validateAuthoringForFinalize(validAuthoring(), pack)).not.toThrow();
+    });
+
+    it('does not bump REPORT_AUTHORING_TEMPLATE_VERSION, so existing drafts still finalize', () => {
+        expect(REPORT_AUTHORING_TEMPLATE_VERSION).toBe(1);
+        expect(validAuthoring().template_version).toBe(1);
+        expect(createEmptyReportAuthoring().template_version).toBe(1);
         expect(() => validateAuthoringForFinalize(validAuthoring(), pack)).not.toThrow();
     });
 

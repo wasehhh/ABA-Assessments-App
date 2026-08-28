@@ -94,6 +94,68 @@ function draftRow(overrides: Partial<AssessmentCommunicationReport> = {}): Asses
     };
 }
 
+function completeAuthoring() {
+    return {
+        template_version: 1 as const,
+        sections: {
+            target_skills_focus: { focus_summary: 'Focus' },
+            measurable_treatment_goals: {
+                goals: [
+                    {
+                        id: 'goal-1',
+                        domain_id: 'DOM_A',
+                        goal_statement: 'Goal',
+                        mastery_criterion: 'Criterion',
+                        target_timeframe: '3_months' as const,
+                    },
+                ],
+            },
+            recommended_therapy_hours: {
+                weekly_hours: 10,
+                clinical_justification: 'Because',
+            },
+            clinical_summary: { narrative: 'Summary' },
+        },
+    };
+}
+
+function cycleRecord(id: string, cycleNumber: number) {
+    return {
+        id,
+        assessment_id: 'assess-1',
+        org_id: 'org-1',
+        cycle_number: cycleNumber,
+        status: 'in_progress' as const,
+        start_date: null,
+        end_date: null,
+        created_at: '2026-08-01T00:00:00Z',
+    };
+}
+
+function mockFinalizeReportTables(draft: AssessmentCommunicationReport) {
+    let reportsCallCount = 0;
+    mockFrom.mockImplementation((table: string) => {
+        if (table === 'user_profiles') {
+            return createQueryChain('single', adminProfile());
+        }
+        if (table === 'assessment_communication_reports') {
+            reportsCallCount += 1;
+            if (reportsCallCount === 1) {
+                return createQueryChain('single', draft);
+            }
+            if (reportsCallCount === 2) {
+                return createQueryChain('updateFinalize', {
+                    ...draft,
+                    status: 'finalized',
+                    embedded_computed: finalizedRow(1).embedded_computed,
+                });
+            }
+            return createQueryChain('updateSupersede', null);
+        }
+        throw new Error(`Unexpected table ${table}`);
+    });
+}
+
 function finalizedRow(version = 1): AssessmentCommunicationReport {
     return draftRow({
         id: `report-final-${version}`,
@@ -350,8 +412,177 @@ describe('reportAuthoringService', () => {
         const finalized = await reportAuthoringService.finalizeReport('report-1');
 
         expect(mockBuildEmbedded).toHaveBeenCalledTimes(1);
+        expect(mockBuildEmbedded.mock.calls[0][0].priorCycles).toEqual([]);
+        expect(mockBuildEmbedded.mock.calls[0][0]).not.toHaveProperty('previousScores');
         expect(finalized.status).toBe('finalized');
         expect(finalized.embedded_computed).toEqual(finalizedPayload.embedded_computed);
+    });
+
+    it('finalizeReport stamps goal domain_title from the frozen pack at finalize, not into the embed', async () => {
+        const draft = draftRow({ authoring: completeAuthoring() });
+        const finalizedPayload = finalizedRow(1);
+        mockBuildEmbedded.mockReturnValue(finalizedPayload.embedded_computed);
+
+        let reportsCallCount = 0;
+        let capturedUpdate: Record<string, unknown> | null = null;
+        mockFrom.mockImplementation((table: string) => {
+            if (table === 'user_profiles') {
+                return createQueryChain('single', adminProfile());
+            }
+            if (table === 'assessment_communication_reports') {
+                reportsCallCount += 1;
+                if (reportsCallCount === 1) {
+                    return createQueryChain('single', draft);
+                }
+                if (reportsCallCount === 2) {
+                    const chain = createQueryChain('updateFinalize', {
+                        ...draft,
+                        status: 'finalized',
+                    });
+                    chain.update = vi.fn((payload: Record<string, unknown>) => {
+                        capturedUpdate = payload;
+                        return {
+                            eq: vi.fn(() => ({
+                                eq: vi.fn(() => ({
+                                    select: vi.fn(() => ({
+                                        single: vi.fn(async () => ({
+                                            data: {
+                                                ...draft,
+                                                status: 'finalized',
+                                                authoring: payload.authoring,
+                                                embedded_computed: payload.embedded_computed,
+                                            },
+                                            error: null,
+                                        })),
+                                    })),
+                                })),
+                            })),
+                        };
+                    });
+                    return chain;
+                }
+                return createQueryChain('updateSupersede', null);
+            }
+            throw new Error(`Unexpected table ${table}`);
+        });
+
+        const { reportAuthoringService } = await import('./reportAuthoring');
+        await reportAuthoringService.finalizeReport('report-1');
+
+        const authoring = capturedUpdate?.authoring as AssessmentCommunicationReport['authoring'];
+        expect(authoring.sections.measurable_treatment_goals.goals[0]).toMatchObject({
+            domain_id: 'DOM_A',
+            domain_title: 'Domain A',
+        });
+        expect(JSON.stringify(capturedUpdate?.embedded_computed)).not.toContain('domain_title');
+    });
+
+    it('stampGoalDomainTitlesFromPack refuses a goal whose pack domain title cannot be resolved', async () => {
+        const { stampGoalDomainTitlesFromPack, GOAL_DOMAIN_TITLE_RESOLVE_ERROR, ReportAuthoringError } =
+            await import('./reportAuthoring');
+        const authoring = completeAuthoring();
+        const pack = {
+            ...approvedAssessment().pack_snapshot,
+            domains: [
+                {
+                    domain_id: 'DOM_A',
+                    title: '   ',
+                    targets: [],
+                },
+            ],
+        };
+
+        expect(() => stampGoalDomainTitlesFromPack(authoring, pack)).toThrow(ReportAuthoringError);
+        expect(() => stampGoalDomainTitlesFromPack(authoring, pack)).toThrow(
+            GOAL_DOMAIN_TITLE_RESOLVE_ERROR
+        );
+    });
+
+    it('finalizeReport does not pass empty priorCycles when cycle_number > 1 and prior load fails', async () => {
+        const draft = draftRow({
+            cycle_id: 'cycle-3',
+            authoring: completeAuthoring(),
+        });
+        mockGetCycles.mockResolvedValue([cycleRecord('cycle-3', 3)]);
+        mockGetScores.mockResolvedValue([]);
+        mockFinalizeReportTables(draft);
+
+        const { reportAuthoringService, PRIOR_CYCLE_HISTORY_LOAD_ERROR } =
+            await import('./reportAuthoring');
+
+        await expect(reportAuthoringService.finalizeReport('report-1')).rejects.toMatchObject({
+            name: 'ReportAuthoringError',
+            message: PRIOR_CYCLE_HISTORY_LOAD_ERROR,
+        });
+        expect(mockBuildEmbedded).not.toHaveBeenCalled();
+    });
+
+    it('finalizeReport fails closed when a prior-cycle score load throws', async () => {
+        const draft = draftRow({
+            cycle_id: 'cycle-3',
+            authoring: completeAuthoring(),
+        });
+        mockGetCycles.mockResolvedValue([
+            cycleRecord('cycle-3', 3),
+            cycleRecord('cycle-2', 2),
+            cycleRecord('cycle-1', 1),
+        ]);
+        mockGetScores.mockImplementation(async (_assessmentId: string, cycleId?: string) => {
+            if (cycleId === 'cycle-1' || cycleId === 'cycle-2') {
+                throw new Error('prior scores query failed');
+            }
+            return [];
+        });
+        mockFinalizeReportTables(draft);
+
+        const { reportAuthoringService, PRIOR_CYCLE_HISTORY_LOAD_ERROR } = await import(
+            './reportAuthoring'
+        );
+
+        await expect(reportAuthoringService.finalizeReport('report-1')).rejects.toMatchObject({
+            name: 'ReportAuthoringError',
+            message: PRIOR_CYCLE_HISTORY_LOAD_ERROR,
+        });
+        expect(mockBuildEmbedded).not.toHaveBeenCalled();
+    });
+
+    it('finalizeReport passes cycle shells for prior cycles that hold no scores', async () => {
+        const draft = draftRow({
+            cycle_id: 'cycle-3',
+            authoring: completeAuthoring(),
+        });
+        const finalizedPayload = finalizedRow(1);
+        mockBuildEmbedded.mockReturnValue(finalizedPayload.embedded_computed);
+        mockGetCycles.mockResolvedValue([
+            cycleRecord('cycle-3', 3),
+            cycleRecord('cycle-2', 2),
+            cycleRecord('cycle-1', 1),
+        ]);
+        mockGetScores.mockResolvedValue([]);
+        mockFinalizeReportTables(draft);
+
+        const { reportAuthoringService } = await import('./reportAuthoring');
+        await reportAuthoringService.finalizeReport('report-1');
+
+        expect(mockBuildEmbedded).toHaveBeenCalledTimes(1);
+        const input = mockBuildEmbedded.mock.calls[0][0];
+        expect(input.priorCycles).toEqual([
+            {
+                cycle_id: 'cycle-1',
+                cycle_number: 1,
+                start_date: null,
+                end_date: null,
+                scores: [],
+            },
+            {
+                cycle_id: 'cycle-2',
+                cycle_number: 2,
+                start_date: null,
+                end_date: null,
+                scores: [],
+            },
+        ]);
+        expect(input).not.toHaveProperty('previousScores');
     });
 
     it('getCurrentFinalizedVersion excludes superseded rows by querying status finalized only', async () => {

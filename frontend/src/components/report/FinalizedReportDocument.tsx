@@ -1,19 +1,23 @@
 import { type ReactNode } from 'react';
-import { ReportAssessmentScoreDistribution } from './ReportAssessmentScoreDistribution';
-import { ReportDomainScoreDistribution } from './ReportDomainScoreDistribution';
-import { ReportDomainSummaryTable } from './ReportDomainSummaryTable';
 import {
     AssessmentCommunicationReport,
-    ReportEmbeddedPresentLevelsDomainSummaryRow,
+    ReportEmbeddedPresentLevelsChange,
 } from '../../services/reportAuthoringTypes';
 import { StructureLabels } from '../../types';
-import { snapshotCellLabel } from '../assessmentSnapshot/snapshotCellDisplay';
+import { STATE_DISPLAY_LABELS } from '../assessment/domainProfile/stateDisplay';
 import {
+    FIRST_ASSESSMENT_COUNT_ORDER,
+    FIRST_ASSESSMENT_STATEMENT,
     FINALIZED_REPORT_SECTION_ORDER,
     formatFinalizedReportDate,
+    formatPresentLevelsAnchorSpan,
     formatReportTargetTimeframe,
-    presentLevelsDomainsToReportSections,
-    resolveDomainTitle,
+    legacyPresentLevelsDomainRows,
+    PRESENT_LEVELS_CORRUPT_EMBED_MESSAGE,
+    PRESENT_LEVELS_LINE_LABELS,
+    PRESENT_LEVELS_TRANSITION_METRICS,
+    resolveGoalDomainHeading,
+    selectPresentLevelsRenderBody,
 } from '../../utils/finalizedReportPresentation';
 
 interface Props {
@@ -29,20 +33,83 @@ function SectionHeading({ children }: { children: ReactNode }) {
     );
 }
 
-export function FinalizedReportDocument({ report, structureLabels }: Props) {
+function MetricCount({ value, label }: { value: number; label: string }) {
+    return (
+        <div className="text-center sm:text-left">
+            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-2xl">
+                {value}
+            </div>
+            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">{label}</div>
+        </div>
+    );
+}
+
+function PresentLevelsChangeBody({ presentLevels }: { presentLevels: ReportEmbeddedPresentLevelsChange }) {
+    if (presentLevels.mode === 'first_assessment') {
+        const counts = presentLevels.first_assessment?.counts;
+        if (!counts) {
+            return null;
+        }
+        return (
+            <div data-present-levels-change data-present-levels-mode="first_assessment">
+                <p className="text-sm text-gray-800 print:text-gray-900">{FIRST_ASSESSMENT_STATEMENT}</p>
+                <div className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-4 print:gap-4">
+                    {FIRST_ASSESSMENT_COUNT_ORDER.map((metric) => (
+                        <MetricCount
+                            key={metric.key}
+                            value={counts[metric.key]}
+                            label={STATE_DISPLAY_LABELS[metric.state]}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (presentLevels.comparisons.length === 0) {
+        return null;
+    }
+
+    return (
+        <div data-present-levels-change data-present-levels-mode={presentLevels.mode}>
+            <div className="space-y-8 print:space-y-6">
+                {presentLevels.comparisons.map((line) => {
+                    const spanCopy = formatPresentLevelsAnchorSpan(line.anchor_span);
+                    return (
+                        <div key={line.role} data-comparison-line={line.role}>
+                            <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-3 print:mb-2">
+                                {PRESENT_LEVELS_LINE_LABELS[line.label_key]}
+                            </h3>
+                            {spanCopy ? (
+                                <p className="mb-4 text-sm text-gray-700 print:text-gray-800">{spanCopy}</p>
+                            ) : null}
+                            <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 print:gap-4">
+                                {PRESENT_LEVELS_TRANSITION_METRICS.map((metric) => (
+                                    <MetricCount
+                                        key={metric.key}
+                                        value={line[metric.key]}
+                                        label={metric.label}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+export function FinalizedReportDocument({ report }: Props) {
     const embedded = report.embedded_computed!;
     const authoring = report.authoring.sections;
     const overview = embedded.overview;
     const presentLevels = embedded.present_levels;
-    const domainSections = presentLevelsDomainsToReportSections(presentLevels.domains);
-    const primaryLabel = structureLabels.primary_group ?? 'Domain';
-    const targetLabel = structureLabels.target ?? 'Target';
+    const domainRows = legacyPresentLevelsDomainRows(presentLevels);
     const snapshotAtStr = new Date(embedded.provenance.snapshot_at).toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
     });
-
-    const domainRows: ReportEmbeddedPresentLevelsDomainSummaryRow[] = presentLevels.domains;
 
     return (
         <div data-finalized-report-document>
@@ -126,71 +193,27 @@ export function FinalizedReportDocument({ report, structureLabels }: Props) {
                                 <SectionHeading>
                                     Present Levels of Performance (Baseline)
                                 </SectionHeading>
-                                <div className="rounded-xl border border-gray-200 bg-gray-50/80 px-6 py-8 sm:px-8 print:rounded-none print:border-gray-300 print:bg-white print:px-5 print:py-5">
-                                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-6 print:gap-4">
-                                        <div className="text-center sm:text-left">
-                                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-gray-900 print:text-2xl">
-                                                {presentLevels.rollup.pointsCapturedPercentage}%
-                                            </div>
-                                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">
-                                                Points Captured
-                                            </div>
-                                        </div>
-                                        <div className="text-center sm:text-left">
-                                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-emerald-700 print:text-2xl print:text-black">
-                                                {presentLevels.rollup.scoredTargets}
-                                            </div>
-                                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">
-                                                Coverage
-                                            </div>
-                                            <p className="mt-1 text-xs text-gray-500 tabular-nums print:text-gray-700">
-                                                {presentLevels.rollup.scoredTargets} of{' '}
-                                                {presentLevels.rollup.totalTargets}{' '}
-                                                {targetLabel.toLowerCase()}s scored
-                                            </p>
-                                        </div>
-                                        <div className="text-center sm:text-left">
-                                            <div className="text-3xl sm:text-4xl font-bold tabular-nums text-blue-800 print:text-2xl print:text-black">
-                                                {presentLevels.rollup.totalDomains}
-                                            </div>
-                                            <div className="mt-2 text-sm font-medium text-gray-600 print:text-gray-800">
-                                                {primaryLabel}s covered
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-8 border-t border-gray-200 pt-8 print:mt-5 print:border-gray-300 print:pt-5">
-                                        <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-4 print:mb-3">
-                                            Assessment Score Distribution
-                                        </h3>
-                                        <ReportAssessmentScoreDistribution
-                                            distribution={presentLevels.assessment_band_distribution}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="mt-8">
-                                    <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-4 print:mb-3">
-                                        {primaryLabel} summary
-                                    </h3>
-                                    <ReportDomainSummaryTable
-                                        domains={domainSections}
-                                        structureLabels={structureLabels}
-                                    />
-                                </div>
-
-                                <div className="mt-8 space-y-6 print:space-y-4">
-                                    {domainRows.map((row) => (
-                                        <div key={row.domain_id}>
-                                            <h4 className="text-sm font-semibold text-gray-900 mb-2">
-                                                {row.title}
-                                            </h4>
-                                            <ReportDomainScoreDistribution
-                                                distribution={row.state_distribution}
+                                {(() => {
+                                    const selection = selectPresentLevelsRenderBody(embedded);
+                                    if (selection.kind === 'change_metrics') {
+                                        return (
+                                            <PresentLevelsChangeBody
+                                                presentLevels={selection.presentLevels}
                                             />
-                                        </div>
-                                    ))}
-                                </div>
+                                        );
+                                    }
+                                    if (selection.kind === 'corrupt') {
+                                        return (
+                                            <p
+                                                data-present-levels-corrupt-embed
+                                                className="text-sm font-medium text-red-800 print:text-black"
+                                            >
+                                                {PRESENT_LEVELS_CORRUPT_EMBED_MESSAGE}
+                                            </p>
+                                        );
+                                    }
+                                    return <div data-present-levels-without-change-metrics />;
+                                })()}
                             </section>
                         );
                     case 'target_skills':
@@ -208,38 +231,6 @@ export function FinalizedReportDocument({ report, structureLabels }: Props) {
                                     <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
                                         {authoring.target_skills_focus.focus_summary}
                                     </p>
-                                </div>
-                                <div className="space-y-8 print:space-y-5">
-                                    {embedded.target_skills.domains.map((domain) => (
-                                        <article key={domain.domain_id}>
-                                            <h3 className="text-lg font-bold text-gray-900 print:text-base">
-                                                {domain.title}
-                                            </h3>
-                                            {domain.targets.length === 0 ? (
-                                                <p className="mt-2 text-sm text-gray-600">
-                                                    No {targetLabel.toLowerCase()}s in this{' '}
-                                                    {primaryLabel.toLowerCase()}.
-                                                </p>
-                                            ) : (
-                                                <ul className="mt-3 divide-y divide-gray-200 border border-gray-200 rounded-lg print:divide-gray-300 print:border-gray-300">
-                                                    {domain.targets.map((target) => (
-                                                        <li
-                                                            key={target.target_id}
-                                                            className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between print:px-3 print:py-2"
-                                                        >
-                                                            <span className="text-sm font-medium text-gray-900">
-                                                                {target.title}
-                                                            </span>
-                                                            <span className="text-sm tabular-nums text-gray-700">
-                                                                {target.display_score_with_max} ·{' '}
-                                                                {snapshotCellLabel(target.competency_state)}
-                                                            </span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
-                                        </article>
-                                    ))}
                                 </div>
                             </section>
                         );
@@ -259,7 +250,7 @@ export function FinalizedReportDocument({ report, structureLabels }: Props) {
                                         >
                                             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                                                 Goal {index + 1} ·{' '}
-                                                {resolveDomainTitle(domainRows, goal.domain_id)}
+                                                {resolveGoalDomainHeading(goal, domainRows)}
                                             </p>
                                             <p className="mt-2 text-sm font-medium text-gray-900 leading-relaxed">
                                                 {goal.goal_statement}

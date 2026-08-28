@@ -1,6 +1,7 @@
 import { AssessmentLandscapeRollup } from './assessmentLandscape';
 import { StateDistribution } from './domainProfile';
 import { CompetencyState } from '../utils/scoreInterpretation';
+import { ReportPresentLevelsChangeResult } from '../utils/reportPresentLevelsChange';
 
 export type ReportCommunicationStatus = 'draft' | 'finalized' | 'superseded';
 
@@ -14,9 +15,19 @@ export const REPORT_TARGET_TIMEFRAMES: readonly ReportTargetTimeframe[] = [
 
 export const REPORT_AUTHORING_TEMPLATE_VERSION = 1 as const;
 
+/**
+ * Schema version of `embedded_computed`, not of the six-slot authoring form.
+ * Distinct name from `authoring.template_version` so the two cannot be conflated.
+ * Value 5 matches the contract's counts-only change-metric body (the number
+ * Architecture placed on the wrong object).
+ */
+export const REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION = 5 as const;
+
 export interface ReportMeasurableTreatmentGoal {
     id: string;
     domain_id: string;
+    /** Frozen pack domain title, written at finalize. Not an authoring input. */
+    domain_title?: string;
     goal_statement: string;
     mastery_criterion: string;
     target_timeframe: ReportTargetTimeframe;
@@ -76,11 +87,19 @@ export interface ReportEmbeddedPresentLevelsDomainSummaryRow {
     state_distribution: StateDistribution;
 }
 
-export interface ReportEmbeddedPresentLevels {
+/** Slim Present Levels written at finalize (contract §5.2.2 / template_version 5 embed). */
+export type ReportEmbeddedPresentLevelsChange = ReportPresentLevelsChangeResult;
+
+/** Fat Present Levels retained on pre-cut rows; non-authoritative for render. */
+export interface ReportEmbeddedPresentLevelsLegacy {
     rollup: AssessmentLandscapeRollup;
     assessment_band_distribution: StateDistribution;
     domains: ReportEmbeddedPresentLevelsDomainSummaryRow[];
 }
+
+export type ReportEmbeddedPresentLevels =
+    | ReportEmbeddedPresentLevelsChange
+    | ReportEmbeddedPresentLevelsLegacy;
 
 export interface ReportEmbeddedTargetSkillRow {
     target_id: string;
@@ -101,10 +120,16 @@ export interface ReportEmbeddedTargetSkills {
 }
 
 export interface ReportEmbeddedComputed {
+    /**
+     * Declares which computed body this snapshot is. Absent on legacy rows.
+     * Not `template_version` — that field versions the authoring form.
+     */
+    computed_schema_version?: typeof REPORT_EMBEDDED_COMPUTED_SCHEMA_VERSION;
     provenance: ReportEmbeddedComputedProvenance;
     overview: ReportEmbeddedComputedOverview;
     present_levels: ReportEmbeddedPresentLevels;
-    target_skills: ReportEmbeddedTargetSkills;
+    /** Absent on new finalizes. Legacy rows may still carry this key; it must not render. */
+    target_skills?: ReportEmbeddedTargetSkills;
 }
 
 export interface AssessmentCommunicationReport {

@@ -6,8 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { ReportAssessmentScoreDistribution } from '../ReportAssessmentScoreDistribution';
 import { ReportDomainScoreDistribution } from '../ReportDomainScoreDistribution';
 import { ReportDomainSummaryTable } from '../ReportDomainSummaryTable';
+import { FinalizedReportDocument } from '../FinalizedReportDocument';
 import { buildReportProfile } from '../../../services/reportProfile';
+import { buildEmbeddedComputedFromReportProfile } from '../../../services/reportEmbeddedComputed';
 import { AssessmentScore, ContentPackData } from '../../../types';
+import { AssessmentCommunicationReport, ReportAuthoring } from '../../../services/reportAuthoringTypes';
 
 const NOTE_LEAK_PROBE = 'CONFIDENTIAL_TARGET_NOTE_DO_NOT_RENDER';
 
@@ -104,6 +107,147 @@ describe('Assessment Report note non-leakage (OQ-7)', () => {
         ]) {
             expect(markup).not.toContain(NOTE_LEAK_PROBE);
         }
+    });
+
+    it('NOTE_LEAK_PROBE covers FinalizedReportDocument via renderToStaticMarkup', () => {
+        const embedded = buildEmbeddedComputedFromReportProfile({
+            assessment: {
+                id: 'assess-probe',
+                client_id: 'client-1',
+                pack_snapshot: probePack,
+                assessment_date: '2026-05-01',
+                status: 'approved',
+                client: { first_name: 'Jamie', last_name: 'Lee' },
+            },
+            cycle: {
+                id: 'cycle-1',
+                cycle_number: 1,
+                status: 'in_progress',
+                start_date: null,
+                end_date: null,
+            },
+            scores: [makeScore(NOTE_LEAK_PROBE)],
+            priorCycles: [],
+            finalizedByUserId: 'user-1',
+            authoringClinicianName: 'Dr. Smith',
+            snapshotAt: new Date('2026-05-22T12:00:00.000Z'),
+        });
+
+        const authoring: ReportAuthoring = {
+            template_version: 1,
+            sections: {
+                target_skills_focus: { focus_summary: 'Focus summary without notes.' },
+                measurable_treatment_goals: {
+                    goals: [
+                        {
+                            id: 'goal-1',
+                            domain_id: 'DOM_PROBE',
+                            goal_statement: 'Goal statement.',
+                            mastery_criterion: 'Criterion',
+                            target_timeframe: '3_months',
+                        },
+                    ],
+                },
+                recommended_therapy_hours: {
+                    weekly_hours: 10,
+                    clinical_justification: 'Justification',
+                },
+                clinical_summary: { narrative: 'Summary' },
+            },
+        };
+
+        const slimReport: AssessmentCommunicationReport = {
+            id: 'report-probe',
+            org_id: 'org-1',
+            assessment_id: 'assess-probe',
+            cycle_id: 'cycle-1',
+            status: 'finalized',
+            version: 1,
+            authoring,
+            embedded_computed: embedded,
+            embedded_generated_at: '2026-05-22T12:00:00.000Z',
+            created_by: 'user-1',
+            last_edited_by: 'user-1',
+            finalized_by: 'user-1',
+            finalized_at: '2026-05-22T12:00:00.000Z',
+            created_at: '2026-05-22T12:00:00.000Z',
+            updated_at: '2026-05-22T12:00:00.000Z',
+        };
+
+        const slimMarkup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: slimReport,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+        expect(slimMarkup).not.toContain(NOTE_LEAK_PROBE);
+        expect(JSON.stringify(embedded)).not.toContain(NOTE_LEAK_PROBE);
+
+        const leakyLegacy: AssessmentCommunicationReport = {
+            ...slimReport,
+            embedded_computed: {
+                ...embedded,
+                present_levels: {
+                    rollup: {
+                        totalDomains: 1,
+                        incompleteDomains: 0,
+                        scoredTargets: 1,
+                        totalTargets: 1,
+                        coveragePercentage: 100,
+                        pointsCapturedPercentage: 100,
+                    },
+                    assessment_band_distribution: {
+                        unscored: 0,
+                        not_yet: 0,
+                        in_progress: 0,
+                        at_maximum: 1,
+                        showsInProgressBucket: false,
+                    },
+                    domains: [
+                        {
+                            domain_id: 'DOM_PROBE',
+                            title: 'Probe Domain',
+                            coverage: { scored: 1, total: 1 },
+                            points_captured_percentage: 100,
+                            state_distribution: {
+                                unscored: 0,
+                                not_yet: 0,
+                                in_progress: 0,
+                                at_maximum: 1,
+                                showsInProgressBucket: false,
+                            },
+                        },
+                    ],
+                },
+                target_skills: {
+                    domains: [
+                        {
+                            domain_id: 'DOM_PROBE',
+                            title: 'Probe Domain',
+                            targets: [
+                                {
+                                    target_id: 'T_PROBE',
+                                    title: 'Probe Target',
+                                    display_score_with_max: '2/2',
+                                    competency_state: 'at_maximum',
+                                    normalized_ratio: 1,
+                                    note: NOTE_LEAK_PROBE,
+                                } as never,
+                            ],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const legacyMarkup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: leakyLegacy,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+            })
+        );
+        expect(legacyMarkup).not.toContain(NOTE_LEAK_PROBE);
+        expect(legacyMarkup).not.toContain('Probe Target');
     });
 
     it('does not read or render score notes in the finalized report surface', () => {
