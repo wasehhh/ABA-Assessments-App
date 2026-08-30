@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
     Activity,
-    CheckCircle,
     ChevronDown,
     Download,
     FileCheck,
@@ -23,8 +22,6 @@ import { MATRIX_ACTION_MARKERS } from '../../pages/assessmentMatrixOverviewContr
 export const MATRIX_EXPORT_ARIA_LABEL = 'Export assessment data';
 
 interface MatrixHeaderMoreMenuProps {
-    showApprove: boolean;
-    onApprove: () => void;
     showNewCycle: boolean;
     onNewCycle: () => void;
     showSnapshot: boolean;
@@ -90,8 +87,6 @@ function MenuRow({
 }
 
 export function MatrixHeaderMoreMenu({
-    showApprove,
-    onApprove,
     showNewCycle,
     onNewCycle,
     showSnapshot,
@@ -108,7 +103,6 @@ export function MatrixHeaderMoreMenu({
     const rootRef = useRef<HTMLDivElement>(null);
 
     const showDocuments = showSnapshot || showWriteReport || showCommunicationReport;
-    const showWorkflow = showApprove;
     const showLifecycle = showNewCycle;
 
     useEffect(() => {
@@ -156,18 +150,6 @@ export function MatrixHeaderMoreMenu({
                     role="menu"
                     className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
                 >
-                    {showWorkflow ? (
-                        <MenuSection title="Workflow">
-                            <MenuRow
-                                onClick={() => closeAnd(onApprove)}
-                                icon={<CheckCircle className="h-4 w-4 text-purple-600" aria-hidden />}
-                                label="Approve assessment"
-                                className="text-purple-800 hover:bg-purple-50"
-                                marker="data-matrix-approve-assessment"
-                            />
-                        </MenuSection>
-                    ) : null}
-
                     {showLifecycle ? (
                         <MenuSection title="Lifecycle">
                             <MenuRow

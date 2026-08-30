@@ -34,6 +34,7 @@ import {
   type CycleScoresLoadState,
 } from './assessmentMatrixSaveHonesty';
 import {
+  AssessmentMatrixApproveControl,
   AssessmentMatrixScoresMainPanel,
   AssessmentMatrixSubmitControl,
 } from './AssessmentMatrixHonestySurface';
@@ -44,7 +45,7 @@ import {
   shouldShowReportAuthoringEntry,
 } from './assessmentMatrixReportEntry';
 import {
-  matrixHeaderShowsApproveInMore,
+  matrixHeaderShowsApprove,
   resolveMatrixHeaderMode,
   shouldShowNewCycleAction,
 } from './assessmentMatrixHeaderModes';
@@ -596,7 +597,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const showFinalizedReportEntry =
     shouldShowFinalizedReportEntry(assessment.status, profile?.role, hasFinalizedReport) &&
     Boolean(selectedCycleId);
-  const showApproveInMore = matrixHeaderShowsApproveInMore(headerMode);
+  const showApproveInStrip = matrixHeaderShowsApprove(headerMode);
   const showNewCycleInMore = shouldShowNewCycleAction(assessment.status, profile?.role);
 
   const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
@@ -624,7 +625,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Primary strip — sticky. Submit is the only filled accent when legal. */}
+      {/* Primary strip — sticky. At most one filled accent commit control for the current actor. */}
       <header
         className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm"
         data-matrix-header-primary-strip
@@ -677,9 +678,11 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 submitDisabledReason={submitDisabledReason}
                 onSubmit={handleSubmit}
               />
-              <MatrixHeaderMoreMenu
-                showApprove={showApproveInMore}
+              <AssessmentMatrixApproveControl
+                showApproveAssessmentButton={showApproveInStrip}
                 onApprove={handleApprove}
+              />
+              <MatrixHeaderMoreMenu
                 showNewCycle={showNewCycleInMore}
                 onNewCycle={handleStartNewCycle}
                 showSnapshot={showAssessmentSnapshotEntry}
@@ -719,6 +722,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         comparisonError={
           comparisonScoresLoadState === 'error' ? comparisonScoresLoadError : null
         }
+        submitDisabledReason={submitDisabledReason}
       />
 
       {/* Main Content */}

@@ -3,8 +3,8 @@
 | Field | Value |
 |-------|--------|
 | **Document type** | Product architecture specification (assessment Matrix header information architecture) |
-| **Status** | Authoritative contract — founder decisions locked 2026-08-29; Builder implements without further product interpretation on resolved items |
-| **Binding context** | Structural audit 2026-08-27; header hierarchy design 2026-08-27; founder corrections 2026-08-29 |
+| **Status** | Authoritative contract — founder decisions locked through 2026-08-30; Builder implements without further product interpretation on resolved items |
+| **Binding context** | Structural audit 2026-08-27; header hierarchy design 2026-08-27; founder corrections 2026-08-29; M6 Approve strip ruling + first live M6 observation 2026-08-30 |
 | **Scope** | Assessment Matrix header control hierarchy at **all breakpoints** (desktop ≥1024, tablet 768–1023). Phone out of scope. |
 | **References** | [`tablet_touch_viability_contract.md`](./tablet_touch_viability_contract.md) (touch targets + layout chrome on tablet; Model 3 three-slot geometry) · [`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) · vault G4 (Display = Export) — rule name only · [`assessment_lifecycle.md`](../product/assessment_lifecycle.md) |
 | **Verified against** | `AssessmentMatrix.tsx` · `AssessmentMatrixHonestySurface.tsx` · `assessmentScoreEditRules.ts` · `assessmentMatrixReportEntry.ts` · `DomainScoreboard.tsx` · `assessments.ts` `startNewCycle` · `types/index.ts` statuses |
@@ -27,6 +27,20 @@
 | **4** | No per-cycle domain assignment in product; unscored ≠ unassigned is ambiguous | **Recorded gap** — post-Alpha; do **not** design for it now |
 
 **Filing:** Hierarchy content previously misplaced in [`tablet_touch_viability_contract.md`](./tablet_touch_viability_contract.md) §4.6–§4.12 is **owned here**. The tablet contract retains Model 3 placement geometry and adds touch/layout-chrome rules only.
+
+---
+
+## Amendment banner — M6 Approve in primary strip (2026-08-30)
+
+**Source:** First live observation of M6 (submitted assessment constructed in QA 2026-08-30). Prior M6 row was designed from code only — no submitted assessment existed during the C0 audit. Build (`01ddb1c`) correctly put Approve in More first row; closed chrome still read generic `More`, identical to M5 — reviewer could not see that a review commit existed.
+
+**Founder ruling (binding — do not re-litigate):**
+
+| # | Decision | Rejected alternatives |
+|---|----------|----------------------|
+| **5** | In **M6**, **Approve** is a real **filled accent** control in the **header primary strip**, occupying the position and visual weight Submit holds for the therapist in **M1** | Renaming M6’s closed More label to “Review”; leaving Approve in the overflow |
+
+**Rule intent (founder):** the single-filled-accent rule is **one filled control for the person whose job that screen is**, not a global styling budget spent on nobody. In M6, Submit is not rendered, so Approve has no competitor.
 
 ---
 
@@ -84,33 +98,57 @@ Modes are derived from product dimensions in code, not from styling alone.
 
 ### 3.2 Header modes (binding enumeration)
 
-| Mode | When (assessment × cycle × role × load) | Notes |
-|------|----------------------------------------|-------|
-| **M1 — Active scoring** | `(draft \| in_progress)` ∧ cycle `in_progress` ∧ role ≠ `viewer` ∧ scores `loaded` | Default Matrix mode |
-| **M2 — Active scoring (blocked)** | M1 except scores `loading` \| `error` ∨ pending saves ∨ failed saves | Submit **visible, disabled** + reason |
-| **M3 — View only (role)** | `viewer` OR scores not editable for role | No Submit |
-| **M4 — Historical cycle** | Viewed cycle `locked` (assessment may still be active) | No Submit; read badges |
-| **M5 — Submitted (therapist)** | `submitted` ∧ therapist ∧ cycle `in_progress` | No Submit; no Approve |
-| **M6 — Submitted (review)** | `submitted` ∧ (`senior_therapist` \| `admin`) ∧ cycle `in_progress` | Review mode — Approve is workflow action |
-| **M7 — Approved locked** | `approved` | No Submit; read / evidence mode |
-| **M8 — Post–new-cycle scoring** | After New Cycle (assessment → `in_progress`, new cycle `in_progress`) | Same as **M1** |
+| Mode | When (assessment × cycle × role × load) | Notes | Observation |
+|------|----------------------------------------|-------|-------------|
+| **M1 — Active scoring** | `(draft \| in_progress)` ∧ cycle `in_progress` ∧ role ≠ `viewer` ∧ scores `loaded` | Default Matrix mode | Observed (scoring path QA) |
+| **M2 — Active scoring (blocked)** | M1 except scores `loading` \| `error` ∨ pending saves ∨ failed saves | Submit **visible, disabled** + reason | Observed (honesty path) |
+| **M3 — View only (role)** | `viewer` OR scores not editable for role | No Submit | **Unobserved** — provisional |
+| **M4 — Historical cycle** | Viewed cycle `locked` (assessment may still be active) | No Submit; read badges | **Unobserved** — provisional |
+| **M5 — Submitted (therapist)** | `submitted` ∧ therapist ∧ cycle `in_progress` | No Submit; no Approve | Not asserted in 2026-08-30 M6 round |
+| **M6 — Submitted (review)** | `submitted` ∧ (`senior_therapist` \| `admin`) ∧ cycle `in_progress` | Review mode — Approve is workflow action; scores editable for this actor | **First live observation 2026-08-30** (was provisional until then) |
+| **M7 — Approved locked** | `approved` | No Submit; read / evidence mode | Observed (approved lock path) |
+| **M8 — Post–new-cycle scoring** | After New Cycle (assessment → `in_progress`, new cycle `in_progress`) | Same as **M1** (resolver returns M1) | **Unobserved as a distinct post–New Cycle path** — provisional |
 
-**Mode missing from prior audit:** **M5 / M6 (submitted)** — no submitted assessment existed during QA. **M6** is the only mode where **Approve** is the workflow-primary control.
+**Provenance (binding):** Any mode row written **without live observation** of that state is **provisional** until observed. At first sight it is **re-checked** against the contract — not treated as verified merely because the row shipped. **M6** is the worked example: designed from code in the C0 audit era, shipped in `01ddb1c`, corrected after first live QA on 2026-08-30. **Still provisional / unobserved:** **M3**, **M4**, **M8**.
+
+**M6 is the only mode where Approve is the workflow-primary control.**
 
 **Not a ninth header mode:** cycle scores loading skeleton — chrome shows identity + save idle until `loaded` or honest error (then M2).
+
+### 3.3 M6 badge and editability (confirmed 2026-08-30)
+
+Under M6 (`submitted` ∧ admin/senior ∧ cycle `in_progress`):
+
+- **Workflow badge:** **`In review (editable)`** — matches QA observation and `AssessmentMatrix.tsx` (`scoresEditable ? 'In review (editable)' : 'In review'`).
+- **Score edit:** `canEditAssessmentScores` allows `admin` and `senior_therapist` to edit scores while the assessment is `submitted` and the viewed cycle is `in_progress`. That is intentional review behaviour, not a lock.
+- The alternate badge **`In review`** (non-editable) is only for when `scoresEditable` is false; under a well-formed M6 (cycle actually `in_progress`), the M6 actor is editable. Do not describe M6 as view-only.
 
 ---
 
 ## 4. Single primary control per mode
 
-**Rule (founder 2026-08-29):** At most **one** control on the entire Matrix viewport (header + footer + modals) uses **filled accent “commit” styling**. Competitors are demoted. **Submit is never relocated to the footer.**
+**Rule (founder 2026-08-29; intent restated 2026-08-30):** At most **one** filled accent commit control is visible to the **current actor** in the **current mode**, and every mode in which a commit action is legal for that actor **MUST** render it as that control. Competitors are demoted. **Submit is never relocated to the footer.**
 
-**Submit placement (binding):**
+**What this means:**
 
-- When submitting is legal (**M1**, and **M2** disabled), **Submit stays in the primary sticky strip** as the **single filled accent** control.
+- The budget is **per actor / per mode**, not a viewport-wide styling quota that may be spent on nobody.
+- In **M1 / M2** the actor is the scorer → **Submit** is that control (enabled or disabled-with-reason).
+- In **M6** the actor is the reviewer → **Approve** is that control. Submit is not rendered, so Approve has no competitor.
+- In modes with **no** legal commit for the actor (**M3–M5**, **M7**), there is **no** filled accent commit control.
+
+**Outside this rule (explicit):** Selected **score chips** are **selection state**, not commit styling. They are **outside** this rule. QA has checked the rule against score chips twice; do not treat a selected chip as consuming the single-primary budget.
+
+**Submit placement (binding — unchanged 2026-08-29):**
+
+- When submitting is legal (**M1**, and **M2** disabled), **Submit stays in the primary sticky strip** as the **single filled accent** control for that actor.
 - Domain Overview and Domain Scoreboard use the **same** header Submit — surface does not change placement.
 - Domain footer carries **Previous / Next domain only** — **no Submit control at all** (filled or otherwise).
 - Footer “Next domain” / “Previous domain” are **secondary** (outline or text) — never filled navy competing with header Submit.
+
+**Approve placement (binding — 2026-08-30):**
+
+- In **M6**, **Approve** stays in the **primary sticky strip** as the **single filled accent** control for the reviewer — same strip slot and visual weight as Submit in M1.
+- Approve is **not** placed in More. Rejected: rename closed More to “Review”; leave Approve in overflow.
 
 | Mode | **Single primary** (filled accent) | Where | Header strip | Context row | Overflow (“More”) |
 |------|------------------------------------|-------|--------------|-------------|-------------------|
@@ -118,12 +156,48 @@ Modes are derived from product dimensions in code, not from styling alone.
 | **M2** | **Submit assessment** (disabled) | **Header primary strip** | Same + disable reason | Compare | Same as M1 |
 | **M3** | **None** | — | Identity + More | Compare if applicable | Documents as needed |
 | **M4** | **None** | — | Identity + More | Compare if applicable | Documents as needed |
-| **M5** | **None** | — | Identity + More | Compare | Documents |
-| **M6** | **Approve assessment** | **Overflow first row** (not a header sibling button) | Identity + More; badge “In review” / “In review (editable)” | Compare | **Approve** at top of More |
+| **M5** | **None** | — | Identity + More | Compare | Documents / Export / Learner Map as gated |
+| **M6** | **Approve assessment** | **Header primary strip** | Identity + save + **filled Approve** + More; badge **In review (editable)** | Compare | Documents / Export / Learner Map only — **no** Workflow section (§4.1, §6.1) |
 | **M7** | **None** — reader must not be aimed at lifecycle | — | Identity + More (**neutral** — no lone coloured control) | Compare | New Cycle **inside** More only |
 | **M8** | Same as **M1** | Header | — | — | — |
 
+### 4.1 M6 Approve — enabled, confirm, and error (from code)
+
+Verified against `handleApprove` / `executeApprove` in `AssessmentMatrix.tsx` and `assessmentService.finalize`:
+
+| Question | Finding |
+|----------|---------|
+| Can Approve be **illegal** while M6 is otherwise active? | **No.** M6’s definition already is the Approve eligibility gate (`submitted` ∧ admin/senior ∧ cycle `in_progress`). There is no pending-save, unscored-count, or scores-load disable path for Approve analogous to Submit’s M2 gate. |
+| Pre-click control state | **Enabled** whenever shown in M6. No disabled-with-reason pattern on the strip control. |
+| Activation | Opens existing confirm dialog (`Approve Assessment` / `Approve & Finalize`); `executeApprove` calls `finalize`. |
+| Failure after confirm | Error alert (`Failed to finalize assessment: …`); dialog closes. That is **post-commit feedback**, not a disabled strip control. |
+| Session precondition | `executeApprove` no-ops if `profile.org_id` or `user.id` is missing — not an M6 product state; not modeled as a disabled Approve. |
+
+**Binding:** Do **not** invent an M2-style disabled Approve for M6. While M6 holds, the strip Approve control is enabled; honesty for Approve is confirm + error alert, not a disabled primary.
+
+### 4.2 Tablet fit for M6 (hierarchy confirms; tablet owns chrome rules)
+
+[`tablet_touch_viability_contract.md`](./tablet_touch_viability_contract.md) owns touch targets and layout chrome. This section **confirms** the amended M6 strip against those rules; it does **not** move header ownership into the tablet contract.
+
+At **768×1024** (Tablet class):
+
+- M6 primary strip is **Identity + filled Approve + More** — same three-slot right-cluster geometry as M1’s Identity + Submit + More.
+- **Approve** and **More** remain fully visible and operable; Approve meets the same minimum hit target as header Submit on tablet (**≥ 44×44** CSS px).
+- Primary strip has **no** `overflow-x` scroller and **no** clipped primary actions (tablet §1.3 / §4.3).
+- Sticky height stays within the tablet **≤ 72** CSS px primary-strip budget (tablet §5.2).
+
+**If Identity + Approve + More cannot fit at width 768 without overflow:**
+
+1. **Truncate / compress identity** (learner name, pack title) first — already allowed on tablet.
+2. **Never** introduce a horizontal scroller on the primary strip.
+3. **Never** clip or bury **Approve** or **More**.
+4. **Never** move Approve into More to reclaim width (founder rejected overflow placement).
+
+Builder measures at 768×1024 after shipping the strip Approve; if identity truncation alone is insufficient, **stop and report** — do not invent a second overflow pattern here.
+
 **Rejected (2026-08-29):** Footer Submit on last domain; hiding header Submit on scoreboard; outlined-only Submit on overview pending “all domains visited.” Those assumed sequential domain completion and made Submit unreachable when therapists score a subset of domains (see §8).
+
+**Rejected (2026-08-30):** Approve only in More; renaming closed More to “Review” in M6.
 
 ---
 
@@ -132,17 +206,18 @@ Modes are derived from product dimensions in code, not from styling alone.
 Same Model 3 structure on **Desktop and Tablet** — one placement model. Geometry and sticky budget details for tablet live in [`tablet_touch_viability_contract.md`](./tablet_touch_viability_contract.md) §4–§5. This contract binds **what goes in each slot** and **which control is primary**.
 
 ```
-┌─ PRIMARY STRIP (sticky) ──────────────────────────────────────────────┐
-│ [← Assessments]  Client | Pack  Cycle N  [badge]  Save  [Submit*]  [More] │
-└───────────────────────────────────────────────────────────────────────┘
-┌─ CONTEXT ROW (non-sticky) ────────────────────────────────────────────┐
-│ Compare with cycle ▾                                                     │
-└───────────────────────────────────────────────────────────────────────┘
-┌─ BODY — scoring grid / domain scoreboard ─────────────────────────────┐
-│ …                                                                      │
-│ Footer (scoreboard): [Previous domain]     [Next domain]  ← secondary  │
-└───────────────────────────────────────────────────────────────────────┘
+┌─ PRIMARY STRIP (sticky) ──────────────────────────────────────────────────┐
+│ [← Assessments]  Client | Pack  Cycle N  [badge]  Save  [Submit*|Approve†] [More] │
+└───────────────────────────────────────────────────────────────────────────┘
+┌─ CONTEXT ROW (non-sticky) ────────────────────────────────────────────────┐
+│ Compare with cycle ▾                                                         │
+└───────────────────────────────────────────────────────────────────────────┘
+┌─ BODY — scoring grid / domain scoreboard ─────────────────────────────────┐
+│ …                                                                          │
+│ Footer (scoreboard): [Previous domain]     [Next domain]  ← secondary      │
+└───────────────────────────────────────────────────────────────────────────┘
 * Submit only when legal (M1 / M2).
+† Approve only in M6 (header filled accent — never both Submit and Approve).
 ```
 
 ---
@@ -152,25 +227,27 @@ Same Model 3 structure on **Desktop and Tablet** — one placement model. Geomet
 | Job class | Controls | Placement | Rationale |
 |-----------|----------|-----------|-----------|
 | **Session identity** | Back, learner, pack, cycle badge, workflow badge, save | Primary strip (left) | Always visible while scoring; no competition with commits |
-| **Workflow commit** | Submit | **Primary strip — filled** when legal | Must remain reachable without visiting a particular domain order |
-| **Workflow commit** | Approve | Top of More in **M6** only | Infrequent; keeps strip calm; never beside filled Submit |
+| **Workflow commit** | Submit | **Primary strip — filled** when legal (M1 / M2) | Must remain reachable without visiting a particular domain order |
+| **Workflow commit** | Approve | **Primary strip — filled** in **M6** only | Same strip weight as Submit for the reviewer; never buried in More |
 | **Mid-session analysis** | Compare + cycle select | Non-sticky context row | Needed while scoring; must not widen sticky strip |
 | **Lifecycle** | New Cycle | More only; gated per §7 | Rare; must not shout on read-only approved visits |
 | **Navigation / output** | Learner Map, documents, Export | More → grouped submenus (§6.1) | Computer surfaces; not the scoring path |
 
 ### 6.1 Overflow (“More”) structure
 
-Fixed sections in order (omit empty sections):
+Fixed sections in order (**omit empty sections** entirely — including omitting the section header):
 
-1. **Workflow** — Approve (**M6** only).
+1. **Workflow** — reserved for strip-eligible commit actions that are temporarily overflow-only. **After 2026-08-30:** Approve no longer lives here. With no remaining Workflow members, the **Workflow group is omitted** in M6 (group header disappears with the group).
 2. **Lifecycle** — New Cycle (`approved` ∧ admin/senior) — §7.
 3. **Documents** — §9 doors, each gated independently.
 4. **Analysis export** — Export… → Matrix CSV / Analytics CSV (existing submenu).
 5. **Computer surfaces** — Learner Map (desktop-first; tablet reachable but deprioritized).
 
-**Stays out of More:** Submit (must not be buried), Compare (context row), Back, identity.
+**M6 More contents (binding):** Documents (as gated) · Export · Learner Map. No Approve. No Workflow section.
 
-**Tablet (`768 ≤ width < 1024`):** Primary strip = identity + save + **Submit when legal** + More. Compare in context row. Therapist More often contains only sections 3–5.
+**Stays out of More:** Submit (must not be buried), **Approve** (must not be buried), Compare (context row), Back, identity.
+
+**Tablet (`768 ≤ width < 1024`):** Primary strip = identity + save + **Submit when legal (M1/M2)** or **Approve when M6** + More. Compare in context row. Therapist More often contains only sections 3–5.
 
 ---
 
@@ -256,9 +333,11 @@ Domain exit reads as **in-assessment navigation**, not leave-assessment. On tabl
 | Control | Styling class | When |
 |---------|---------------|------|
 | **Submit assessment** | **Primary** — filled emerald | **M1 / M2** in **header only** |
+| **Approve assessment** | **Primary** — filled accent (existing Approve accent family; same strip weight as Submit) | **M6** in **header only** |
 | **Next / Previous domain** | **Secondary** — outline or text (no filled navy) | Domain scoreboard footer always |
-| **Approve** | Accent when opened from More (confirm path) | **M6** — never a filled sibling next to Submit (Submit absent in M6) |
 | **Footer Submit** | **Removed** | Never |
+
+Submit and Approve never appear together: Submit is absent in M6; Approve is absent in M1/M2.
 
 ---
 
@@ -266,21 +345,22 @@ Domain exit reads as **in-assessment navigation**, not leave-assessment. On tabl
 
 | File | Change class |
 |------|----------------|
-| `frontend/src/pages/AssessmentMatrix.tsx` | Split header into primary strip + context row; wire More sections; **header filled Submit** when legal; remove flat peer action row; gate New Cycle per §7 |
-| `frontend/src/pages/AssessmentMatrixHonestySurface.tsx` | Header Submit control only; honesty disable reasons; **remove any surface that relocates Submit to footer** |
-| `frontend/src/pages/assessmentMatrixHeaderModes.ts` *(new)* | Pure mode resolver: M1–M8 from status/role/cycle/load |
+| `frontend/src/pages/AssessmentMatrix.tsx` | Primary strip + context row + More; **header filled Submit** (M1/M2); **header filled Approve** (M6); gate New Cycle per §7 |
+| `frontend/src/pages/AssessmentMatrixHonestySurface.tsx` | Header Submit control only; honesty disable reasons; **no footer Submit** |
+| `frontend/src/pages/assessmentMatrixHeaderModes.ts` | Mode resolver M1–M8; **Approve shown in strip for M6** (not More-only helper) |
 | `frontend/src/pages/assessmentMatrixReportEntry.ts` | Document door labels/routes (Snapshot / Write Report / Communication Report) |
 | `frontend/src/pages/assessmentMatrixOverviewContract.ts` | Update `MATRIX_ACTION_MARKERS` / labels for document doors |
 | `frontend/src/components/assessment/DomainScoreboard.tsx` | “All domains” back; demote Next/Prev to secondary; **remove footer Submit entirely** |
-| `frontend/src/components/assessment/MatrixHeaderMoreMenu.tsx` *(new)* | Grouped overflow UI (§6.1) |
-| `frontend/src/components/assessment/MatrixContextRow.tsx` *(new)* | Compare strip below primary |
+| `frontend/src/components/assessment/MatrixHeaderMoreMenu.tsx` | Grouped overflow; **omit Workflow section when empty** (M6 has no Approve in More) |
+| `frontend/src/components/assessment/MatrixContextRow.tsx` | Compare strip below primary |
 | `frontend/src/pages/AssessmentMatrixHonestySurface.test.ts` | Header Submit visibility/disable; no footer Submit coupling |
+| `frontend/src/pages/assessmentMatrixHeaderModes.test.ts` | M6 Approve-in-strip; More contents without Approve |
 | `frontend/src/pages/assessmentMatrixOverviewContract.test.ts` | Label/marker contracts |
 | `frontend/src/pages/assessmentMatrixReportEntry.test.ts` | Door gating + labels |
 | `docs/architecture/assessment_matrix_header_hierarchy_contract.md` | This contract |
-| `docs/architecture/tablet_touch_viability_contract.md` | Pointer only; align footer notes (no Submit); touch/chrome unchanged |
+| `docs/architecture/tablet_touch_viability_contract.md` | Touch/chrome only; placement tables that still say “Approve → Overflow” must be **pointer-aligned** to this contract (not re-owned) |
 
-**Out of scope this round:** `Layout.tsx` nav breakpoint (tablet T2); score track Approach C; Report/Snapshot page layouts; per-cycle domain assignment; terminology sweep of “Finalized Report” in authoring/G4 docs (post-C1).
+**Out of scope this round:** `Layout.tsx` nav breakpoint (tablet T2); score track Approach C; Report/Snapshot page layouts; per-cycle domain assignment; terminology sweep of “Finalized Report” in authoring/G4 docs (post-C1); `executeApprove` `window.location.reload()`; M2 disable-reason visibility conformance (existing contract text — Builder slice, no amendment).
 
 ---
 
@@ -290,10 +370,11 @@ Domain exit reads as **in-assessment navigation**, not leave-assessment. On tabl
 |----|----------|--------|
 | **OQ-MH-1** (was OQ-TT-16) | Document door strings + one-line subtitles as §9 | 2026-08-29 founder |
 | **OQ-MH-2** (was OQ-TT-17) | Submit **always header filled** when legal; no overview/scoreboard split; no last-domain footer Submit | 2026-08-29 founder |
-| **OQ-MH-3** (was OQ-TT-18) | Approve in **More first row** in M6 (not primary-strip sibling) | 2026-08-27 recommendation, carried as binding with header-Submit correction |
+| **OQ-MH-3** (was OQ-TT-18) | ~~Approve in More first row in M6~~ | **Superseded 2026-08-30** — Approve in **header primary strip** in M6 (founder ruling § amendment banner) |
 | **OQ-MH-4** | New Cycle = deliberate `approved`-only workflow | 2026-08-29 founder |
+| **OQ-MH-5** | Single-primary rule is **per actor / per mode**; M6 strip Approve; score chips outside the rule | 2026-08-30 founder |
 
-**Not product-open (implementation taste only):** emerald/purple exact hues; More menu glyph; whether overflow uses chevron vs “More” label.
+**Not product-open (implementation taste only):** emerald vs purple exact hues for the filled commit (Submit emerald / Approve existing purple family); More menu glyph; whether overflow uses chevron vs “More” label.
 
 ---
 
@@ -303,3 +384,4 @@ Domain exit reads as **in-assessment navigation**, not leave-assessment. On tabl
 |------|--------|
 | 2026-08-27 | Hierarchy design drafted (then filed under tablet contract §4.6–§4.12) |
 | 2026-08-29 | Founder corrections: header Submit; document doors approved; New Cycle as workflow policy; domain-assignment gap recorded; extracted to this document |
+| 2026-08-30 | M6 first live observation; Approve moved to header primary strip; single-primary rule restated per-actor; Approve enabled/error from code; M6 badge/editability confirmed; mode provenance note; tablet fit confirmation |

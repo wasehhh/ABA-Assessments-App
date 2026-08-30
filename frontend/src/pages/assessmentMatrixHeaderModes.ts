@@ -73,8 +73,8 @@ export function matrixHeaderShowsSubmit(mode: MatrixHeaderMode): boolean {
     return mode === 'M1' || mode === 'M2';
 }
 
-/** Approve is the workflow action in M6 only — overflow first row, never a strip sibling. */
-export function matrixHeaderShowsApproveInMore(mode: MatrixHeaderMode): boolean {
+/** Approve is the header filled primary in M6 only — strip, never More. */
+export function matrixHeaderShowsApprove(mode: MatrixHeaderMode): boolean {
     return mode === 'M6';
 }
 

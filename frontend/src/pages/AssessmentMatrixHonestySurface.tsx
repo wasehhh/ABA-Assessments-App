@@ -1,6 +1,10 @@
-import { Save } from 'lucide-react';
+import { CheckCircle, Save } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { CycleScoresLoadState } from './assessmentMatrixSaveHonesty';
+
+/** Filled accent chrome shared by header Submit (M1) and header Approve (M6). */
+export const MATRIX_HEADER_FILLED_ACCENT_CLASS =
+    'inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm bg-emerald-600 text-white hover:bg-emerald-700';
 
 interface SubmitControlProps {
     showSubmitAssessmentButton: boolean;
@@ -31,14 +35,41 @@ export function AssessmentMatrixSubmitControl({
                     : 'Submit assessment'
             }
             data-matrix-submit-assessment
-            className={`inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm ${
+            className={
                 submitControlDisabled
-                    ? 'cursor-not-allowed bg-gray-200 text-gray-500'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-            }`}
+                    ? 'inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm cursor-not-allowed bg-gray-200 text-gray-500'
+                    : MATRIX_HEADER_FILLED_ACCENT_CLASS
+            }
         >
             <Save className="w-4 h-4" aria-hidden />
             Submit
+        </button>
+    );
+}
+
+interface ApproveControlProps {
+    showApproveAssessmentButton: boolean;
+    onApprove: () => void;
+}
+
+export function AssessmentMatrixApproveControl({
+    showApproveAssessmentButton,
+    onApprove,
+}: ApproveControlProps) {
+    if (!showApproveAssessmentButton) {
+        return null;
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={onApprove}
+            aria-label="Approve assessment"
+            data-matrix-approve-assessment
+            className={MATRIX_HEADER_FILLED_ACCENT_CLASS}
+        >
+            <CheckCircle className="w-4 h-4" aria-hidden />
+            Approve
         </button>
     );
 }

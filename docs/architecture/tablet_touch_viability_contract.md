@@ -418,7 +418,7 @@ Same three-slot structure on **Desktop and Tablet** — one placement model.
 | **Submit** | Primary strip **only** (filled accent when legal; **never** in domain footer) | Existing scorable-cycle rules (`showSubmitAssessmentButton`); must be visible without opening More — hierarchy contract §4 |
 | **More** | Primary strip | When any overflow item is available |
 | **Compare With Another Cycle** + select | **Non-sticky assessment context row** (§4.4) — **both Tablet and Desktop** | When ≥1 other cycle exists to compare; comparison load error inline in this row when present |
-| **Approve** | Overflow | `status === 'submitted'` ∧ admin \| senior_therapist (**OQ-TT-6 A**) |
+| **Approve** | See [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) | Header control placement is owned by the hierarchy contract |
 | **New Cycle** | Overflow | **`status === 'approved'`** ∧ admin \| senior_therapist — founder workflow policy (hierarchy contract §7) |
 | **Learner Map** | Overflow | Existing availability; computer surface |
 | **Write Report** | Overflow | Existing authoring-entry conditions (hierarchy contract §9) |
@@ -590,7 +590,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 | **OQ-TT-3** | **A** — nav split at `lg` (1024) | SPM accepted | Sign Out in-viewport at 768; **extended 2026-08-25:** also at 1024 via Account panel (§3.1) |
 | **OQ-TT-4** | **Personally assigned** tablets | Founder | Overturns shared posture; **operational assumption about AIM, not a product property** — revisit Sign Out/session if devices become shared (§3.3) |
 | **OQ-TT-5** | **Compare stays** on tablet scoring path | Founder | Clinical ABA practice; **not** re-argued. Placement = non-sticky context row (SPM) so §1.3 holds |
-| **OQ-TT-6** | **A** — Approve to overflow | SPM accepted | |
+| **OQ-TT-6** | Header control placement (including Approve) is owned by [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) | — | |
 | **OQ-TT-7** | **A with wrap** + **ABLLS pack verification before implementation** | SPM accepted | Legend may fail on clinic packs even if fine on short scales |
 | **OQ-TT-8** | **A** — keep fixed domain footer for Alpha; revisit if sticky budget fails QA | SPM accepted | |
 | **OQ-TT-9** | **Keep normal app navigation** on tablet Matrix | Founder | No thin session bar / fullscreen session; Layout **must scroll away**, not become a third sticky (§5.2) |
@@ -633,7 +633,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 - [ ] Primary strip: no internal horizontal scroller; **header filled Submit** when legal; save visible while scoring (full hierarchy checklist → header hierarchy contract)
 - [ ] Domain footer: Prev/Next **secondary**; **no** footer Submit
 - [ ] Non-sticky context row hosts Compare (usable without opening More); does not consume sticky ceiling
-- [ ] New Cycle absent unless `approved`; Approve only in More when submitted + role
+- [ ] New Cycle absent unless `approved`; Approve placement — see [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md)
 - [ ] Score buttons ≥ 44×44 (**size stands**); **Approach C** reserved score track — ordinary numeric scales on **one row**; Domain A last score control y ≤ **3100** at 768×1024
 - [ ] Criterion text not `title`-only; scale legend verified against a real ABLLS pack (or Model B fallback documented)
 - [ ] Domain identity determinable after scroll (sticky domain bar within ≤112px combined sticky ceiling; assume ~3000 domain height)

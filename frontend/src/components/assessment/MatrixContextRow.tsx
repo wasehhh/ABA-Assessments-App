@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useId } from 'react';
 
 export interface MatrixContextCycleOption {
     id: string;
@@ -11,6 +11,7 @@ interface MatrixContextRowProps {
     compareCycleId: string | null;
     onCompareCycleChange: (cycleId: string | null) => void;
     comparisonError: string | null;
+    submitDisabledReason: string | null;
 }
 
 export function MatrixContextRow({
@@ -19,11 +20,14 @@ export function MatrixContextRow({
     compareCycleId,
     onCompareCycleChange,
     comparisonError,
+    submitDisabledReason,
 }: MatrixContextRowProps) {
     const selectId = useId();
     const otherCycles = cycles.filter((cycle) => cycle.id !== viewingCycleId);
+    const showCompare = otherCycles.length > 0;
+    const showDisableReason = Boolean(submitDisabledReason);
 
-    if (otherCycles.length === 0) {
+    if (!showCompare && !showDisableReason) {
         return null;
     }
 
@@ -33,30 +37,43 @@ export function MatrixContextRow({
             data-matrix-context-row
         >
             <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-2 sm:px-6 lg:px-8">
-                <label
-                    htmlFor={selectId}
-                    className="text-xs font-semibold uppercase tracking-wide text-gray-500"
-                >
-                    Compare with cycle
-                </label>
-                <select
-                    id={selectId}
-                    value={compareCycleId || ''}
-                    onChange={(e) =>
-                        onCompareCycleChange(e.target.value === '' ? null : e.target.value)
-                    }
-                    className="rounded border-gray-300 py-1 text-xs focus:ring-emerald-500"
-                >
-                    <option value="">None</option>
-                    {otherCycles.map((cycle) => (
-                        <option key={cycle.id} value={cycle.id}>
-                            Cycle {cycle.cycle_number}
-                        </option>
-                    ))}
-                </select>
+                {showCompare ? (
+                    <>
+                        <label
+                            htmlFor={selectId}
+                            className="text-xs font-semibold uppercase tracking-wide text-gray-500"
+                        >
+                            Compare with cycle
+                        </label>
+                        <select
+                            id={selectId}
+                            value={compareCycleId || ''}
+                            onChange={(e) =>
+                                onCompareCycleChange(e.target.value === '' ? null : e.target.value)
+                            }
+                            className="rounded border-gray-300 py-1 text-xs focus:ring-emerald-500"
+                        >
+                            <option value="">None</option>
+                            {otherCycles.map((cycle) => (
+                                <option key={cycle.id} value={cycle.id}>
+                                    Cycle {cycle.cycle_number}
+                                </option>
+                            ))}
+                        </select>
+                    </>
+                ) : null}
                 {comparisonError ? (
                     <span className="text-xs text-amber-800" role="status">
                         {comparisonError}
+                    </span>
+                ) : null}
+                {showDisableReason ? (
+                    <span
+                        className="text-xs text-amber-800"
+                        role="status"
+                        data-matrix-submit-disable-reason
+                    >
+                        {submitDisabledReason}
                     </span>
                 ) : null}
             </div>
