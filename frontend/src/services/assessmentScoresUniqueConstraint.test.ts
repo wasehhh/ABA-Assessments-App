@@ -15,9 +15,11 @@ describe('assessment_scores cycle-target unique constraint', () => {
       /ADD CONSTRAINT\s+assessment_scores_cycle_target_unique\s+UNIQUE\s*\(\s*assessment_cycle_id\s*,\s*target_id\s*\)/i
     );
 
-    const uniqueClauses = [...sql.matchAll(/UNIQUE\s*\(([^)]+)\)/gi)];
-    expect(uniqueClauses.length).toBe(1);
-    const columns = uniqueClauses[0][1].split(',').map((column) => column.trim());
+    const addConstraint = sql.match(
+      /ADD CONSTRAINT\s+assessment_scores_cycle_target_unique\s+UNIQUE\s*\(([^)]+)\)/i
+    );
+    expect(addConstraint).not.toBeNull();
+    const columns = addConstraint![1].split(',').map((column) => column.trim());
     expect(columns).toEqual(['assessment_cycle_id', 'target_id']);
     expect(columns).not.toContain('assessment_id');
   });

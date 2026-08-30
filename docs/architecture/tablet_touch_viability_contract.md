@@ -2,18 +2,18 @@
 
 | Field | Value |
 |-------|--------|
-| **Document type** | Product architecture specification (tablet / touch viability + assessment header IA) |
+| **Document type** | Product architecture specification (tablet / touch viability) |
 | **Status** | Authoritative contract — founder/SPM decisions locked 2026-08-25; Builder implements without further product interpretation on resolved OQs |
 | **Binding context** | Founder statement 2026-08-25: tablet is for conducting and scoring assessments; everything else is a computer surface |
 | **Evidence base** | QA measurements at 1440×900, 1024×768, 768×1024 with touch emulation (2026) |
-| **References** | [`assessment_lifecycle.md`](../product/assessment_lifecycle.md) · vault G4 (Display = Export) / G5 (Snapshot = Matrix) — rule names only · SPM Operating Contract §5.5 (Reference-Not-Duplicate) |
+| **References** | [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) (header modes, primary control, More grouping, document doors — all breakpoints) · [`assessment_lifecycle.md`](../product/assessment_lifecycle.md) · vault G4 (Display = Export) / G5 (Snapshot = Matrix) — rule names only · SPM Operating Contract §5.5 (Reference-Not-Duplicate) |
 | **Verified against** | `Layout.tsx` · `AssessmentMatrix.tsx` · `AssessmentMatrixHonestySurface.tsx` · `DomainScoreboard.tsx` · `TargetScoreControls.tsx` · `TargetDetailModal.tsx` · `assessments.ts` `startNewCycle` · `Login.tsx` (scope only; not QA-measured) |
 
-This document is the **first** tablet behaviour contract in `docs/architecture/`. Existing responsive behaviour is incidental Tailwind breakpoint usage, not designed intent. It defines how Evalis behaves on clinic tablets used for in-session scoring, and restructures the assessment header as one information-architecture problem that must also reduce desktop clutter.
+This document is the **first** tablet behaviour contract in `docs/architecture/`. Existing responsive behaviour is incidental Tailwind breakpoint usage, not designed intent. It defines how Evalis behaves on clinic tablets used for in-session scoring. Assessment Matrix **header control hierarchy** (modes, which control is primary, document-door naming, New Cycle policy) is owned by [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) at all breakpoints; this document only adds **touch-target** and **layout-chrome** rules on top of that shared Model 3 geometry.
 
 **Do not commit this document as part of an implementation PR unless separately instructed.**
 
-**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns form-factor commitments, tablet surface scope, touch rules on the scoring path, score-column / reserved-track layout (including measured reflow cliffs), navigation breakpoint intent, Sign Out in-viewport guarantees by axis, assessment header placement of every control, the non-sticky assessment context row, domain-identity-while-scrolling behaviour, score-criterion discoverability without an extra scoring tap, and Login tablet obligations. It references lifecycle status meaning and vault G4/G5 by rule name. It does not restate Effective Scoring, Snapshot bead rendering, Report consolidation, or Builder Phase D.
+**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns form-factor commitments, tablet surface scope, touch rules on the scoring path, score-column / reserved-track layout (including measured reflow cliffs), navigation breakpoint intent, Sign Out in-viewport guarantees by axis, the three-slot header **geometry** on tablet (sticky primary / non-sticky context row / More), domain-identity-while-scrolling behaviour, score-criterion discoverability without an extra scoring tap, and Login tablet obligations. Header **modes, primary-per-mode, document doors, and New Cycle workflow policy** are owned by the header hierarchy contract. It references lifecycle status meaning and vault G4/G5 by rule name. It does not restate Effective Scoring, Snapshot bead rendering, Report consolidation, or Builder Phase D.
 
 ---
 
@@ -34,7 +34,7 @@ This document is the **first** tablet behaviour contract in `docs/architecture/`
 - **`title` tooltips do not fire on touch** — criterion text unreachable mid-session without AT.
 - One tap scores one target; no horizontal scroll required to score at 768×1024.
 - 19-target domain: 71 score buttons; 14 in first 1024px; last button **y ≈ 2847**.
-- Domain scoreboard also has a **fixed bottom** domain-nav / Submit footer (`z-20`).
+- Domain scoreboard also has a **fixed bottom** domain-nav footer (`z-20`) — Prev/Next today; Submit must not live here (header hierarchy contract).
 - Matrix route is wrapped in **`Layout`** (`App.tsx`) — top app nav and assessment sticky header both consume vertical space before content.
 
 ## 0.3 Assessment header control set (complete sibling set)
@@ -51,7 +51,7 @@ Enumerated from `AssessmentMatrix.tsx` header (right actions + left identity):
 | Compare With Another Cycle + select | `hidden md:flex` — **visible at 768+** |
 | Submit | `AssessmentMatrixSubmitControl` — `hidden sm:flex`; only when scorable |
 | Approve | `submitted` + admin / senior_therapist; `hidden sm:flex` |
-| New Cycle | admin / senior_therapist; `hidden sm:flex`; **not** gated on `approved` |
+| New Cycle | admin / senior_therapist; `hidden sm:flex`; **not** gated on `approved` in current UI (service requires `approved`; hierarchy contract aligns UI to that policy) |
 | Learner Map | Always (sm+); navigates off Matrix |
 | Report | Authoring entry conditions |
 | Finalized Report | Finalized row conditions |
@@ -60,7 +60,7 @@ Enumerated from `AssessmentMatrix.tsx` header (right actions + left identity):
 
 QA: at 768 the actions cluster becomes an overflowing row (~**1050px** content width); Export past viewport.
 
-**Known defect:** `startNewCycle` throws unless `assessment.status === 'approved'` (`assessments.ts`), but the button is shown whenever the role matches — visibility bug this contract dissolves structurally.
+**UI/service mismatch (current code):** `startNewCycle` requires `assessment.status === 'approved'` (`assessments.ts`), but the button is shown whenever the role matches. Alignment is **deliberate workflow policy** in [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) §7 — New Cycle only when approved, inside More — not a casual bugfix.
 
 ## 0.4 Target Detail Modal
 
@@ -358,11 +358,13 @@ Login is the first step of a tablet session. QA did **not** measure it; these ob
 
 ---
 
-# 4. Assessment header information architecture
+# 4. Assessment header information architecture (tablet chrome)
+
+**Pointer:** Control hierarchy — modes M1–M8, single primary per mode, More grouping, document-door names, back disambiguation, New Cycle policy, footer Submit removal — is governed by [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) at **all breakpoints**. This section specifies only the **three-slot geometry**, Compare placement, and sticky-budget interaction that tablet scoring requires.
 
 ## 4.1 Problem statement
 
-One control row mixes **therapist in-session scoring actions** with **supervisor / administrative / evidence-document actions**. At 768 it overflows. On desktop it is reported as cluttered. This is **one IA problem** with one model — not a tablet-only patch and a separate desktop cleanup.
+One control row mixes **therapist in-session scoring actions** with **supervisor / administrative / evidence-document actions**. At 768 it overflows. On desktop it is reported as cluttered. Density and overflow are tablet concerns addressed here; **which control is primary and how side doors group** are owned by the header hierarchy contract.
 
 ## 4.2 Models compared
 
@@ -372,7 +374,7 @@ All non-primary actions collapse into one overflow menu; primary strip holds ide
 
 | Pros | Cons |
 |------|------|
-| Guarantees no horizontal scroller at 768 | Overflow becomes a junk drawer; New Cycle can still appear when illegal unless extra rules |
+| Guarantees no horizontal scroller at 768 | Overflow becomes a junk drawer without hierarchy-contract gating |
 | Simple to implement | Cannot host mid-session Compare without either overflowing the strip or burying Compare |
 
 ### Model 2 — Role- and workflow-state-scoped presentation only
@@ -381,16 +383,16 @@ Show a control only if role ∧ workflow make it meaningful; keep them all in on
 
 | Pros | Cons |
 |------|------|
-| Dissolves New Cycle bug | At 768, lawful buttons still overflow |
+| Aligns New Cycle visibility with approved-only policy | At 768, lawful buttons still overflow |
 | Honest UI | Does not by itself fix density; Compare in-strip still breaks §1.3 |
 
 ### Model 3 — **Scoped primary strip + non-sticky context row + grouped overflow** (**selected**)
 
 Three structural slots:
 
-1. **Primary sticky strip:** identity + cycle + workflow + save + **Submit when scorable** + **More**.
+1. **Primary sticky strip:** identity + cycle + workflow + save + **Submit when scorable** (header filled accent — hierarchy contract) + **More**.
 2. **Non-sticky assessment context row:** mid-session controls that must stay **reachable while scoring** but must **not** consume sticky ceiling or widen the primary strip — **Compare lives here** (SPM resolution, 2026-08-25).
-3. **Overflow (“More”):** secondary / computer / supervisor actions, each gated by role ∧ workflow ∧ availability.
+3. **Overflow (“More”):** secondary / computer / supervisor actions, each gated by role ∧ workflow ∧ availability (section order in hierarchy contract).
 
 Same three-slot structure on **Desktop and Tablet** — one placement model.
 
@@ -398,7 +400,7 @@ Same three-slot structure on **Desktop and Tablet** — one placement model.
 |------|------|
 | Holds §1.3 (no primary-strip horizontal scroller) | Requires explicit placement (§4.3–§4.4) |
 | Compare usable mid-session without sticky budget cost | Context row scrolls away — therapist scrolls up to change compare cycle (acceptable) |
-| Dissolves New Cycle structurally | — |
+| Hosts New Cycle / documents without strip competition | — |
 | Fixes desktop clutter with the same model | — |
 
 **Selection:** **Model 3** (extended with the context row). Founder requires Compare on the tablet scoring path; SPM requires it **outside** the sticky primary strip so §1.3 and §5.2 hold. That collision is **resolved** — not re-opened — in §4.4.
@@ -413,16 +415,16 @@ Same three-slot structure on **Desktop and Tablet** — one placement model.
 | **Cycle badge** | Primary | Always |
 | **Workflow badge** | Primary | Always |
 | **Save status** | Primary | Whenever saving / saved / error (unchanged semantics) |
-| **Submit** | Primary strip (and may remain mirrored in domain footer) | Existing scorable-cycle rules (`showSubmitAssessmentButton`); must be visible without opening More |
+| **Submit** | Primary strip **only** (filled accent when legal; **never** in domain footer) | Existing scorable-cycle rules (`showSubmitAssessmentButton`); must be visible without opening More — hierarchy contract §4 |
 | **More** | Primary strip | When any overflow item is available |
 | **Compare With Another Cycle** + select | **Non-sticky assessment context row** (§4.4) — **both Tablet and Desktop** | When ≥1 other cycle exists to compare; comparison load error inline in this row when present |
 | **Approve** | Overflow | `status === 'submitted'` ∧ admin \| senior_therapist (**OQ-TT-6 A**) |
-| **New Cycle** | Overflow | **`status === 'approved'`** ∧ admin \| senior_therapist — **never** when not approved (dissolves defect) |
+| **New Cycle** | Overflow | **`status === 'approved'`** ∧ admin \| senior_therapist — founder workflow policy (hierarchy contract §7) |
 | **Learner Map** | Overflow | Existing availability; computer surface |
-| **Report** | Overflow | Existing authoring-entry conditions |
-| **Finalized Report** | Overflow | Existing finalized-row conditions |
-| **View Assessment Snapshot** | Overflow | Existing snapshot availability |
-| **Export menu** | Overflow submenu or grouped overflow section | Existing export permissions; computer-oriented |
+| **Write Report** | Overflow | Existing authoring-entry conditions (hierarchy contract §9) |
+| **Communication Report** | Overflow | Existing finalized-row conditions (UI name; “Finalized Report” remains in authoring/G4 docs until post-C1 sweep) |
+| **Assessment Snapshot** | Overflow | Existing snapshot availability |
+| **Export menu** | Overflow submenu or grouped overflow section | Existing export permissions; computer-oriented; labeled (not icon-only) |
 
 **Rules:**
 
@@ -511,7 +513,7 @@ While scrolling a domain:
 | Assessment context row (Compare) | ≤ 48 proposed | **No** | Scrolls away; **0 sticky cost** |
 | Domain context bar (`top` = primary strip height) | **≤ 40** | Yes | Title + scale legend compression; verify legend on ABLLS pack |
 | **Combined sticky ceiling** | **≤ 112** | — | Leaves **≥ 912** of a 1024px-tall viewport before fixed footer; holds under ~3000 domain document height |
-| Domain footer (fixed bottom) | **≤ 56** | Fixed | Prev domain / Submit (**OQ-TT-8 A**); content area then ≥ **856** |
+| Domain footer (fixed bottom) | **≤ 56** | Fixed | Prev / Next domain only — secondary styling; **no Submit** (**OQ-TT-8 A** + hierarchy contract §10); content area then ≥ **856** |
 
 If the sticky budget cannot be met, **drop or relocate** search/filter chrome off the sticky stack (filters may live in non-sticky domain chrome that scrolls away) — never grow sticky chrome by stacking search + legend + actions. **Do not** move Compare into the sticky stack to “save a scroll.”
 
@@ -548,7 +550,7 @@ Matrix “View” must meet a usable hit target on Tablet class (≥ 44px tall t
 |------|--------|
 | Raise nav breakpoint `md` → `lg`; drawer Org/Audit; Account panel so Sign Out fits at 1024 | Mostly mechanical |
 | Label Back; **44px stands**; **Approach C score track** (tablet) + desktop score-column floor; Login hit targets | Layout redesign after T1 falsification |
-| Header → primary + context row + More; gate New Cycle on `approved` | **Redesign** (IA) |
+| Header → primary + context row + More; New Cycle `approved`-only in More (hierarchy contract) | **Redesign** (IA) |
 | Sticky domain bar + scale legend (ABLLS verification) | Redesign; sticky offsets; assumes ~3000 domain height post–Approach C |
 | Modal sheet behaviour / Done flush | Moderate redesign |
 | Checkbox `TargetScoreControls` path | Unverified until a clinic pack uses checkbox scales |
@@ -565,8 +567,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 
 ## 6.3 Regression watchlist
 
-- Submit honesty / disabled reasons still visible when Submit is disabled.
-- Footer Submit and header Submit staying in sync.
+- Submit honesty / disabled reasons still visible when header Submit is disabled.
+- Domain footer has **no** Submit (header owns commit); Prev/Next remain secondary.
 - Admin paths: Approve, New Cycle (only when approved), exports still reachable via More.
 - Compare: selection still loads comparison scores; context row on Tablet **and** Desktop; score save unaffected when compare is None or set.
 - Trend column visible when a compare cycle is active.
@@ -628,7 +630,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 - [ ] Compact nav/drawer at `< lg` (not overflowing desktop nav); Sign Out in-viewport as **normal secondary** control (≥ 44px, visible name in drawer) — not off-canvas
 - [ ] Clients and Assessments reachable; out-of-scope routes reachable via secondary entries without dead ends
 - [ ] Normal Layout nav present on Matrix and **scrolls away** (not a third sticky)
-- [ ] Primary strip: no internal horizontal scroller; Submit + save visible while scoring when applicable
+- [ ] Primary strip: no internal horizontal scroller; **header filled Submit** when legal; save visible while scoring (full hierarchy checklist → header hierarchy contract)
+- [ ] Domain footer: Prev/Next **secondary**; **no** footer Submit
 - [ ] Non-sticky context row hosts Compare (usable without opening More); does not consume sticky ceiling
 - [ ] New Cycle absent unless `approved`; Approve only in More when submitted + role
 - [ ] Score buttons ≥ 44×44 (**size stands**); **Approach C** reserved score track — ordinary numeric scales on **one row**; Domain A last score control y ≤ **3100** at 768×1024
@@ -666,3 +669,8 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 | 2026-08-25 | Initial tablet & touch viability contract from founder scope statement and QA measurements; verified against Matrix/Layout/score control code |
 | 2026-08-25 | Amendment: lock OQ-TT-1…9; personally assigned tablets (§3.3); Compare in non-sticky context row (SPM); keep Layout nav (scrolls away); Login obligations (§3.5); ABLLS legend verification; acceptance checklist updated |
 | 2026-08-25 | Amendment: §2.3 falsified (+58% reflow cliff); Approach C reserved score track + predicted y≈2999; 1024 Sign Out width-scoped guarantee; sticky budget assumes ~3000; checkbox path unverified; OQ-TT-13…15 |
+| 2026-08-27 | Amendment: matrix header control hierarchy drafted in §4.6–§4.12 (later relocated) |
+| 2026-08-29 | Header hierarchy extracted to [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md); founder Submit/New Cycle/document-door corrections; this doc retains Model 3 geometry + touch/chrome only |
+
+---
+
