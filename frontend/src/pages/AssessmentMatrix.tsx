@@ -665,7 +665,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                   )}
                   {saveStatus === 'saved' && <span className="flex items-center gap-0.5 font-medium text-green-600"><CheckCircle className="h-3 w-3" /> Saved</span>}
                   {saveStatus === 'error' && (
-                    <span className="font-medium text-red-600">Save failed — check alert</span>
+                    <span className="font-medium text-red-600">Save failed</span>
                   )}
                 </div>
               </div>

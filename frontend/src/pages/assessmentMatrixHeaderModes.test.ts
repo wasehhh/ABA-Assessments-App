@@ -277,6 +277,25 @@ describe('M2 disable reason is visible in the context row', () => {
     });
 });
 
+describe('header save-error strip indicator', () => {
+    it('renders exactly "Save failed" in the sticky strip error state', () => {
+        const errorIndicator = matrixSource.match(
+            /saveStatus === 'error' && \(\s*<span className="font-medium text-red-600">([^<]*)<\/span>/
+        );
+        expect(errorIndicator).not.toBeNull();
+        expect(errorIndicator![1]).toBe('Save failed');
+        expect(matrixSource).not.toContain('Save failed — check alert');
+        expect(matrixSource).not.toContain('check alert');
+
+        expect(matrixSource).toContain(
+            "Saving{pendingSaveCount > 1 ? ` (${pendingSaveCount})` : ''}..."
+        );
+        expect(matrixSource).toContain(
+            '<CheckCircle className="h-3 w-3" /> Saved</span>'
+        );
+    });
+});
+
 describe('New Cycle UI gate agrees with startNewCycle', () => {
     it('shows New Cycle only when approved and admin or senior_therapist', () => {
         expect(shouldShowNewCycleAction('approved', 'admin')).toBe(true);
