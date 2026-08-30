@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+    ASSESSMENT_SNAPSHOT_ENTRY_LABEL,
+    COMMUNICATION_REPORT_ENTRY_LABEL,
+    WRITE_REPORT_ENTRY_LABEL,
     buildFinalizedReportRouteHash,
     shouldShowFinalizedReportEntry,
     shouldShowReportAuthoringEntry,
@@ -33,5 +36,14 @@ describe('assessmentMatrixReportEntry finalized route', () => {
         expect(
             shouldShowFinalizedReportEntry('approved', 'admin', true)
         ).toBe(true);
+    });
+
+    it('exposes Matrix document-door UI labels without renaming routes', () => {
+        expect(ASSESSMENT_SNAPSHOT_ENTRY_LABEL).toBe('Assessment Snapshot');
+        expect(WRITE_REPORT_ENTRY_LABEL).toBe('Write Report');
+        expect(COMMUNICATION_REPORT_ENTRY_LABEL).toBe('Communication Report');
+        expect(buildFinalizedReportRouteHash('assess-1', 'cycle-2')).toContain(
+            '/report/finalized'
+        );
     });
 });

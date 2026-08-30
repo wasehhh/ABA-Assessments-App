@@ -31,7 +31,7 @@ export function AssessmentMatrixSubmitControl({
                     : 'Submit assessment'
             }
             data-matrix-submit-assessment
-            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm ${
+            className={`inline-flex min-h-11 items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm ${
                 submitControlDisabled
                     ? 'cursor-not-allowed bg-gray-200 text-gray-500'
                     : 'bg-emerald-600 text-white hover:bg-emerald-700'

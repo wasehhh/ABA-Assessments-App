@@ -140,7 +140,6 @@ describe('matrixTabletScoreTrack rendered controls', () => {
                     onNavigateDomain: () => undefined,
                     isFirstDomain: true,
                     isLastDomain: true,
-                    onSubmit: () => undefined,
                 })
             );
 
@@ -171,7 +170,6 @@ describe('matrixTabletScoreTrack rendered controls', () => {
                 onNavigateDomain: () => undefined,
                 isFirstDomain: true,
                 isLastDomain: true,
-                onSubmit: () => undefined,
             })
         );
 
@@ -202,7 +200,6 @@ describe('matrixTabletScoreTrack rendered controls', () => {
                     onNavigateDomain: () => undefined,
                     isFirstDomain: true,
                     isLastDomain: true,
-                    onSubmit: () => undefined,
                 })
             );
 

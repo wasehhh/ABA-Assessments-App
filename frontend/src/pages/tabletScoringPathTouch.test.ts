@@ -20,7 +20,7 @@ describe('Tablet scoring-path accessible names and hit targets (T1 slice)', () =
     it('gives Matrix Back an accessible name', () => {
         expect(matrixSource).toContain('aria-label="Back to Assessments"');
         expect(matrixSource).toMatch(
-            /aria-label="Back to Assessments"[\s\S]{0,200}<ArrowLeft/
+            /aria-label="Back to Assessments"[\s\S]{0,200}<ChevronLeft/
         );
     });
 

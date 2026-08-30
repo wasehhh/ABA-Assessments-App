@@ -15,7 +15,9 @@ export const MATRIX_OVERVIEW_CONTRACT = {
 export const MATRIX_ACTION_MARKERS = {
     snapshotEntry: 'data-assessment-snapshot-entry',
     learnerMapLabel: 'Learner Map',
-    snapshotLabel: 'View Assessment Snapshot',
+    snapshotLabel: 'Assessment Snapshot',
+    writeReportLabel: 'Write Report',
+    communicationReportLabel: 'Communication Report',
 } as const;
 
 /** Heading copy for the Matrix primary-group overview. */

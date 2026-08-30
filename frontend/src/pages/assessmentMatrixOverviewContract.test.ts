@@ -123,7 +123,9 @@ describe('Assessment Matrix overview contract (PR13.5C)', () => {
     });
 
     it('keeps Snapshot and Learner Map entry contracts', () => {
-        expect(MATRIX_ACTION_MARKERS.snapshotLabel).toBe('View Assessment Snapshot');
+        expect(MATRIX_ACTION_MARKERS.snapshotLabel).toBe('Assessment Snapshot');
+        expect(MATRIX_ACTION_MARKERS.writeReportLabel).toBe('Write Report');
+        expect(MATRIX_ACTION_MARKERS.communicationReportLabel).toBe('Communication Report');
         expect(MATRIX_ACTION_MARKERS.learnerMapLabel).toBe('Learner Map');
         expect(MATRIX_ACTION_MARKERS.snapshotEntry).toBe('data-assessment-snapshot-entry');
         expect(buildAssessmentSnapshotRouteHash('abc')).toBe('#/assessment/abc/snapshot');

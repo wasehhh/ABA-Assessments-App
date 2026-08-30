@@ -4,12 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { assessmentService } from '../services/assessments';
 import { buildDomainProfiles } from '../services/domainProfile';
 import { clientService } from '../services/clients';
-import { Save, ArrowLeft, Calendar, Download, CheckCircle, Activity, Map, ListOrdered, FileText } from 'lucide-react';
+import { ChevronLeft, Calendar, CheckCircle } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { auditService } from '../services/audit';
 import { AssessmentOverview } from '../components/assessment/AssessmentOverview';
 import { DomainScoreboard } from '../components/assessment/DomainScoreboard';
 import { TargetDetailModal } from '../components/assessment/TargetDetailModal';
+import { MatrixContextRow } from '../components/assessment/MatrixContextRow';
+import { MatrixHeaderMoreMenu } from '../components/assessment/MatrixHeaderMoreMenu';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
 import { getStructureLabels } from '../utils/assessmentPackStructure';
 import {
@@ -41,6 +43,11 @@ import {
   shouldShowFinalizedReportEntry,
   shouldShowReportAuthoringEntry,
 } from './assessmentMatrixReportEntry';
+import {
+  matrixHeaderShowsApproveInMore,
+  resolveMatrixHeaderMode,
+  shouldShowNewCycleAction,
+} from './assessmentMatrixHeaderModes';
 import { reportAuthoringService } from '../services/reportAuthoring';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
@@ -89,7 +96,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
   const [hasFinalizedReport, setHasFinalizedReport] = useState(false);
 
@@ -133,9 +139,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   // --- Effects ---
 
   useEffect(() => {
-    const handleClickOutside = () => setShowExportMenu(false);
-    document.addEventListener('click', handleClickOutside);
-
     // Audit Log: View Assessment
     if (profile?.org_id && user?.id) {
       auditService.log({
@@ -147,8 +150,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
         details: { source: 'matrix_load' }
       });
     }
-
-    return () => document.removeEventListener('click', handleClickOutside);
   }, [assessmentId, profile?.org_id, user?.id]);
 
   useEffect(() => {
@@ -307,7 +308,6 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   };
 
   const handleMatrixExport = async (format: 'long' | 'matrix') => {
-    setShowExportMenu(false);
     try {
       await assessmentService.exportToCSV(assessmentId, format);
     } catch (err) {
@@ -556,11 +556,18 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   );
 
   const viewingCycle = cycles.find((c) => c.id === selectedCycleId);
-  const isCycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
   const scoresEditable = canEditAssessmentScores(profile?.role, assessment.status, viewingCycle?.status);
   const scoresEntryAllowed = matrixScoresEntryAllowed(cycleScoresLoadState);
   const effectiveScoresEditable = scoresEditable && scoresEntryAllowed;
   const cannotSubmitAssessment = cannotSubmitAssessmentState(assessment, viewingCycle);
+  const headerMode = resolveMatrixHeaderMode({
+    assessmentStatus: assessment.status,
+    cycleStatus: viewingCycle?.status,
+    role: profile?.role,
+    scoresLoadState: cycleScoresLoadState,
+    pendingSaveCount,
+    failedSaveTargetIds,
+  });
   const showSubmitAssessmentButton =
     !cannotSubmitAssessment &&
     (assessment.status === 'in_progress' || assessment.status === 'draft') &&
@@ -589,24 +596,24 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const showFinalizedReportEntry =
     shouldShowFinalizedReportEntry(assessment.status, profile?.role, hasFinalizedReport) &&
     Boolean(selectedCycleId);
+  const showApproveInMore = matrixHeaderShowsApproveInMore(headerMode);
+  const showNewCycleInMore = shouldShowNewCycleAction(assessment.status, profile?.role);
 
   const cycleNumberForHeader = viewingCycle?.cycle_number ?? currentCycle?.cycle_number;
   let matrixWorkflowLabel: string;
   let matrixWorkflowBadgeClass: string;
-  if (assessment.status === 'approved') {
+  if (headerMode === 'M7') {
     matrixWorkflowLabel = 'Locked (approved)';
     matrixWorkflowBadgeClass = 'bg-gray-100 text-gray-800 ring-1 ring-gray-200';
-  } else if (isCycleLocked) {
+  } else if (headerMode === 'M4') {
     matrixWorkflowLabel = 'Locked (this cycle)';
     matrixWorkflowBadgeClass = 'bg-gray-100 text-gray-800 ring-1 ring-gray-200';
-  } else if (assessment.status === 'submitted') {
-    if (scoresEditable) {
-      matrixWorkflowLabel = 'In review (editable)';
-      matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
-    } else {
-      matrixWorkflowLabel = 'Awaiting review';
-      matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
-    }
+  } else if (headerMode === 'M6') {
+    matrixWorkflowLabel = scoresEditable ? 'In review (editable)' : 'In review';
+    matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
+  } else if (headerMode === 'M5') {
+    matrixWorkflowLabel = 'Awaiting review';
+    matrixWorkflowBadgeClass = 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
   } else if (scoresEditable) {
     matrixWorkflowLabel = 'Editable';
     matrixWorkflowBadgeClass = 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200';
@@ -617,199 +624,102 @@ export function AssessmentMatrix({ assessmentId }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+      {/* Primary strip — sticky. Submit is the only filled accent when legal. */}
+      <header
+        className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm"
+        data-matrix-header-primary-strip
+        data-matrix-header-mode={headerMode}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="min-h-16 flex items-start justify-between gap-4 py-2 md:items-center">
-            {/* Left: Title & Nav */}
-            <div className="flex items-start gap-4 min-w-0 md:items-center">
+          <div className="flex min-h-16 items-center justify-between gap-3 py-1.5">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={() => window.location.hash = '#/assessments'}
-                className="inline-flex items-center justify-center min-h-11 min-w-11 -ml-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"
+                className="inline-flex min-h-11 items-center gap-1 -ml-2 rounded-lg px-2 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
                 aria-label="Back to Assessments"
               >
-                <ArrowLeft className="w-5 h-5" aria-hidden />
+                <ChevronLeft className="h-5 w-5" aria-hidden />
+                <span className="hidden text-sm font-medium sm:inline">Assessments</span>
               </button>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-gray-900 truncate flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <h1 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 truncate text-lg font-bold text-gray-900">
                   <span className="truncate">{client?.first_name} {client?.last_name}</span>
-                  <span className="hidden sm:inline text-gray-300">|</span>
-                  <span className="hidden sm:inline font-normal text-gray-600 truncate max-w-[min(24rem,45vw)]">{assessment.pack_snapshot.title}</span>
+                  <span className="hidden text-gray-300 sm:inline">|</span>
+                  <span className="hidden max-w-[min(24rem,40vw)] truncate font-normal text-gray-600 sm:inline">{assessment.pack_snapshot.title}</span>
                 </h1>
-                <p className="text-[11px] text-gray-500 sm:hidden truncate mt-0.5">{assessment.pack_snapshot.title}</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mt-1">
-                  <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 font-semibold text-gray-800 bg-gray-100 ring-1 ring-gray-200">
-                    <Calendar className="w-3 h-3 shrink-0" />
+                <p className="mt-0.5 truncate text-[11px] text-gray-500 sm:hidden">{assessment.pack_snapshot.title}</p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 font-semibold text-gray-800 ring-1 ring-gray-200">
+                    <Calendar className="h-3 w-3 shrink-0" />
                     Cycle {cycleNumberForHeader ?? '—'}
                   </span>
                   <span className={`inline-flex items-center rounded px-2 py-0.5 font-semibold ${matrixWorkflowBadgeClass}`}>
                     {matrixWorkflowLabel}
                   </span>
                   {saveStatus === 'saving' && (
-                    <span className="text-blue-600 font-medium animate-pulse">
+                    <span className="animate-pulse font-medium text-blue-600">
                       Saving{pendingSaveCount > 1 ? ` (${pendingSaveCount})` : ''}...
                     </span>
                   )}
-                  {saveStatus === 'saved' && <span className="text-green-600 font-medium flex items-center gap-0.5"><CheckCircle className="w-3 h-3" /> Saved</span>}
+                  {saveStatus === 'saved' && <span className="flex items-center gap-0.5 font-medium text-green-600"><CheckCircle className="h-3 w-3" /> Saved</span>}
                   {saveStatus === 'error' && (
-                    <span className="text-red-600 font-medium">Save failed — check alert</span>
+                    <span className="font-medium text-red-600">Save failed — check alert</span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2">
-              {/* Compare Mode */}
-              <div className="hidden md:flex items-center gap-2 mr-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase">Compare With Another Cycle</span>
-                <select
-                  value={compareCycleId || ''}
-                  onChange={(e) => setCompareCycleId(e.target.value === '' ? null : e.target.value)}
-                  className="text-xs border-gray-300 rounded focus:ring-emerald-500 py-1"
-                >
-                  <option value="">None</option>
-                  {cycles.filter(c => c.id !== currentCycle?.id).map(cycle => (
-                    <option key={cycle.id} value={cycle.id}>Cycle {cycle.cycle_number}</option>
-                  ))}
-                </select>
-                {comparisonScoresLoadState === 'error' && comparisonScoresLoadError ? (
-                  <span className="text-xs text-amber-800 max-w-xs" role="status">
-                    {comparisonScoresLoadError}
-                  </span>
-                ) : null}
-              </div>
-
+            <div className="flex shrink-0 items-center gap-2">
               <AssessmentMatrixSubmitControl
                 showSubmitAssessmentButton={showSubmitAssessmentButton}
                 submitControlDisabled={submitControlDisabled}
                 submitDisabledReason={submitDisabledReason}
                 onSubmit={handleSubmit}
               />
-
-              {assessment.status === 'submitted' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
-                <button
-                  onClick={handleApprove}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Approve
-                </button>
-              )}
-
-              {['admin', 'senior_therapist'].includes(profile?.role || '') && (
-                <button
-                  onClick={handleStartNewCycle}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-sm font-medium transition-colors border border-emerald-200"
-                >
-                  <Activity className="w-4 h-4" />
-                  New Cycle
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
+              <MatrixHeaderMoreMenu
+                showApprove={showApproveInMore}
+                onApprove={handleApprove}
+                showNewCycle={showNewCycleInMore}
+                onNewCycle={handleStartNewCycle}
+                showSnapshot={showAssessmentSnapshotEntry}
+                onSnapshot={() => {
+                  window.location.hash = buildAssessmentSnapshotRouteHash(assessmentId);
+                }}
+                showWriteReport={showReportAuthoringEntry}
+                onWriteReport={() => {
+                  window.location.hash = buildReportAuthoringRouteHash(
+                    assessmentId,
+                    selectedCycleId!
+                  );
+                }}
+                showCommunicationReport={showFinalizedReportEntry}
+                onCommunicationReport={() => {
+                  window.location.hash = buildFinalizedReportRouteHash(
+                    assessmentId,
+                    selectedCycleId!
+                  );
+                }}
+                onExportMatrix={() => void handleMatrixExport('matrix')}
+                onExportAnalytics={() => void handleMatrixExport('long')}
+                onLearnerMap={() => {
                   window.location.hash = `#/assessment/${assessmentId}/learner-map`;
                 }}
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-              >
-                <Map className="w-4 h-4" />
-                Learner Map
-              </button>
-
-              {showReportAuthoringEntry ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = buildReportAuthoringRouteHash(
-                      assessmentId,
-                      selectedCycleId!
-                    );
-                  }}
-                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-                  data-report-authoring-entry
-                >
-                  <FileText className="h-4 w-4" aria-hidden />
-                  Report
-                </button>
-              ) : null}
-
-              {showFinalizedReportEntry ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = buildFinalizedReportRouteHash(
-                      assessmentId,
-                      selectedCycleId!
-                    );
-                  }}
-                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-                  data-finalized-report-entry
-                >
-                  <FileText className="h-4 w-4" aria-hidden />
-                  Finalized Report
-                </button>
-              ) : null}
-
-              {showAssessmentSnapshotEntry ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.hash = buildAssessmentSnapshotRouteHash(assessmentId);
-                  }}
-                  className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors border border-gray-200"
-                  data-assessment-snapshot-entry
-                  aria-label="View Assessment Snapshot"
-                >
-                  <ListOrdered className="w-4 h-4" aria-hidden />
-                  View Assessment Snapshot
-                </button>
-              ) : null}
-
-              <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowExportMenu(!showExportMenu); }}
-                  className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-                {showExportMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleMatrixExport('matrix');
-                      }}
-                      className="w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60 border-b border-gray-100"
-                    >
-                      <span className="block text-sm font-semibold text-gray-900">Export Matrix CSV</span>
-                      <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
-                      <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
-                        Full assessment history — not only the cycle on screen.
-                      </span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleMatrixExport('long');
-                      }}
-                      className="w-full text-left px-4 py-3 text-gray-800 hover:bg-emerald-50/60"
-                    >
-                      <span className="block text-sm font-semibold text-gray-900">Export Analytics CSV</span>
-                      <span className="block text-xs font-semibold text-emerald-800 mt-1">Includes all cycles</span>
-                      <span className="block text-[11px] text-gray-600 mt-1 leading-snug">
-                        Full assessment history — not only the cycle on screen.
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              />
             </div>
           </div>
         </div>
       </header>
+
+      <MatrixContextRow
+        cycles={cycles}
+        viewingCycleId={selectedCycleId}
+        compareCycleId={compareCycleId}
+        onCompareCycleChange={setCompareCycleId}
+        comparisonError={
+          comparisonScoresLoadState === 'error' ? comparisonScoresLoadError : null
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -846,11 +756,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 onNavigateDomain={handleNavigateDomain}
                 isFirstDomain={isFirstDomain}
                 isLastDomain={isLastDomain}
-                onSubmit={handleSubmit}
                 scoresEditable={effectiveScoresEditable}
-                showFooterSubmit={showSubmitAssessmentButton}
-                submitDisabled={submitControlDisabled}
-                submitDisabledReason={submitDisabledReason}
               />
             ) : null
           }

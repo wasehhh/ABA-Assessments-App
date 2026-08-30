@@ -11,7 +11,7 @@ import {
     filterMatrixDisplaySections,
     getMatrixDisplaySections,
 } from '../../utils/matrixDisplayHelpers';
-import { Search, ArrowUp, ArrowDown, ArrowRight, CheckCircle } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 import { TargetScoreControls } from './TargetScoreControls';
 import { resolveTabletScoreTrackLayout } from '../../utils/matrixTabletScoreTrack';
 
@@ -33,11 +33,7 @@ interface Props {
     onNavigateDomain: (direction: 'next' | 'prev') => void;
     isFirstDomain: boolean;
     isLastDomain: boolean;
-    onSubmit: () => void;
     scoresEditable?: boolean;
-    showFooterSubmit?: boolean;
-    submitDisabled?: boolean;
-    submitDisabledReason?: string | null;
 }
 
 export function DomainScoreboard({
@@ -52,11 +48,7 @@ export function DomainScoreboard({
     onNavigateDomain,
     isFirstDomain,
     isLastDomain,
-    onSubmit,
     scoresEditable = true,
-    showFooterSubmit = true,
-    submitDisabled = false,
-    submitDisabledReason = null,
 }: Props) {
     const [search, setSearch] = useState('');
     const [filter, setFilter] = useState<'all' | 'unscored' | 'at_max'>('all');
@@ -262,10 +254,11 @@ export function DomainScoreboard({
             <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-4">
                     <button
+                        type="button"
                         onClick={onBack}
-                        className="rounded-full p-2 transition-colors hover:bg-gray-100"
+                        className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
                     >
-                        <ArrowRight className="h-5 w-5 rotate-180 text-gray-500" />
+                        All {pluralizeStructureLabel(primaryLabel).toLowerCase()}
                     </button>
                     <div className="space-y-1">
                         <h2 className="text-2xl font-bold text-gray-900">{domain.title}</h2>
@@ -371,12 +364,13 @@ export function DomainScoreboard({
             <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-gray-200 bg-white p-4 shadow-lg">
                 <div className="mx-auto flex max-w-7xl items-center justify-between">
                     <button
+                        type="button"
                         onClick={() => onNavigateDomain('prev')}
                         disabled={isFirstDomain}
-                        className={`flex items-center gap-2 rounded-lg px-4 py-2 font-medium transition-colors ${
+                        className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-colors ${
                             isFirstDomain
-                                ? 'cursor-not-allowed text-gray-300'
-                                : 'text-gray-600 hover:bg-gray-100'
+                                ? 'cursor-not-allowed border-gray-200 text-gray-300'
+                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                         }`}
                     >
                         <ArrowRight className="h-4 w-4 rotate-180" />
@@ -384,36 +378,20 @@ export function DomainScoreboard({
                         <span className="sm:hidden">Prev</span>
                     </button>
 
-                    {isLastDomain ? (
-                        <button
-                            type="button"
-                            onClick={onSubmit}
-                            disabled={!showFooterSubmit || submitDisabled}
-                            title={submitDisabled ? submitDisabledReason ?? undefined : undefined}
-                            aria-label={
-                                submitDisabled && submitDisabledReason
-                                    ? `Submit assessment — ${submitDisabledReason}`
-                                    : 'Submit assessment'
-                            }
-                            className={`flex items-center gap-2 rounded-lg px-6 py-2 font-bold shadow-sm transition-all ${
-                                showFooterSubmit && !submitDisabled
-                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                    : 'cursor-not-allowed bg-gray-200 text-gray-500'
-                            }`}
-                        >
-                            Submit <span className="hidden sm:inline">Assessment</span>
-                            <CheckCircle className="h-4 w-4" />
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => onNavigateDomain('next')}
-                            className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-800"
-                        >
-                            <span className="hidden sm:inline">Next {primaryLabel}</span>
-                            <span className="sm:hidden">Next</span>
-                            <ArrowRight className="h-4 w-4" />
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={() => onNavigateDomain('next')}
+                        disabled={isLastDomain}
+                        className={`flex items-center gap-2 rounded-lg border px-4 py-2 font-medium transition-colors ${
+                            isLastDomain
+                                ? 'cursor-not-allowed border-gray-200 text-gray-300'
+                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                        <span className="hidden sm:inline">Next {primaryLabel}</span>
+                        <span className="sm:hidden">Next</span>
+                        <ArrowRight className="h-4 w-4" />
+                    </button>
                 </div>
             </div>
         </div>

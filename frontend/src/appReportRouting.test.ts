@@ -13,6 +13,14 @@ const matrixSource = readFileSync(
     'utf8'
 );
 
+const moreMenuSource = readFileSync(
+    resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        './components/assessment/MatrixHeaderMoreMenu.tsx'
+    ),
+    'utf8'
+);
+
 describe('legacy computed report route retirement', () => {
     it('does not import or resolve AssessmentReport at #/assessment/:id/report', () => {
         expect(appSource).not.toMatch(/from '\.\/pages\/AssessmentReport'/);
@@ -31,7 +39,7 @@ describe('legacy computed report route retirement', () => {
         expect(matrixSource).not.toMatch(
             /window\.open\(`#\/assessment\/\$\{assessmentId\}\/report`/
         );
-        expect(matrixSource).toContain('Export Matrix CSV');
-        expect(matrixSource).toContain('Export Analytics CSV');
+        expect(moreMenuSource).toContain('Export Matrix CSV');
+        expect(moreMenuSource).toContain('Export Analytics CSV');
     });
 });

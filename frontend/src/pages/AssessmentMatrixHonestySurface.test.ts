@@ -89,11 +89,7 @@ function renderHonestySurface(
                 onNavigateDomain: vi.fn(),
                 isFirstDomain: true,
                 isLastDomain: true,
-                onSubmit: vi.fn(),
                 scoresEditable: cycleScoresLoadState === 'loaded',
-                showFooterSubmit: true,
-                submitDisabled: submitControl.disabled,
-                submitDisabledReason: submitControl.reason,
             }),
         })
     );
@@ -108,6 +104,7 @@ describe('AssessmentMatrixHonestySurface load-failure honesty', () => {
         expect(markup).toContain('data-assessment-matrix-scores-load-error');
         expect(markup).toContain('disabled=""');
         expect(markup).toContain('data-matrix-submit-assessment');
+        expect(markup).not.toContain('data-matrix-footer-submit');
     });
 
     it('renders the normal scoreboard grid when scores loaded successfully with zero rows', () => {
@@ -116,6 +113,20 @@ describe('AssessmentMatrixHonestySurface load-failure honesty', () => {
         expect(markup).toContain('data-matrix-domain-scoreboard');
         expect(markup).toContain('data-matrix-target-score-controls');
         expect(markup).not.toContain('data-assessment-matrix-scores-load-error');
+    });
+
+    it('places Submit only in the header and never couples it to the scoreboard footer', () => {
+        const markup = renderHonestySurface('loaded', { scores: [] });
+        const submitIndex = markup.indexOf('data-matrix-submit-assessment');
+        const scoreboardIndex = markup.indexOf('data-matrix-domain-scoreboard');
+
+        expect(submitIndex).toBeGreaterThanOrEqual(0);
+        expect(scoreboardIndex).toBeGreaterThan(submitIndex);
+        expect(markup).toContain('All sections');
+        expect(markup).toContain('Next Section');
+        expect(markup).not.toContain('bg-gray-900');
+        expect(markup.slice(scoreboardIndex)).not.toContain('data-matrix-submit-assessment');
+        expect(markup.slice(scoreboardIndex)).not.toContain('Submit Assessment');
     });
 });
 

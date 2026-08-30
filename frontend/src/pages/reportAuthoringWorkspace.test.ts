@@ -28,10 +28,15 @@ describe('assessmentMatrixReportEntry', () => {
 
     it('renders the matrix Report entry markup only when gated flag is true', () => {
         const source = readFileSync(resolve(__dirname, './AssessmentMatrix.tsx'), 'utf8');
+        const moreMenu = readFileSync(
+            resolve(__dirname, '../components/assessment/MatrixHeaderMoreMenu.tsx'),
+            'utf8'
+        );
         expect(source).toContain('shouldShowReportAuthoringEntry');
-        expect(source).toContain('data-report-authoring-entry');
+        expect(source).toContain('showWriteReport={showReportAuthoringEntry}');
+        expect(moreMenu).toContain('data-report-authoring-entry');
         expect(source).toContain('buildReportAuthoringRouteHash');
-        expect(source).not.toMatch(/data-report-authoring-entry[\s\S]*disabled=/);
+        expect(moreMenu).not.toMatch(/data-report-authoring-entry[\s\S]*disabled=/);
     });
 });
 
