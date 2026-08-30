@@ -439,7 +439,8 @@ Re-examined after introducing the third slot. **Only Compare** (label, select, a
 | Candidate | Move to context row? | Why |
 |-----------|----------------------|-----|
 | Compare | **Yes** | Founder: mid-session prior-performance reference; must not be in More; cannot fit primary strip without violating §1.3 |
-| Approve / New Cycle | **No** | Rare workflow transitions; overflow + gating is correct |
+| Approve | **No** | Rare workflow transitions. Placement is owned by [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) |
+| New Cycle | **No** | Rare workflow transitions; overflow + gating is correct |
 | Learner Map / Report / Snapshot / Export | **No** | Computer surfaces; leave Matrix when used; More is correct |
 | Domain search / filters | **No** | Domain-scoped; stay in Domain Scoreboard non-sticky chrome below the sticky domain bar (§5.2) |
 | Save / Submit | **No** | Must remain sticky while scoring |
@@ -569,7 +570,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 
 - Submit honesty / disabled reasons still visible when header Submit is disabled.
 - Domain footer has **no** Submit (header owns commit); Prev/Next remain secondary.
-- Admin paths: Approve, New Cycle (only when approved), exports still reachable via More.
+- Admin paths: New Cycle (only when approved) and exports still reachable via More. Approve placement — see [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md).
 - Compare: selection still loads comparison scores; context row on Tablet **and** Desktop; score save unaffected when compare is None or set.
 - Trend column visible when a compare cycle is active.
 - Layout drawer: Sign Out still works with Assessment Builder navigation guard when on Packs (out of tablet scope but must not break).
@@ -671,6 +672,7 @@ Vault **G4 (Display = Export)** and **G5 (Snapshot = Matrix)** remain in force.
 | 2026-08-25 | Amendment: §2.3 falsified (+58% reflow cliff); Approach C reserved score track + predicted y≈2999; 1024 Sign Out width-scoped guarantee; sticky budget assumes ~3000; checkbox path unverified; OQ-TT-13…15 |
 | 2026-08-27 | Amendment: matrix header control hierarchy drafted in §4.6–§4.12 (later relocated) |
 | 2026-08-29 | Header hierarchy extracted to [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md); founder Submit/New Cycle/document-door corrections; this doc retains Model 3 geometry + touch/chrome only |
+| 2026-08-30 | §4.3.1 / §6.3: remove stale Approve-in-overflow claims; pointer to hierarchy contract for Approve placement (C1.1). New Cycle overflow unchanged. |
 
 ---
 
