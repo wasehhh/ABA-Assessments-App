@@ -9,6 +9,24 @@ const ASSESSMENT_STATUS_LABELS: Record<string, string> = {
     approved: 'Approved',
 };
 
+/** Assignment presence is not a workflow-status bucket. */
+export function formatAssignmentPresenceLabel(hasAssignee: boolean): string | null {
+    return hasAssignee ? 'Has assignee' : null;
+}
+
+/**
+ * `submitted_at` is a timestamp that survives starting a new cycle
+ * (`startNewCycle` resets status to in_progress and clears approved_at,
+ * but not submitted_at). Only show it when status is still submitted,
+ * so the date line and the status badge are the same bucket.
+ */
+export function shouldShowSubmissionDate(
+    status: string | null | undefined,
+    submittedAt: string | null | undefined
+): boolean {
+    return Boolean(submittedAt) && status === 'submitted';
+}
+
 export function formatAssessmentStatusLabel(status: string | null | undefined): string {
     if (status == null || status === '') {
         return '—';

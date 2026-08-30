@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { ContentPackData, Domain, Target } from '../types';
 import {
     DEFAULT_STRUCTURE_LABELS,
+    formatListedStructureCount,
+    formatStructureItemCount,
     getOversizedGroupWarning,
     getStructureLabels,
     groupTargetsForDisplay,
     OVERSIZED_GROUP_EXTREME_THRESHOLD,
     OVERSIZED_GROUP_LARGE_THRESHOLD,
+    pluralizeStructureLabel,
     resolveTargetScoring,
 } from './assessmentPackStructure';
 
@@ -94,6 +97,27 @@ describe('getStructureLabels', () => {
             primary_group: 'Domain',
             target: 'Item',
         });
+    });
+});
+
+describe('pluralizeStructureLabel', () => {
+    it('returns a single word so JSX cannot leak Target s / Domain s', () => {
+        expect(pluralizeStructureLabel('Target')).toBe('Targets');
+        expect(pluralizeStructureLabel('Domain')).toBe('Domains');
+        expect(pluralizeStructureLabel('Milestone')).toBe('Milestones');
+        expect(pluralizeStructureLabel('Target ')).toBe('Targets');
+        expect(pluralizeStructureLabel('Targets')).toBe('Targets');
+        expect(pluralizeStructureLabel('Target')).not.toContain('Target s');
+        expect(pluralizeStructureLabel('Domain')).not.toContain('Domain s');
+    });
+
+    it('uses found only when a filter is applied', () => {
+        expect(formatStructureItemCount(19, 'Target')).toBe('19 targets');
+        expect(formatListedStructureCount(19, 'Target', false)).toBe('19 targets');
+        expect(formatListedStructureCount(19, 'Target', true)).toBe('19 targets found');
+        expect(formatListedStructureCount(1, 'Target', false)).toBe('1 target');
+        expect(formatListedStructureCount(19, 'Target', false)).not.toContain('target s');
+        expect(formatListedStructureCount(19, 'Target', false)).not.toContain('found');
     });
 });
 

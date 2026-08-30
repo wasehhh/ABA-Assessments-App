@@ -7,7 +7,7 @@ import { userService } from '../services/users';
 import { UserProfile, Assessment } from '../types';
 import { Plus, FileText, Calendar, User, Trash2, Download } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
+import { formatAssessmentStatusLabel, formatAssignmentPresenceLabel } from '../utils/assessmentStatusLabel';
 import {
     DataLoadEmptyState,
     DataLoadErrorPanel,
@@ -511,12 +511,12 @@ export function Assessments() {
                                         <Calendar className="w-4 h-4" />
                                         <span>{new Date(assessment.created_at).toLocaleDateString()}</span>
                                     </div>
-                                    {assessment.assigned_to && (
+                                    {assessment.assigned_to ? (
                                         <div className="flex items-center gap-1">
                                             <User className="w-4 h-4" />
-                                            <span>Assigned</span>
+                                            <span>{formatAssignmentPresenceLabel(true)}</span>
                                         </div>
-                                    )}
+                                    ) : null}
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${assessment.status === 'approved' ? 'bg-green-100 text-green-700' :
                                         assessment.status === 'submitted' ? 'bg-orange-100 text-orange-700' :
                                             assessment.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :

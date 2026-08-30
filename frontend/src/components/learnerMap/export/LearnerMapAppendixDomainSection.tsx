@@ -1,5 +1,6 @@
 import { LearnerMapCycleSummary, LearnerMapDomain } from '../../../services/learnerMapProfile';
 import { StructureLabels } from '../../../types';
+import { pluralizeStructureLabel } from '../../../utils/assessmentPackStructure';
 import { domainHasAnyScoredTargets } from '../domainCellDisplay';
 import { getDomainIdentity } from '../domainIdentity';
 import { LearnerMapDomainSection } from '../LearnerMapDomainSection';
@@ -66,7 +67,7 @@ export function LearnerMapAppendixDomainSection({
                     className="pt-2 text-sm leading-relaxed text-gray-600"
                     data-learner-map-export-domain-empty
                 >
-                    No {targetLabel.toLowerCase()}s have been scored in the selected cycles.
+                    No {pluralizeStructureLabel(targetLabel).toLowerCase()} have been scored in the selected cycles.
                 </p>
             ) : segments.length === 0 ? (
                 <div className="pt-2" data-learner-map-export-domain-segment>

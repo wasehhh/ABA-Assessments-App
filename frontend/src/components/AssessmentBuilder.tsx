@@ -46,6 +46,7 @@ import {
     getUngroupedTargetEntries,
     moveTargetSecondaryGroup,
 } from '../utils/assessmentPackBuilder';
+import { pluralizeStructureLabel } from '../utils/assessmentPackStructure';
 import { AssessmentBuilderTargetEditor } from './AssessmentBuilderTargetEditor';
 import { ConfirmDialog } from './ConfirmDialog';
 import {
@@ -1201,7 +1202,8 @@ export function AssessmentBuilder({
             <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
-                        {primaryLabel}s & {targetLabelText}s
+                        {pluralizeStructureLabel(primaryLabel)} &{' '}
+                        {pluralizeStructureLabel(targetLabelText)}
                     </h3>
                     <button
                         type="button"
@@ -1234,8 +1236,7 @@ export function AssessmentBuilder({
                                                         ? 'border-red-400'
                                                         : 'border-gray-300'
                                                 }`}
-                                                placeholder="A"
-                                                required
+                                                placeholder="e.g., A"
                                             />
                                             {issueFor('domain_id', dIndex) ? (
                                                 <p className="mt-1 text-xs text-red-600">
@@ -1287,7 +1288,7 @@ export function AssessmentBuilder({
                                 <div className="ml-2 mt-4 space-y-4 border-t border-gray-200 pt-4">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-sm font-semibold text-gray-700">
-                                            {secondaryLabel}s
+                                            {pluralizeStructureLabel(secondaryLabel)}
                                         </h4>
                                         <button
                                             type="button"
@@ -1301,8 +1302,8 @@ export function AssessmentBuilder({
                                     {(domain.secondary_groups ?? []).length === 0 ? (
                                         <p className="text-xs text-gray-500">
                                             Add a {secondaryLabel.toLowerCase()} to start authoring{' '}
-                                            {targetLabelText.toLowerCase()}s within this{' '}
-                                            {primaryLabel.toLowerCase()}.
+                                            {pluralizeStructureLabel(targetLabelText).toLowerCase()}{' '}
+                                            within this {primaryLabel.toLowerCase()}.
                                         </p>
                                     ) : (
                                         <div className="space-y-4">
@@ -1438,7 +1439,7 @@ export function AssessmentBuilder({
                                     {getUngroupedTargetEntries(domain).length > 0 ? (
                                         <div className="ml-2 space-y-3 border-l-2 border-dashed border-gray-300 pl-4">
                                             <h5 className="text-sm font-medium text-gray-700">
-                                                Ungrouped {targetLabelText}s
+                                                Ungrouped {pluralizeStructureLabel(targetLabelText)}
                                             </h5>
                                             <div className="space-y-2">
                                                 {getUngroupedTargetEntries(domain).map(
@@ -1496,7 +1497,7 @@ export function AssessmentBuilder({
                                 <div className="ml-4 space-y-2">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-sm font-semibold text-gray-700">
-                                            {targetLabelText}s
+                                            {pluralizeStructureLabel(targetLabelText)}
                                         </h4>
                                         <button
                                             type="button"

@@ -1,5 +1,6 @@
 import { LearnerMapDomain } from '../../services/learnerMapProfile';
 import { StructureLabels } from '../../types';
+import { formatStructureItemCount, pluralizeStructureLabel } from '../../utils/assessmentPackStructure';
 import {
     computeRoundedPercentWidths,
     deriveDomainCellStats,
@@ -133,7 +134,7 @@ export function LearnerMapDomainSummary({ domains, structureLabels }: Props) {
     if (domains.length === 0) {
         return (
             <p className="text-sm text-gray-600">
-                No {primaryLabel.toLowerCase()}s available in this assessment.
+                No {pluralizeStructureLabel(primaryLabel).toLowerCase()} available in this assessment.
             </p>
         );
     }
@@ -238,8 +239,7 @@ export function LearnerMapDomainSummary({ domains, structureLabels }: Props) {
                 </table>
             </div>
             <p className="mt-3 text-xs text-gray-500" data-learner-map-export-l1-footnote>
-                Showing all {domains.length} {primaryLabel.toLowerCase()}
-                {domains.length === 1 ? '' : 's'}.
+                Showing {formatStructureItemCount(domains.length, primaryLabel)}.
             </p>
         </div>
     );

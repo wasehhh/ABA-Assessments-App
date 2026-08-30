@@ -5,6 +5,7 @@ import {
 } from '../../services/learnerMapProfile';
 import { StructureLabels } from '../../types';
 import { buildSecondaryGroupHeaderCells } from '../../utils/readSurfaceDisplay';
+import { formatStructureItemCount, pluralizeStructureLabel } from '../../utils/assessmentPackStructure';
 import { getDomainIdentity } from './domainIdentity';
 import { LearnerMapCell } from './LearnerMapCell';
 
@@ -198,8 +199,7 @@ export function LearnerMapDomainSection({
                         </p>
                     ) : (
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium tabular-nums text-gray-700">
-                            {domain.targets.length} {targetLabel.toLowerCase()}
-                            {domain.targets.length === 1 ? '' : 's'}
+                            {formatStructureItemCount(domain.targets.length, targetLabel)}
                         </span>
                     )}
                 </div>
@@ -209,7 +209,7 @@ export function LearnerMapDomainSection({
                 <p className="text-sm text-gray-600">No cycles available for this domain.</p>
             ) : visibleTargets.length === 0 ? (
                 <p className="text-sm text-gray-600">
-                    No {targetLabel.toLowerCase()}s in this domain.
+                    No {pluralizeStructureLabel(targetLabel).toLowerCase()} in this domain.
                 </p>
             ) : (
                 <div
@@ -235,7 +235,7 @@ export function LearnerMapDomainSection({
                                             colSpan={targetColumnCount}
                                             className="px-1 py-1 text-center text-[9px] font-semibold tracking-wide text-gray-600"
                                         >
-                                            {targetLabel}s →
+                                            {pluralizeStructureLabel(targetLabel)} →
                                         </th>
                                     </tr>
                                     {showSecondaryGroupRow ? (

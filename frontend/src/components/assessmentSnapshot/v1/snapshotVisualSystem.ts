@@ -1,3 +1,7 @@
+import {
+    formatStructureItemCount,
+    pluralizeStructureLabel,
+} from '../../../utils/assessmentPackStructure';
 import { CompetencyState } from '../../../utils/scoreInterpretation';
 import { SnapshotLayoutMode } from '../../../utils/snapshotLayoutEngine';
 import { STATE_DISPLAY_LABELS } from '../../assessment/domainProfile/stateDisplay';
@@ -12,22 +16,12 @@ export const SNAPSHOT_LEGEND_SCORE_HINT_HIDDEN =
 export const SNAPSHOT_LEGEND_MAX_HINT = 'Hollow mark = target maximum';
 
 export function formatStructureCount(count: number, singularLabel: string): string {
-    const base = singularLabel.trim().toLowerCase() || 'target';
-    if (count === 1) {
-        return `1 ${base}`;
-    }
-
-    if (base.endsWith('s')) {
-        return `${count} ${base}`;
-    }
-
-    return `${count} ${base}s`;
+    return formatStructureItemCount(count, singularLabel);
 }
 
 /** Plural noun in title case for range labels (e.g. Targets, Milestones). */
 export function formatPluralNounTitle(singularLabel: string): string {
-    const base = singularLabel.trim().toLowerCase() || 'target';
-    const plural = base.endsWith('s') ? base : `${base}s`;
+    const plural = pluralizeStructureLabel(singularLabel.trim().toLowerCase() || 'target');
     return plural.charAt(0).toUpperCase() + plural.slice(1);
 }
 

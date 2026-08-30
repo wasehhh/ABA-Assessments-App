@@ -63,6 +63,41 @@ export function getStructureLabels(pack: ContentPackData): StructureLabels {
     };
 }
 
+/**
+ * Plural form of a structure label as a single string.
+ * JSX `{label}s` is two text nodes; the accessibility tree reads them as
+ * "Target s" / "Domain s". Always interpolate this helper instead.
+ */
+export function pluralizeStructureLabel(singular: string): string {
+    const base = singular.trim();
+    if (!base) {
+        return '';
+    }
+    if (base.toLowerCase().endsWith('s')) {
+        return base;
+    }
+    return `${base}s`;
+}
+
+/** Count + label as one string: "1 target", "19 targets". */
+export function formatStructureItemCount(count: number, singularLabel: string): string {
+    const trimmed = singularLabel.trim() || 'target';
+    if (count === 1) {
+        return `1 ${trimmed.toLowerCase()}`;
+    }
+    return `${count} ${pluralizeStructureLabel(trimmed).toLowerCase()}`;
+}
+
+/** Unfiltered lists are a count. "found" is search language for an active filter. */
+export function formatListedStructureCount(
+    count: number,
+    singularLabel: string,
+    filtered: boolean
+): string {
+    const body = formatStructureItemCount(count, singularLabel);
+    return filtered ? `${body} found` : body;
+}
+
 function findScoringScale(
     pack: ContentPackData,
     scaleId: string | undefined

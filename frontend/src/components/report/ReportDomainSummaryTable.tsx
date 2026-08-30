@@ -1,6 +1,7 @@
 import { StateDistribution } from '../../services/domainProfile';
 import { ReportDomainSection } from '../../services/reportProfile';
 import { StructureLabels } from '../../types';
+import { pluralizeStructureLabel } from '../../utils/assessmentPackStructure';
 import { STATE_BUCKET_DISPLAY } from '../assessment/domainProfile/stateDisplay';
 
 interface Props {
@@ -53,7 +54,7 @@ export function ReportDomainSummaryTable({ domains, structureLabels }: Props) {
     if (domains.length === 0) {
         return (
             <p className="text-sm text-gray-600 print:text-gray-800">
-                No {primaryLabel.toLowerCase()}s available in this assessment.
+                No {pluralizeStructureLabel(primaryLabel).toLowerCase()} available in this assessment.
             </p>
         );
     }

@@ -1,4 +1,5 @@
 import { ContentPackData } from '../types';
+import { pluralizeStructureLabel } from '../utils/assessmentPackStructure';
 
 /** Tracks concurrent in-flight score saves — not a lone boolean. */
 export class PendingSaveTracker {
@@ -129,9 +130,12 @@ export function formatSubmitConfirmMessage(
     unscoredCount: number,
     targetLabel: string
 ): string {
-    const label = targetLabel.toLowerCase();
+    const noun =
+        unscoredCount === 1
+            ? targetLabel.trim().toLowerCase()
+            : pluralizeStructureLabel(targetLabel).toLowerCase();
     if (unscoredCount > 0) {
-        return `Warning: ${unscoredCount} ${label}${unscoredCount === 1 ? '' : 's'} still have no saved score. Submitting marks this assessment as submitted. Senior therapists and admins can still edit scores until it is approved. Are you sure you want to proceed?`;
+        return `Warning: ${unscoredCount} ${noun} still have no saved score. Submitting marks this assessment as submitted. Senior therapists and admins can still edit scores until it is approved. Are you sure you want to proceed?`;
     }
     return 'Submit this assessment for review? It will appear under Submitted. Senior therapists and admins can still edit scores until it is approved.';
 }

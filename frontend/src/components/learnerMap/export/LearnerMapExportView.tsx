@@ -1,3 +1,4 @@
+import { pluralizeStructureLabel } from '../../../utils/assessmentPackStructure';
 import { LearnerMapCycleSummary, LearnerMapProfile } from '../../../services/learnerMapProfile';
 import { LearnerMapArtifactHeader } from '../LearnerMapArtifactHeader';
 import { LearnerMapAssessmentRollup } from '../LearnerMapAssessmentRollup';
@@ -70,7 +71,7 @@ export function LearnerMapExportView({
 
     const appendixDescription =
         mode === 'selected-domains'
-            ? `This appendix contains ${targetLabel.toLowerCase()}-level longitudinal assessment detail for selected ${primaryLabel.toLowerCase()}s.`
+            ? `This appendix contains ${targetLabel.toLowerCase()}-level longitudinal assessment detail for selected ${pluralizeStructureLabel(primaryLabel).toLowerCase()}.`
             : `This appendix contains ${targetLabel.toLowerCase()}-level longitudinal assessment detail by ${primaryLabel.toLowerCase()}.`;
 
     return (

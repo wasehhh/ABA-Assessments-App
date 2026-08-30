@@ -210,4 +210,17 @@ describe('AssessmentBuilder C1 editing session contracts', () => {
         expect(builderSource).toMatch(/if \(mergedIssues\.length > 0\)[\s\S]*return;/);
         expect(builderSource).toContain('setAuthoringIssues(mergedIssues)');
     });
+
+    it('uses e.g. placeholders for empty IDs and surfaces missing IDs in the form', () => {
+        expect(builderSource).toContain('placeholder="e.g., A"');
+        expect(builderSource).not.toMatch(/placeholder="A"/);
+        expect(builderSource).toMatch(/placeholder="e.g., A"\s*\/>/);
+        expect(builderSource).toContain('issueFor(\'domain_id\'');
+    });
+
+    it('pluralizes structure-label chrome as a single string', () => {
+        expect(builderSource).toContain('pluralizeStructureLabel(primaryLabel)');
+        expect(builderSource).not.toContain('{primaryLabel}s');
+        expect(builderSource).not.toContain('{targetLabelText}s');
+    });
 });

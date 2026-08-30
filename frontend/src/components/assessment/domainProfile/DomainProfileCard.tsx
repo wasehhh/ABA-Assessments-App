@@ -1,4 +1,5 @@
 import { DomainProfile } from '../../../services/domainProfile';
+import { pluralizeStructureLabel } from '../../../utils/assessmentPackStructure';
 import { DomainStateDistribution } from './DomainStateDistribution';
 import { DomainSequenceStrip } from './DomainSequenceStrip';
 
@@ -15,7 +16,7 @@ function coveragePercent(scored: number, total: number): number {
 export function DomainProfileCard({ profile, targetLabel = 'target' }: Props) {
     const { scored, total } = profile.coverage;
     const percent = coveragePercent(scored, total);
-    const targetLabelPlural = `${targetLabel.toLowerCase()}s`;
+    const targetLabelPlural = pluralizeStructureLabel(targetLabel).toLowerCase();
 
     return (
         <article className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">

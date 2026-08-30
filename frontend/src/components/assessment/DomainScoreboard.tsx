@@ -2,7 +2,11 @@ import { Fragment, useMemo, useState } from 'react';
 import { Target, AssessmentScore, ContentPackData, Domain, StructureLabels } from '../../types';
 import { analyticsService } from '../../services/analytics';
 import { interpretTargetScore } from '../../utils/scoreInterpretation';
-import { domainHasSecondaryGroupDisplay } from '../../utils/assessmentPackStructure';
+import {
+    domainHasSecondaryGroupDisplay,
+    formatListedStructureCount,
+    pluralizeStructureLabel,
+} from '../../utils/assessmentPackStructure';
 import {
     filterMatrixDisplaySections,
     getMatrixDisplaySections,
@@ -60,6 +64,7 @@ export function DomainScoreboard({
     const primaryLabel = structureLabels.primary_group;
     const targetLabel = structureLabels.target;
     const showSecondarySections = domainHasSecondaryGroupDisplay(domain);
+    const listFiltered = search.trim() !== '' || filter !== 'all';
 
     const getScoreRow = (targetId: string, scoreList: AssessmentScore[]) => {
         return scoreList.find((score) => score.target_id === targetId) ?? null;
@@ -265,7 +270,7 @@ export function DomainScoreboard({
                     <div className="space-y-1">
                         <h2 className="text-2xl font-bold text-gray-900">{domain.title}</h2>
                         <p className="text-sm text-gray-500">
-                            {visibleTargetCount} {targetLabel.toLowerCase()}s found
+                            {formatListedStructureCount(visibleTargetCount, targetLabel, listFiltered)}
                         </p>
                     </div>
                 </div>
@@ -275,7 +280,7 @@ export function DomainScoreboard({
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                         <input
                             type="text"
-                            placeholder={`Search ${targetLabel.toLowerCase()}s...`}
+                            placeholder={`Search ${pluralizeStructureLabel(targetLabel).toLowerCase()}...`}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="rounded-lg border border-gray-300 py-2 pl-9 pr-4 text-sm focus:ring-2 focus:ring-emerald-500"
@@ -286,7 +291,7 @@ export function DomainScoreboard({
                         onChange={(e) => setFilter(e.target.value as 'all' | 'unscored' | 'at_max')}
                         className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
                     >
-                        <option value="all">All {targetLabel}s</option>
+                        <option value="all">All {pluralizeStructureLabel(targetLabel)}</option>
                         <option value="unscored">Unscored</option>
                         <option value="at_max">At Maximum Score</option>
                     </select>
@@ -358,7 +363,7 @@ export function DomainScoreboard({
 
                 {visibleTargetCount === 0 && (
                     <div className="p-12 text-center text-gray-500">
-                        <p>No {targetLabel.toLowerCase()}s found matching your filter.</p>
+                        <p>No {pluralizeStructureLabel(targetLabel).toLowerCase()} found matching your filter.</p>
                     </div>
                 )}
             </div>

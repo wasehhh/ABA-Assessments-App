@@ -4,7 +4,7 @@ import { assessmentService } from '../services/assessments';
 import { clientService } from '../services/clients';
 import { ArrowLeft, Calendar, FileText, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { formatAssessmentStatusLabel } from '../utils/assessmentStatusLabel';
+import { formatAssessmentStatusLabel, shouldShowSubmissionDate } from '../utils/assessmentStatusLabel';
 import { Assessment, Client } from '../types';
 import {
   DataLoadEmptyState,
@@ -236,7 +236,7 @@ export function ClientDetail({ clientId }: Props) {
                           <p className="text-sm text-gray-600 mt-1">
                             Created: {new Date(assessment.created_at).toLocaleDateString()}
                           </p>
-                          {assessment.submitted_at && (
+                          {shouldShowSubmissionDate(assessment.status, assessment.submitted_at) && (
                             <p className="text-sm text-gray-600">
                               Submitted: {new Date(assessment.submitted_at).toLocaleDateString()}
                             </p>

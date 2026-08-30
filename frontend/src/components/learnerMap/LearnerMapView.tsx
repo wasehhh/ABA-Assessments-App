@@ -7,6 +7,7 @@ import { LearnerMapDisplayContext } from './learnerMapDisplayContext';
 import { LearnerMapMovementKey } from './LearnerMapMovementKey';
 import { LearnerMapScoreBandsCard } from './LearnerMapScoreBandsCard';
 import { LEARNER_MAP_CELL_NUMERALS_HINT_HIDDEN } from './learnerMapShowCellNumerals';
+import { pluralizeStructureLabel } from '../../utils/assessmentPackStructure';
 
 interface Props {
     profile: LearnerMapProfile;
@@ -95,9 +96,9 @@ export function LearnerMapView({
                             Cycle × {targetLabel.toLowerCase()} movement grid
                         </h2>
                         <p className="mt-1 text-sm text-gray-600">
-                            See which {targetLabel.toLowerCase()}s moved and in which direction across{' '}
-                            {cycleRangeLabel.toLowerCase()}. Cycles as rows, {targetLabel.toLowerCase()}s
-                            as columns — scroll horizontally for large {primaryLabel.toLowerCase()}s.
+                            See which {pluralizeStructureLabel(targetLabel).toLowerCase()} moved and in which direction across{' '}
+                            {cycleRangeLabel.toLowerCase()}. Cycles as rows, {pluralizeStructureLabel(targetLabel).toLowerCase()}
+                            as columns — scroll horizontally for large {pluralizeStructureLabel(primaryLabel).toLowerCase()}.
                         </p>
                         {showCellNumerals ? null : (
                             <p

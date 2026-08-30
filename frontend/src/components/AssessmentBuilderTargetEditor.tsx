@@ -133,8 +133,7 @@ export function AssessmentBuilderTargetEditor({
                                 className={`w-full rounded border px-2 py-1 text-xs ${
                                     targetIdError ? 'border-red-400' : 'border-gray-300'
                                 }`}
-                                placeholder="A1"
-                                required
+                                placeholder="e.g., A1"
                             />
                             {targetIdError ? (
                                 <p className="mt-1 text-xs text-red-600">{targetIdError}</p>
