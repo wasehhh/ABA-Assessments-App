@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Assessment, AssessmentScore, ContentPackData, Target } from '../types';
+import { Assessment, AssessmentCycle, AssessmentScore, ContentPackData, Target } from '../types';
 import { auditService } from './audit';
 import { userService } from './users';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
@@ -62,6 +62,61 @@ export function assertAssessmentDeletable(
 /** Rows with a value in `score`. Placeholders (`score: null`) are not recorded scores. */
 export function countRecordedScores(scores: { score: number | null }[]): number {
   return scores.filter((row) => row.score != null).length;
+}
+
+/**
+ * Current cycle for list progress: the in-progress cycle, else the first row.
+ * Matches Matrix (`AssessmentMatrix` load): `getCycles` is ordered by `cycle_number` descending.
+ */
+export function selectCurrentAssessmentCycle<T extends { status: string }>(
+  cycles: T[]
+): T | undefined {
+  return cycles.find((cycle) => cycle.status === 'in_progress') ?? cycles[0];
+}
+
+export function countPackSnapshotTargets(
+  pack: Pick<ContentPackData, 'domains'> | null | undefined
+): number {
+  if (!pack?.domains) {
+    return 0;
+  }
+  return pack.domains.reduce((total, domain) => total + domain.targets.length, 0);
+}
+
+export function formatCurrentCycleProgressLabel(
+  recordedCount: number,
+  targetCount: number,
+  cycleNumber: number
+): string {
+  return `${recordedCount} of ${targetCount} scored · Cycle ${cycleNumber}`;
+}
+
+export type CurrentCycleProgressFigure = {
+  recordedCount: number;
+  targetCount: number;
+  cycleNumber: number;
+  label: string;
+};
+
+export function formatAssessmentListPackLine(
+  pack: { title?: string | null; version?: string | null } | null | undefined
+): string {
+  const title = pack?.title ?? '';
+  const version = pack?.version;
+  if (version) {
+    return title ? `${title} · v${version}` : `v${version}`;
+  }
+  return title;
+}
+
+export function formatAssessmentListDateLine(assessment: {
+  assessment_date: string | null;
+  created_at: string;
+}): string {
+  if (assessment.assessment_date) {
+    return new Date(assessment.assessment_date).toLocaleDateString();
+  }
+  return `Created ${new Date(assessment.created_at).toLocaleDateString()}`;
 }
 
 /** Founder ruling 2026-08-31: in_progress confirm must name the score count. */
@@ -217,7 +272,6 @@ export const assessmentService = {
   },
 
   async getScores(assessmentId: string, cycleId?: string) {
-    console.log('assessmentService.getScores: Fetching scores for:', assessmentId, 'Cycle:', cycleId);
     let query = supabase
       .from('assessment_scores')
       .select('*, cycle:assessment_cycles(cycle_number, status)')
@@ -697,3 +751,23 @@ export const assessmentService = {
     exportUtils.generateCSV(assessment as any, scores as any[], { format });
   },
 };
+
+export async function loadCurrentCycleProgressFigure(
+  assessmentId: string,
+  packSnapshot: Pick<ContentPackData, 'domains'>
+): Promise<CurrentCycleProgressFigure | null> {
+  const cycles = (await assessmentService.getCycles(assessmentId)) as AssessmentCycle[] | null;
+  const current = selectCurrentAssessmentCycle(cycles ?? []);
+  if (!current) {
+    return null;
+  }
+  const scores = await assessmentService.getScores(assessmentId, current.id);
+  const recordedCount = countRecordedScores(scores);
+  const targetCount = countPackSnapshotTargets(packSnapshot);
+  return {
+    recordedCount,
+    targetCount,
+    cycleNumber: current.cycle_number,
+    label: formatCurrentCycleProgressLabel(recordedCount, targetCount, current.cycle_number),
+  };
+}

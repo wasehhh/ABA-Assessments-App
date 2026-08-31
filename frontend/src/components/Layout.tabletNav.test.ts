@@ -81,3 +81,10 @@ describe('Layout tablet nav contract (§3.1–§3.3)', () => {
         expect(layoutSource).not.toMatch(/title="Sign Out"|title="Account Settings"/);
     });
 });
+
+describe('C4b Layout Clients current', () => {
+    it('wires Clients nav to isClientsLayoutNavCurrent', () => {
+        expect(layoutSource).toContain('isClientsLayoutNavCurrent');
+        expect(layoutSource).toContain("aria-current={clientsNavCurrent ? 'page' : undefined}");
+    });
+});

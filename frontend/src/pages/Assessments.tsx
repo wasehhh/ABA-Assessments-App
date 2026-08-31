@@ -4,7 +4,11 @@ import {
     assessmentService,
     canDeleteAssessment,
     countRecordedScores,
+    formatAssessmentListDateLine,
+    formatAssessmentListPackLine,
+    loadCurrentCycleProgressFigure,
     recordedScoresDestroyedSentence,
+    type CurrentCycleProgressFigure,
 } from '../services/assessments';
 import { clientService } from '../services/clients';
 import { packService } from '../services/packs';
@@ -37,6 +41,32 @@ function createEmptyAssessmentForm() {
     };
 }
 
+export function assessmentsEmptyCopy(filter: 'active' | 'submitted' | 'approved'): {
+    title: string;
+    body: string;
+    offerCreate: boolean;
+} {
+    if (filter === 'active') {
+        return {
+            title: 'No active assessments found',
+            body: 'Get started by creating a new assessment.',
+            offerCreate: true,
+        };
+    }
+    if (filter === 'submitted') {
+        return {
+            title: 'No assessments awaiting review',
+            body: 'Active assessments appear on the Active tab.',
+            offerCreate: false,
+        };
+    }
+    return {
+        title: 'No approved assessments found',
+        body: '',
+        offerCreate: false,
+    };
+}
+
 export function Assessments() {
     const { user, profile } = useAuth();
 
@@ -66,6 +96,10 @@ export function Assessments() {
     } | null>(null);
     const [duplicateId, setDuplicateId] = useState<string | null>(null);
     const [errorAlert, setErrorAlert] = useState<string | null>(null);
+    const [progressById, setProgressById] = useState<
+        Record<string, CurrentCycleProgressFigure | null>
+    >({});
+    const progressLoadRequestRef = useRef(0);
 
     /** Set by hash `#/assessments?client=…`; consumed when form clients load */
     const pendingClientFromHashRef = useRef<string | null>(null);
@@ -160,6 +194,7 @@ export function Assessments() {
 
         if (result.kind === 'error') {
             setAssessments([]);
+            setProgressById({});
             setListLoadError(
                 'We could not load assessments. Your records are still saved — try again in a moment.'
             );
@@ -169,6 +204,28 @@ export function Assessments() {
 
         setAssessments(result.data);
         setListLoadState('loaded');
+        void loadListProgress(result.data);
+    };
+
+    const loadListProgress = async (list: Assessment[]) => {
+        const requestId = ++progressLoadRequestRef.current;
+        const pairs = await Promise.all(
+            list.map(async (assessment) => {
+                try {
+                    const figure = await loadCurrentCycleProgressFigure(
+                        assessment.id,
+                        assessment.pack_snapshot
+                    );
+                    return [assessment.id, figure] as const;
+                } catch {
+                    return [assessment.id, null] as const;
+                }
+            })
+        );
+        if (requestId !== progressLoadRequestRef.current) {
+            return;
+        }
+        setProgressById(Object.fromEntries(pairs));
     };
 
     const loadFormData = async () => {
@@ -325,21 +382,19 @@ export function Assessments() {
         );
     }
 
+    const emptyCopy = assessmentsEmptyCopy(statusFilter);
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Assessments</h1>
                     <p className="text-gray-600 mt-1">Manage and track client assessments</p>
-                    {!showForm && ['admin', 'senior_therapist', 'therapist', 'viewer'].includes(profile?.role || '') && (
-                        <p className="text-sm text-gray-500 mt-2 max-w-3xl leading-snug">
-                            Active: draft and in-progress work · Submitted: awaiting review · Approved: finalized
-                        </p>
-                    )}
                 </div>
                 {!showForm && (
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         {['admin', 'senior_therapist', 'therapist', 'viewer'].includes(profile?.role || '') && (
+                            <>
                             <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
                                 <button
                                     onClick={() => setStatusFilter('active')}
@@ -360,11 +415,16 @@ export function Assessments() {
                                     Approved
                                 </button>
                             </div>
+                            <p className="text-sm text-gray-500 leading-snug" data-filter-legend>
+                                Active: draft and in-progress work · Submitted: awaiting review · Approved: finalized
+                            </p>
+                            </>
                         )}
-                        {['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                        {statusFilter === 'active' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
                             <button
                                 onClick={openCreateFormFromAssessmentsPage}
                                 className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
+                                data-filled-create
                             >
                                 <Plus className="w-5 h-5" />
                                 New Assessment
@@ -507,14 +567,16 @@ export function Assessments() {
                         <DataLoadEmptyState>
                         <div className="text-center py-16 bg-white rounded-lg border-2 border-dashed border-gray-200">
                             <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <h3 className="text-lg font-medium text-gray-900">No {statusFilter} assessments found</h3>
-                            <p className="text-gray-500 mt-1">Get started by creating a new assessment.</p>
-                            {['admin', 'senior_therapist', 'therapist'].includes(profile?.role || '') && (
+                            <h3 className="text-lg font-medium text-gray-900">{emptyCopy.title}</h3>
+                            {emptyCopy.body ? (
+                                <p className="text-gray-500 mt-1">{emptyCopy.body}</p>
+                            ) : null}
+                            {emptyCopy.offerCreate && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
                                 <button
                                     onClick={openCreateFormFromAssessmentsPage}
                                     className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
                                 >
-                                    Create New Assessment
+                                    New Assessment
                                 </button>
                             )}
                         </div>
@@ -533,13 +595,18 @@ export function Assessments() {
                                 <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
                                     {assessment.client?.first_name} {assessment.client?.last_name}
                                     <span className="text-gray-400 font-normal text-sm mx-1 min-w-4">•</span>
-                                    <span className="text-gray-600 font-medium text-base">{assessment.pack?.title}</span>
+                                    <span className="text-gray-600 font-medium text-base">{formatAssessmentListPackLine(assessment.pack)}</span>
                                 </h3>
                                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                                     <div className="flex items-center gap-1">
                                         <Calendar className="w-4 h-4" />
-                                        <span>{new Date(assessment.created_at).toLocaleDateString()}</span>
+                                        <span>{formatAssessmentListDateLine(assessment)}</span>
                                     </div>
+                                    {progressById[assessment.id] ? (
+                                        <span data-cycle-progress>
+                                            {progressById[assessment.id]?.label}
+                                        </span>
+                                    ) : null}
                                     {assessment.assigned_to ? (
                                         <div className="flex items-center gap-1">
                                             <User className="w-4 h-4" />

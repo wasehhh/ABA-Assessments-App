@@ -87,11 +87,10 @@ describe('C4a deletion policy on both surfaces', () => {
         );
     });
 
-    it('role-gates New Assessment on Client detail without restyling it', () => {
+    it('role-gates New Assessment on Client detail', () => {
         expect(detailSource).toContain(
             "['admin', 'senior_therapist'].includes(profile?.role || '')"
         );
-        expect(detailSource).toContain('bg-blue-600 hover:bg-blue-700');
         expect(detailSource).toContain('New Assessment');
     });
 });

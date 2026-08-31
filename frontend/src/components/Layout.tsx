@@ -13,6 +13,11 @@ interface Props {
 const drawerItemClass =
   'block w-full min-h-11 text-left px-3 py-2.5 rounded-md text-base font-medium text-gray-700 hover:text-emerald-600 hover:bg-gray-50';
 
+export function isClientsLayoutNavCurrent(hash: string): boolean {
+  const path = hash.split('?')[0];
+  return path === '#/clients' || path.startsWith('#/client/');
+}
+
 export function Layout({ children }: Props) {
   const { profile, signOut } = useAuth();
   const navigationGuard = useOptionalAssessmentBuilderNavigationGuard();
@@ -49,6 +54,8 @@ export function Layout({ children }: Props) {
     setIsMobileMenuOpen(false);
   };
 
+  const clientsNavCurrent = isClientsLayoutNavCurrent(window.location.hash);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200">
@@ -65,7 +72,13 @@ export function Layout({ children }: Props) {
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="font-medium">Dashboard</span>
               </button>
-              <button onClick={() => navigate('#/clients')} className="flex items-center gap-2 text-gray-700 hover:text-emerald-600 transition">
+              <button
+                onClick={() => navigate('#/clients')}
+                className={`flex items-center gap-2 transition ${
+                  clientsNavCurrent ? 'text-emerald-600' : 'text-gray-700 hover:text-emerald-600'
+                }`}
+                aria-current={clientsNavCurrent ? 'page' : undefined}
+              >
                 <Users className="w-5 h-5" />
                 <span className="font-medium">Clients</span>
               </button>
@@ -180,6 +193,7 @@ export function Layout({ children }: Props) {
                 type="button"
                 onClick={() => closeDrawerAndNavigate('#/clients')}
                 className={drawerItemClass}
+                aria-current={clientsNavCurrent ? 'page' : undefined}
               >
                 Clients
               </button>

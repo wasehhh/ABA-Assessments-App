@@ -4,7 +4,11 @@ import {
   assessmentService,
   canDeleteAssessment,
   countRecordedScores,
+  formatAssessmentListDateLine,
+  formatAssessmentListPackLine,
+  loadCurrentCycleProgressFigure,
   recordedScoresDestroyedSentence,
+  type CurrentCycleProgressFigure,
 } from '../services/assessments';
 import { clientService } from '../services/clients';
 import { ArrowLeft, Calendar, FileText, Plus } from 'lucide-react';
@@ -45,6 +49,13 @@ export function ClientDetail({ clientId }: Props) {
     scoreCount: number | null;
   } | null>(null);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
+  const [progressById, setProgressById] = useState<
+    Record<string, CurrentCycleProgressFigure | null>
+  >({});
+  const progressLoadRequestRef = useRef(0);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editForm, setEditForm] = useState({ firstName: '', lastName: '', dateOfBirth: '' });
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const loadClient = async () => {
     const requestId = ++clientLoadRequestRef.current;
@@ -102,6 +113,7 @@ export function ClientDetail({ clientId }: Props) {
 
     if (result.kind === 'error') {
       setAssessments([]);
+      setProgressById({});
       setAssessmentsLoadError(
         'We could not load assessments for this client. The client record loaded, but the assessment list is unavailable — try again.'
       );
@@ -109,8 +121,31 @@ export function ClientDetail({ clientId }: Props) {
       return;
     }
 
-    setAssessments(result.data.filter((a) => a.client_id === clientId));
+    const forClient = result.data.filter((a) => a.client_id === clientId);
+    setAssessments(forClient);
     setAssessmentsLoadState('loaded');
+    void loadListProgress(forClient);
+  };
+
+  const loadListProgress = async (list: Assessment[]) => {
+    const requestId = ++progressLoadRequestRef.current;
+    const pairs = await Promise.all(
+      list.map(async (assessment) => {
+        try {
+          const figure = await loadCurrentCycleProgressFigure(
+            assessment.id,
+            assessment.pack_snapshot
+          );
+          return [assessment.id, figure] as const;
+        } catch {
+          return [assessment.id, null] as const;
+        }
+      })
+    );
+    if (requestId !== progressLoadRequestRef.current) {
+      return;
+    }
+    setProgressById(Object.fromEntries(pairs));
   };
 
   useEffect(() => {
@@ -198,11 +233,43 @@ export function ClientDetail({ clientId }: Props) {
     }
   };
 
+  const canManageClient = ['admin', 'senior_therapist'].includes(profile?.role || '');
+
+  const openEditForm = () => {
+    setEditForm({
+      firstName: client.first_name,
+      lastName: client.last_name,
+      dateOfBirth: client.date_of_birth
+        ? new Date(client.date_of_birth).toISOString().split('T')[0]
+        : '',
+    });
+    setSaveError(null);
+    setShowEditForm(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaveError(null);
+    try {
+      const updated = await clientService.update(clientId, {
+        first_name: editForm.firstName,
+        last_name: editForm.lastName,
+        date_of_birth: editForm.dateOfBirth,
+      });
+      setClient(updated);
+      setShowEditForm(false);
+    } catch (err) {
+      console.error('Error updating client:', err);
+      const detail = err instanceof Error ? err.message : 'An unexpected error occurred.';
+      setSaveError(`The client was not updated. ${detail} Please try again.`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <button
         onClick={() => window.location.hash = '#/clients'}
-        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+        className="flex items-center gap-2 text-gray-600 hover:text-emerald-700 font-medium"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Clients
@@ -221,16 +288,110 @@ export function ClientDetail({ clientId }: Props) {
               </p>
             )}
           </div>
-          {['admin', 'senior_therapist'].includes(profile?.role || '') ? (
-            <button
-              onClick={() => window.location.hash = `#/assessments?client=${clientId}`}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-            >
-              <Plus className="w-5 h-5" />
-              New Assessment
-            </button>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {canManageClient ? (
+              <button
+                type="button"
+                onClick={openEditForm}
+                className="text-gray-600 hover:text-emerald-700 font-medium"
+                data-client-edit
+              >
+                Edit
+              </button>
+            ) : null}
+            {canManageClient && client.status === 'active' ? (
+              <button
+                onClick={() => window.location.hash = `#/assessments?client=${clientId}`}
+                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
+                data-filled-create
+              >
+                <Plus className="w-5 h-5" />
+                New Assessment
+              </button>
+            ) : null}
+          </div>
         </div>
+
+        {saveError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start justify-between gap-4 mb-6">
+            <span>{saveError}</span>
+            <button
+              type="button"
+              onClick={() => setSaveError(null)}
+              className="shrink-0 font-medium text-red-700 hover:text-red-900 underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {showEditForm && (
+          <form onSubmit={handleEditSubmit} className="mb-6 bg-gray-50 rounded-lg p-4 space-y-4 border border-gray-200">
+            <div className="flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Edit Client</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditForm(false);
+                  setSaveError(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input
+                  type="text"
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={editForm.dateOfBirth}
+                onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                required
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditForm(false);
+                  setSaveError(null);
+                }}
+                className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="border-t pt-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -249,7 +410,9 @@ export function ClientDetail({ clientId }: Props) {
           ) : assessments.length === 0 ? (
             <DataLoadEmptyState>
               <div className="text-center py-8 text-gray-500">
-                No assessments yet. Create one to get started.
+                {client.status === 'active'
+                  ? 'No assessments yet. Create one to get started.'
+                  : 'No assessments.'}
               </div>
             </DataLoadEmptyState>
           ) : (
@@ -266,11 +429,19 @@ export function ClientDetail({ clientId }: Props) {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-900">
-                            {assessment.pack_snapshot.title}
+                            {formatAssessmentListPackLine({
+                              title: assessment.pack_snapshot.title,
+                              version: assessment.pack_snapshot.version,
+                            })}
                           </h3>
                           <p className="text-sm text-gray-600 mt-1">
-                            Created: {new Date(assessment.created_at).toLocaleDateString()}
+                            {formatAssessmentListDateLine(assessment)}
                           </p>
+                          {progressById[assessment.id] ? (
+                            <p className="text-sm text-gray-600" data-cycle-progress>
+                              {progressById[assessment.id]?.label}
+                            </p>
+                          ) : null}
                           {shouldShowSubmissionDate(assessment.status, assessment.submitted_at) && (
                             <p className="text-sm text-gray-600">
                               Submitted: {new Date(assessment.submitted_at).toLocaleDateString()}

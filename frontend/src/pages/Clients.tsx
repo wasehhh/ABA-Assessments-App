@@ -176,7 +176,7 @@ export function Clients() {
           <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
           <p className="text-gray-600 mt-1">Manage client records</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap items-center">
           <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
             <button
               onClick={() => setStatusFilter('active')}
@@ -191,7 +191,7 @@ export function Clients() {
               Archived
             </button>
           </div>
-          {['admin', 'senior_therapist'].includes(profile?.role || '') && (
+          {statusFilter === 'active' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
             <button
               onClick={() => {
                 setEditingId(null);
@@ -200,6 +200,7 @@ export function Clients() {
                 setShowForm(!showForm);
               }}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition"
+              data-filled-create
             >
               <Plus className="w-5 h-5" />
               Add Client
@@ -384,6 +385,20 @@ export function Clients() {
         <DataLoadEmptyState>
           <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
             <p className="text-gray-500">No {statusFilter} clients found.</p>
+            {statusFilter === 'active' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ firstName: '', lastName: '', dateOfBirth: '' });
+                  setSaveError(null);
+                  setShowForm(true);
+                }}
+                className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Add Client
+              </button>
+            )}
           </div>
         </DataLoadEmptyState>
       ) : (
@@ -404,6 +419,9 @@ export function Clients() {
                   DOB: {new Date(client.date_of_birth).toLocaleDateString()}
                 </p>
               )}
+              <p className="text-sm text-gray-500" data-client-added>
+                Added {new Date(client.created_at).toLocaleDateString()}
+              </p>
             </div>
             <div className="flex items-center gap-2">
               {['admin', 'senior_therapist'].includes(profile?.role || '') && (
