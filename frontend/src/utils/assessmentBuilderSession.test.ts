@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Domain } from '../types';
 import {
+    PACK_BUILDER_STICKY_CHROME_SELECTOR,
     buildBuilderSessionSnapshot,
     builderIssueAnchorId,
     builderSessionSnapshotsEqual,
     focusBuilderIssueAnchor,
+    measuredPackBuilderStickyHeightPx,
     revealBuilderIssueAnchor,
 } from './assessmentBuilderSession';
 import { NEW_PACK_DEFAULT_SCALE_CSV } from './assessmentPackCanonical';
@@ -198,34 +200,77 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
         vi.restoreAllMocks();
     });
 
+    function stubSticky(height: number) {
+        return {
+            getBoundingClientRect: () => ({
+                top: 0,
+                bottom: height,
+                left: 0,
+                right: 100,
+                height,
+                width: 100,
+            }),
+        };
+    }
+
     function stubAnchor(options: {
-        field: 'title' | 'default_scale';
+        field: 'title' | 'default_scale' | 'domain_id';
         insideDetails: boolean;
         detailsOpen: boolean;
+        stickyHeight?: number;
+        domainIndex?: number;
+        elementHeight?: number;
     }) {
         const focus = vi.fn();
         const scrollIntoView = vi.fn();
         const details = { open: options.detailsOpen };
+        const elementHeight = options.elementHeight ?? 0;
         const element = {
+            style: { scrollMarginTop: '' },
             scrollIntoView,
             closest: (selector: string) =>
                 options.insideDetails && selector === 'details' ? details : null,
             querySelector: () => ({ focus }),
             getBoundingClientRect: () => ({
                 top: 0,
-                bottom: 0,
+                bottom: elementHeight,
                 left: 0,
                 right: 0,
-                height: 0,
+                height: elementHeight,
                 width: 0,
             }),
         };
-        const issue = { field: options.field, message: 'Invalid' };
+        const issue =
+            options.field === 'domain_id'
+                ? {
+                      field: 'domain_id' as const,
+                      domainIndex: options.domainIndex ?? 0,
+                      message: 'Invalid',
+                  }
+                : { field: options.field, message: 'Invalid' };
+        const sticky =
+            options.stickyHeight === undefined ? null : stubSticky(options.stickyHeight);
         vi.stubGlobal('document', {
             getElementById: (id: string) =>
                 id === builderIssueAnchorId(issue) ? element : null,
+            querySelector: (selector: string) =>
+                selector === PACK_BUILDER_STICKY_CHROME_SELECTOR ? sticky : null,
         });
-        return { details, focus, scrollIntoView, issue };
+        return { details, focus, scrollIntoView, issue, element, sticky };
+    }
+
+    /**
+     * CSSOM View `block: 'center'` centres the scroll-margin box in the viewport.
+     * The element's resulting viewport top is derived from that, not a tuned offset.
+     */
+    function elementViewportTopAfterBlockCenter(input: {
+        elementHeight: number;
+        scrollMarginTop: number;
+        viewportHeight: number;
+    }): number {
+        return (
+            input.scrollMarginTop / 2 - input.elementHeight / 2 + input.viewportHeight / 2
+        );
     }
 
     it('opens Advanced and lands on default_scale when that field fails validation', () => {
@@ -272,14 +317,72 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
         expect(details.open).toBe(false);
     });
 
+    it('clears a short sticky header when jumping to a single-issue field', () => {
+        const QA_VIEWPORT_HEIGHT = 900;
+        const QA_SHORT_STICKY_HEIGHT = 199;
+        const QA_FIELD_HEIGHT = 42;
+        const { scrollIntoView, issue, element, sticky } = stubAnchor({
+            field: 'default_scale',
+            insideDetails: true,
+            detailsOpen: true,
+            stickyHeight: QA_SHORT_STICKY_HEIGHT,
+            elementHeight: QA_FIELD_HEIGHT,
+        });
+
+        focusBuilderIssueAnchor(issue);
+
+        const stickyBottom = sticky!.getBoundingClientRect().bottom;
+        const scrollMarginTop = Number.parseFloat(element.style.scrollMarginTop);
+        expect(scrollMarginTop).toBe(measuredPackBuilderStickyHeightPx());
+        expect(scrollMarginTop).toBe(QA_SHORT_STICKY_HEIGHT);
+        const targetTop = elementViewportTopAfterBlockCenter({
+            elementHeight: QA_FIELD_HEIGHT,
+            scrollMarginTop,
+            viewportHeight: QA_VIEWPORT_HEIGHT,
+        });
+        expect(targetTop).toBeGreaterThanOrEqual(stickyBottom);
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    });
+
+    it('clears a tall sticky header when jumping through a long issue list', () => {
+        const QA_VIEWPORT_HEIGHT = 900;
+        const QA_TALL_STICKY_HEIGHT = 415;
+        const QA_FIELD_HEIGHT = 42;
+        const { scrollIntoView, issue, element, sticky } = stubAnchor({
+            field: 'domain_id',
+            domainIndex: 3,
+            insideDetails: false,
+            detailsOpen: false,
+            stickyHeight: QA_TALL_STICKY_HEIGHT,
+            elementHeight: QA_FIELD_HEIGHT,
+        });
+
+        focusBuilderIssueAnchor(issue);
+
+        const stickyBottom = sticky!.getBoundingClientRect().bottom;
+        const scrollMarginTop = Number.parseFloat(element.style.scrollMarginTop);
+        expect(scrollMarginTop).toBe(measuredPackBuilderStickyHeightPx());
+        expect(scrollMarginTop).toBe(QA_TALL_STICKY_HEIGHT);
+        const targetTop = elementViewportTopAfterBlockCenter({
+            elementHeight: QA_FIELD_HEIGHT,
+            scrollMarginTop,
+            viewportHeight: QA_VIEWPORT_HEIGHT,
+        });
+        expect(targetTop).toBeGreaterThanOrEqual(stickyBottom);
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    });
+
     it('scrolls default_scale after Advanced reflows, not to the collapsed geometry', () => {
         const QA_STALE_TOP = -328;
         const QA_VIEWPORT_HEIGHT = 900;
+        const QA_TALL_STICKY_HEIGHT = 415;
         const EXPANDED_TOP = 180;
+        const ELEMENT_HEIGHT = 40;
         let open = false;
         let layoutFlushed = false;
         const focus = vi.fn();
         const issue = { field: 'default_scale' as const, message: 'Invalid' };
+        const sticky = stubSticky(QA_TALL_STICKY_HEIGHT);
 
         const layoutTop = () => (open && layoutFlushed ? EXPANDED_TOP : QA_STALE_TOP);
 
@@ -294,6 +397,7 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
 
         let scrolledTop: number | null = null;
         const element = {
+            style: { scrollMarginTop: '' },
             closest: (selector: string) => (selector === 'details' ? details : null),
             getBoundingClientRect: () => {
                 if (open) {
@@ -301,10 +405,10 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
                 }
                 return {
                     top: layoutTop(),
-                    bottom: layoutTop() + 40,
+                    bottom: layoutTop() + ELEMENT_HEIGHT,
                     left: 0,
                     right: 100,
-                    height: 40,
+                    height: ELEMENT_HEIGHT,
                     width: 100,
                 };
             },
@@ -317,6 +421,8 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
         vi.stubGlobal('document', {
             getElementById: (id: string) =>
                 id === builderIssueAnchorId(issue) ? element : null,
+            querySelector: (selector: string) =>
+                selector === PACK_BUILDER_STICKY_CHROME_SELECTOR ? sticky : null,
         });
 
         focusBuilderIssueAnchor(issue);
@@ -331,6 +437,16 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
             block: 'center',
         });
         expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+
+        const stickyBottom = sticky.getBoundingClientRect().bottom;
+        const scrollMarginTop = Number.parseFloat(element.style.scrollMarginTop);
+        expect(scrollMarginTop).toBe(QA_TALL_STICKY_HEIGHT);
+        const targetTop = elementViewportTopAfterBlockCenter({
+            elementHeight: ELEMENT_HEIGHT,
+            scrollMarginTop,
+            viewportHeight: QA_VIEWPORT_HEIGHT,
+        });
+        expect(targetTop).toBeGreaterThanOrEqual(stickyBottom);
     });
 });
 

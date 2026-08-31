@@ -269,6 +269,8 @@ export function builderSessionSnapshotsEqual(
     return deepEqual(left.pack, right.pack);
 }
 
+export const PACK_BUILDER_STICKY_CHROME_SELECTOR = '[data-pack-builder-sticky-chrome]';
+
 export function builderIssueAnchorId(issue: BuilderAuthoringIssue): string {
     const { field, domainIndex, targetIndex } = issue;
     if (domainIndex === undefined) {
@@ -278,6 +280,19 @@ export function builderIssueAnchorId(issue: BuilderAuthoringIssue): string {
         return `builder-issue-${field}-${domainIndex}`;
     }
     return `builder-issue-${field}-${domainIndex}-${targetIndex}`;
+}
+
+/** Measured sticky-chrome height; the jump's scroll-margin-top is this value, not a constant. */
+export function measuredPackBuilderStickyHeightPx(): number {
+    const sticky = document.querySelector(PACK_BUILDER_STICKY_CHROME_SELECTOR);
+    if (!sticky) {
+        return 0;
+    }
+    return sticky.getBoundingClientRect().height;
+}
+
+function applyPackBuilderIssueScrollMargin(element: HTMLElement): void {
+    element.style.scrollMarginTop = `${measuredPackBuilderStickyHeightPx()}px`;
 }
 
 /** Open a collapsed ancestor disclosure so the issue anchor is visible. */
@@ -301,6 +316,7 @@ export function focusBuilderIssueAnchor(issue: BuilderAuthoringIssue): void {
     if (!element) {
         return;
     }
+    applyPackBuilderIssueScrollMargin(element);
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     const focusable = element.querySelector<HTMLElement>(
         'input:not([type="hidden"]), select, textarea, button'
