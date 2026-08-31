@@ -7,6 +7,8 @@ import { Dashboard } from './pages/Dashboard';
 import { Clients } from './pages/Clients';
 import { ClientDetail } from './pages/ClientDetail';
 import { ContentPacks } from './pages/ContentPacks';
+import { PackBuilder } from './pages/PackBuilder';
+import { resolvePacksLocation } from './pages/packBuilderRoutes';
 import { Assessments } from './pages/Assessments';
 import { AssessmentMatrix } from './pages/AssessmentMatrix';
 import { Users } from './pages/Users';
@@ -241,6 +243,13 @@ function AppRouter() {
 
   const renderPage = () => {
     const baseRoute = route.split('?')[0];
+    const packsLocation = resolvePacksLocation(baseRoute);
+    if (packsLocation.kind === 'builder-new') {
+      return <PackBuilder />;
+    }
+    if (packsLocation.kind === 'builder-edit') {
+      return <PackBuilder packId={packsLocation.packId} />;
+    }
     switch (baseRoute) {
       case '#/dashboard':
         return <Dashboard />;

@@ -280,8 +280,21 @@ export function builderIssueAnchorId(issue: BuilderAuthoringIssue): string {
     return `builder-issue-${field}-${domainIndex}-${targetIndex}`;
 }
 
-export function focusBuilderIssueAnchor(issue: BuilderAuthoringIssue): void {
+/** Open a collapsed ancestor disclosure so the issue anchor is visible. */
+export function revealBuilderIssueAnchor(issue: BuilderAuthoringIssue): HTMLElement | null {
     const element = document.getElementById(builderIssueAnchorId(issue));
+    if (!element) {
+        return null;
+    }
+    const details = element.closest('details');
+    if (details && !details.open) {
+        details.open = true;
+    }
+    return element;
+}
+
+export function focusBuilderIssueAnchor(issue: BuilderAuthoringIssue): void {
+    const element = revealBuilderIssueAnchor(issue);
     if (!element) {
         return;
     }

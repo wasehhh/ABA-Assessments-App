@@ -206,6 +206,15 @@ describe('AssessmentBuilder C1 editing session contracts', () => {
         expect(builderSource).toContain('builder-issue-default_scale');
     });
 
+    it('reveals Advanced pack settings when validation targets a field inside it', () => {
+        expect(builderSource).toContain('revealBuilderIssueAnchor');
+        expect(builderSource).toMatch(
+            /if \(mergedIssues\.length > 0\)[\s\S]*revealBuilderIssueAnchor\(issue\)[\s\S]*return;/
+        );
+        expect(builderSource).toContain('onClick={() => focusBuilderIssueAnchor(issue)}');
+        expect(builderSource).not.toMatch(/<details[^>]*\sopen=\{/);
+    });
+
     it('blocks save on validation issues without clearing working copy state', () => {
         expect(builderSource).toMatch(/if \(mergedIssues\.length > 0\)[\s\S]*return;/);
         expect(builderSource).toContain('setAuthoringIssues(mergedIssues)');

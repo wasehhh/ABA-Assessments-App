@@ -53,6 +53,7 @@ import {
     buildBuilderSessionSnapshot,
     builderSessionSnapshotsEqual,
     focusBuilderIssueAnchor,
+    revealBuilderIssueAnchor,
     type BuilderSessionSnapshotInput,
 } from '../utils/assessmentBuilderSession';
 
@@ -65,7 +66,15 @@ interface Props {
     packId?: string;
     /** Revision token captured at session open — parent uses for save conflict check. */
     sessionOpenedAtRevision?: string;
+    /** Sticky page H1 subtitle — New pack vs Editing: {title}. */
+    sessionSubtitle: string;
+    /** Form id so sticky Save (outside the card) can submit. */
+    formId: string;
 }
+
+/** Add Domain / Add Target — same secondary family; not filled accent (Phase D B5). */
+const BUILDER_SECONDARY_ADD_CLASS =
+    'inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 hover:bg-gray-50';
 
 function scaleDraftKey(domainIndex: number, targetIndex: number): string {
     return `${domainIndex}:${targetIndex}`;
@@ -121,6 +130,8 @@ export function AssessmentBuilder({
     onSessionChange,
     packId,
     sessionOpenedAtRevision,
+    sessionSubtitle,
+    formId,
 }: Props) {
     const workingSeed = seedBuilderWorkingPack(initialData);
     const initialTitle = initialData?.title || '';
@@ -856,6 +867,9 @@ export function AssessmentBuilder({
 
         if (mergedIssues.length > 0) {
             setAuthoringIssues(mergedIssues);
+            for (const issue of mergedIssues) {
+                revealBuilderIssueAnchor(issue);
+            }
             return;
         }
 
@@ -923,28 +937,54 @@ export function AssessmentBuilder({
     };
 
     return (
-        <form
+        <div data-pack-builder-session>
+            <header
+                className="sticky top-0 z-20 mb-6 border-b border-gray-200 bg-white py-3 shadow-sm"
+                data-pack-builder-sticky-chrome
+            >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <h1 className="text-3xl font-bold text-gray-900">Pack Builder</h1>
+                        <p className="mt-1 text-gray-600">{sessionSubtitle}</p>
+                        {isDirty ? (
+                            <p
+                                className="mt-1 text-sm font-medium text-amber-800"
+                                data-builder-dirty-indicator
+                            >
+                                Unsaved changes
+                            </p>
+                        ) : null}
+                    </div>
+                    <div className="flex shrink-0 gap-3">
+                        <button
+                            type="submit"
+                            form={formId}
+                            disabled={domains.length === 0}
+                            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2.5 rounded-lg font-medium"
+                        >
+                            Save Assessment Pack
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleCancelClick}
+                            className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-900 py-2.5 rounded-lg font-medium"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <form
             onSubmit={handleSubmit}
+            id={formId}
             className="bg-white rounded-lg shadow p-6 space-y-6"
             data-builder-pack-id={packId}
             data-builder-session-revision={sessionOpenedAtRevision}
         >
-            <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Build Custom Assessment</h2>
-                <button
-                    type="button"
-                    onClick={downloadTemplate}
-                    className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 text-sm"
-                >
-                    <Download className="w-4 h-4" />
-                    Download CSV Template
-                </button>
-            </div>
-
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex gap-3">
                 <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-emerald-900">
-                    <p className="font-semibold mb-1">Assessment Builder</p>
                     <p>
                         Create custom assessments with optional secondary grouping, configurable
                         structure labels, inline scoring scales, and display labels. Flat packs
@@ -974,8 +1014,7 @@ export function AssessmentBuilder({
                 </div>
             ) : null}
 
-            <div className="grid grid-cols-1 gap-4">
-                <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4" data-builder-title-block>
                     <div id="builder-issue-title">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Assessment Title
@@ -1009,8 +1048,13 @@ export function AssessmentBuilder({
                             placeholder="Brief description of the assessment"
                         />
                     </div>
-                </div>
+            </div>
 
+            <details data-builder-advanced-pack-settings>
+                <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                    Advanced pack settings
+                </summary>
+                <div className="mt-3 space-y-4">
                 <div className="rounded-lg border border-gray-200 p-4 space-y-3">
                     <h3 className="text-sm font-semibold text-gray-900">Structure Labels</h3>
                     <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
@@ -1150,7 +1194,9 @@ export function AssessmentBuilder({
                                     Score Criteria Definitions
                                 </label>
                                 <p className="text-xs text-gray-500 mb-2">
-                                    Define what each score means (e.g. 4 = Independent)
+                                    Score-button text for the pack default (e.g. 4 = Independent).
+                                    Mastery language for a target stays on that target&apos;s Success
+                                    Criteria field.
                                 </p>
                                 {defaultScaleValues.map((scoreValue) => (
                                     <div key={scoreValue} className="flex items-center gap-2">
@@ -1197,9 +1243,21 @@ export function AssessmentBuilder({
                         </p>
                     )}
                 </div>
-            </div>
+                    <button
+                        type="button"
+                        onClick={downloadTemplate}
+                        className="inline-flex items-center gap-1 text-sm text-gray-700 underline hover:text-gray-900"
+                    >
+                        <Download className="w-4 h-4" />
+                        Download CSV Template
+                    </button>
+                    <p className="text-xs text-gray-500">
+                        Instructions and Examples, if present, come from CSV or JSON import.
+                    </p>
+                </div>
+            </details>
 
-            <div className="border-t pt-4">
+            <div className="border-t pt-4" data-builder-domains-block>
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                         {pluralizeStructureLabel(primaryLabel)} &{' '}
@@ -1208,7 +1266,7 @@ export function AssessmentBuilder({
                     <button
                         type="button"
                         onClick={addDomain}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-sm"
+                        className={BUILDER_SECONDARY_ADD_CLASS}
                     >
                         <Plus className="w-4 h-4" />
                         Add {primaryLabel}
@@ -1278,9 +1336,11 @@ export function AssessmentBuilder({
                                 <button
                                     type="button"
                                     onClick={() => removeDomain(dIndex)}
-                                    className="text-red-600 hover:text-red-700 p-2"
+                                    aria-label={`Remove ${primaryLabel} ${domain.title || dIndex + 1}`}
+                                    className="inline-flex items-center gap-1 p-2 text-sm text-red-600 hover:text-red-700"
                                 >
                                     <Trash2 className="w-4 h-4" />
+                                    Remove {primaryLabel}
                                 </button>
                             </div>
 
@@ -1326,9 +1386,11 @@ export function AssessmentBuilder({
                                                                             groupIndex
                                                                         )
                                                                     }
-                                                                    className="text-red-600 hover:text-red-700"
+                                                                    aria-label={`Remove ${secondaryLabel} ${group.title || groupIndex + 1}`}
+                                                                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700"
                                                                 >
                                                                     <Trash2 className="h-3 w-3" />
+                                                                    Remove {secondaryLabel}
                                                                 </button>
                                                             </div>
                                                             <div className="grid grid-cols-2 gap-2">
@@ -1426,9 +1488,9 @@ export function AssessmentBuilder({
                                                                     group.secondary_group_id
                                                                 )
                                                             }
-                                                            className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+                                                            className={BUILDER_SECONDARY_ADD_CLASS}
                                                         >
-                                                            <Plus className="h-3 w-3" />
+                                                            <Plus className="w-4 h-4" />
                                                             Add {targetLabelText}
                                                         </button>
                                                     </div>
@@ -1502,9 +1564,9 @@ export function AssessmentBuilder({
                                         <button
                                             type="button"
                                             onClick={() => addTarget(dIndex)}
-                                            className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
+                                            className={BUILDER_SECONDARY_ADD_CLASS}
                                         >
-                                            <Plus className="h-3 w-3" />
+                                            <Plus className="w-4 h-4" />
                                             Add {targetLabelText}
                                         </button>
                                     </div>
@@ -1570,23 +1632,6 @@ export function AssessmentBuilder({
                 </div>
             ) : null}
 
-            <div className="flex gap-3 pt-4 border-t">
-                <button
-                    type="submit"
-                    disabled={domains.length === 0}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-2.5 rounded-lg font-medium"
-                >
-                    Save Assessment Pack
-                </button>
-                <button
-                    type="button"
-                    onClick={handleCancelClick}
-                    className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-900 py-2.5 rounded-lg font-medium"
-                >
-                    Cancel
-                </button>
-            </div>
-
             <ConfirmDialog
                 isOpen={cancelConfirmOpen}
                 title="Discard unsaved changes?"
@@ -1609,5 +1654,6 @@ export function AssessmentBuilder({
                 onCancel={() => setUniformConfirmOpen(false)}
             />
         </form>
+        </div>
     );
 }

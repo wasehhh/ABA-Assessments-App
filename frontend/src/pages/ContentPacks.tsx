@@ -1,16 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useAssessmentBuilderNavigationGuard } from '../context/AssessmentBuilderNavigationGuard';
 import { packService } from '../services/packs';
 import { ContentPack } from '../types';
 import { Upload, Plus, RefreshCcw, Trash2, AlertTriangle } from 'lucide-react';
-import { AssessmentBuilder } from '../components/AssessmentBuilder';
-import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
     collectPackOversizedWarnings,
     OVERSIZED_WARNING_ADVICE,
 } from '../utils/assessmentPackAuthoring';
 import { prepareContentPackForUpload } from '../utils/assessmentPackCanonical';
+import { PACK_BUILDER_NEW_HASH, packBuilderEditHash } from './packBuilderRoutes';
 import {
     DataLoadEmptyState,
     DataLoadErrorPanel,
@@ -29,7 +28,6 @@ export function ContentPacks() {
 
   const [packs, setPacks] = useState<ContentPack[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [showBuilder, setShowBuilder] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', file: null as File | null });
   const [error, setError] = useState('');
   const [loadState, setLoadState] = useState<DataLoadState>('loading');
@@ -40,62 +38,8 @@ export function ContentPacks() {
   const [archiveTarget, setArchiveTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [editingPack, setEditingPack] = useState<ContentPack | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
-  const [builderDirty, setBuilderDirty] = useState(false);
-  const [builderRemountKey, setBuilderRemountKey] = useState(0);
-  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
-  const sessionOpenedAtRevisionRef = useRef<string | null>(null);
   const navigationGuard = useAssessmentBuilderNavigationGuard();
-
-  const handleBuilderSessionChange = useCallback((state: { isDirty: boolean }) => {
-    setBuilderDirty(state.isDirty);
-  }, []);
-
-  useEffect(() => {
-    navigationGuard.setBlocking(showBuilder && builderDirty);
-  }, [showBuilder, builderDirty, navigationGuard]);
-
-  useEffect(() => {
-    if (editingPack) {
-      sessionOpenedAtRevisionRef.current = editingPack.updated_at;
-    } else {
-      sessionOpenedAtRevisionRef.current = null;
-    }
-  }, [editingPack?.id, editingPack?.updated_at, builderRemountKey]);
-
-  const reloadEditingPackFromServer = async () => {
-    if (!editingPack) {
-      setConflictDialogOpen(false);
-      return;
-    }
-
-    try {
-      const fresh = await packService.getById(editingPack.id);
-      if (!fresh) {
-        setError('This pack is no longer available.');
-        setShowBuilder(false);
-        setEditingPack(null);
-        setBuilderDirty(false);
-        setConflictDialogOpen(false);
-        return;
-      }
-
-      setEditingPack(fresh);
-      sessionOpenedAtRevisionRef.current = fresh.updated_at;
-      setBuilderRemountKey((key) => key + 1);
-      setBuilderDirty(false);
-      setConflictDialogOpen(false);
-      void loadPacks();
-    } catch (err: any) {
-      setError(err.message ?? 'Could not reload this pack.');
-      setConflictDialogOpen(false);
-    }
-  };
-
-  const requestBuilderSessionAction = (action: () => void) => {
-    navigationGuard.requestLocalAction(action);
-  };
 
   const loadPacks = async () => {
     if (!profile?.org_id) {
@@ -177,20 +121,6 @@ export function ContentPacks() {
     }
   };
 
-  const handleBuilderSave = async (packData: any) => {
-    if (!profile?.org_id || !user?.id) return;
-
-    try {
-      await packService.upload(profile.org_id, packData.title, packData.description, packData, user.id);
-      setShowBuilder(false);
-      setBuilderDirty(false);
-      const updated = await packService.getByOrg(profile.org_id);
-      setPacks(updated);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
   if (loadState === 'loading') {
     return <DataLoadSpinner label="Loading content packs…" />;
   }
@@ -207,27 +137,15 @@ export function ContentPacks() {
   }
 
   const handleEdit = (pack: ContentPack) => {
-    requestBuilderSessionAction(() => {
-      setEditingPack(pack);
-      setShowBuilder(true);
-      setShowForm(false);
-    });
+    navigationGuard.requestNavigation(packBuilderEditHash(pack.id));
   };
 
   const openNewBuilder = () => {
-    requestBuilderSessionAction(() => {
-      setShowBuilder(true);
-      setShowForm(false);
-      setEditingPack(null);
-    });
+    navigationGuard.requestNavigation(PACK_BUILDER_NEW_HASH);
   };
 
   const openUploadForm = () => {
-    requestBuilderSessionAction(() => {
-      setShowForm(!showForm);
-      setShowBuilder(false);
-      setEditingPack(null);
-    });
+    setShowForm(!showForm);
   };
 
   const confirmArchive = async () => {
@@ -290,7 +208,7 @@ export function ContentPacks() {
             </button>
             <button
               onClick={openUploadForm}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+              className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 hover:bg-gray-50"
             >
               <Upload className="w-5 h-5" />
               Upload Pack
@@ -298,61 +216,6 @@ export function ContentPacks() {
           </div>
         )}
       </div>
-
-      {showBuilder && isAdmin && (
-        <AssessmentBuilder
-          key={`${editingPack?.id ?? 'new'}-${builderRemountKey}`}
-          packId={editingPack?.id}
-          sessionOpenedAtRevision={sessionOpenedAtRevisionRef.current ?? undefined}
-          initialData={editingPack ? { ...editingPack.pack_data, title: editingPack.title, description: editingPack.description ?? '' } : undefined}
-          onSessionChange={handleBuilderSessionChange}
-          onSave={async (data) => {
-            if (editingPack) {
-              const expectedRevision = sessionOpenedAtRevisionRef.current;
-              if (!expectedRevision) {
-                setError('Cannot save — pack revision is missing. Reload the page and try again.');
-                return;
-              }
-
-              const result = await packService.updateIfRevisionMatches(
-                editingPack.id,
-                {
-                  title: data.title,
-                  description: data.description,
-                  pack_data: { ...data, version: editingPack.version },
-                },
-                expectedRevision
-              );
-
-              if (!result.ok) {
-                setConflictDialogOpen(true);
-                return;
-              }
-
-              loadPacks();
-              setShowBuilder(false);
-              setEditingPack(null);
-              setBuilderDirty(false);
-            } else {
-              handleBuilderSave(data);
-            }
-          }}
-          onCancel={() => {
-            setShowBuilder(false);
-            setEditingPack(null);
-            setBuilderDirty(false);
-          }}
-        />
-      )}
-
-      <ConfirmDialog
-        isOpen={conflictDialogOpen}
-        title="Pack changed elsewhere"
-        message="This pack was changed by someone else."
-        confirmText="Reload"
-        variant="alert"
-        onConfirm={() => void reloadEditingPackFromServer()}
-      />
 
       {showForm && isAdmin && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
@@ -402,7 +265,10 @@ export function ContentPacks() {
             />
           </div>
           <div className="flex gap-2">
-            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+            <button
+              type="submit"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-800 hover:bg-gray-50"
+            >
               Upload Pack
             </button>
             <button

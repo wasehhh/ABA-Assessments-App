@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Domain } from '../types';
 import {
     buildBuilderSessionSnapshot,
     builderIssueAnchorId,
     builderSessionSnapshotsEqual,
+    focusBuilderIssueAnchor,
+    revealBuilderIssueAnchor,
 } from './assessmentBuilderSession';
 import { NEW_PACK_DEFAULT_SCALE_CSV } from './assessmentPackCanonical';
 
@@ -187,6 +189,79 @@ describe('builderIssueAnchorId', () => {
                 message: 'Invalid scale',
             })
         ).toBe('builder-issue-scale-0-1');
+    });
+});
+
+describe('focusBuilderIssueAnchor Advanced pack settings', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    function stubAnchor(options: {
+        field: 'title' | 'default_scale';
+        insideDetails: boolean;
+        detailsOpen: boolean;
+    }) {
+        const focus = vi.fn();
+        const scrollIntoView = vi.fn();
+        const details = { open: options.detailsOpen };
+        const element = {
+            scrollIntoView,
+            closest: (selector: string) =>
+                options.insideDetails && selector === 'details' ? details : null,
+            querySelector: () => ({ focus }),
+        };
+        const issue = { field: options.field, message: 'Invalid' };
+        vi.stubGlobal('document', {
+            getElementById: (id: string) =>
+                id === builderIssueAnchorId(issue) ? element : null,
+        });
+        return { details, focus, scrollIntoView, issue };
+    }
+
+    it('opens Advanced and lands on default_scale when that field fails validation', () => {
+        const { details, focus, scrollIntoView, issue } = stubAnchor({
+            field: 'default_scale',
+            insideDetails: true,
+            detailsOpen: false,
+        });
+        focusBuilderIssueAnchor(issue);
+        expect(details.open).toBe(true);
+        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    });
+
+    it('opens Advanced on submit reveal for default_scale without scrolling', () => {
+        const { details, focus, scrollIntoView, issue } = stubAnchor({
+            field: 'default_scale',
+            insideDetails: true,
+            detailsOpen: false,
+        });
+        revealBuilderIssueAnchor(issue);
+        expect(details.open).toBe(true);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+        expect(focus).not.toHaveBeenCalled();
+    });
+
+    it('does not reopen Advanced when it is already open', () => {
+        const { details, issue } = stubAnchor({
+            field: 'default_scale',
+            insideDetails: true,
+            detailsOpen: true,
+        });
+        revealBuilderIssueAnchor(issue);
+        expect(details.open).toBe(true);
+    });
+
+    it('does not open a disclosure for title, which is outside Advanced', () => {
+        const { details, issue } = stubAnchor({
+            field: 'title',
+            insideDetails: false,
+            detailsOpen: false,
+        });
+        focusBuilderIssueAnchor(issue);
+        expect(details.open).toBe(false);
     });
 });
 

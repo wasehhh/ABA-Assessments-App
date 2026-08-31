@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const DISCARD_MESSAGE =
-    'You have unsaved changes in the Assessment Builder. Discard them and leave this session?';
+    'You have unsaved changes in the Pack Builder. Discard them and leave this session?';
 
 export interface AssessmentBuilderNavigationGuard {
     isBlocking: boolean;
