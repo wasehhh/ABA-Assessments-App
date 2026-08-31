@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|--------|
 | **Document type** | Product architecture specification (Communication Report version history UI) |
-| **Consolidation slice** | **C3** — after C0/C0.1, C1–C1.2 (Matrix header), C2/D1 (Pack Builder structure) |
+| **Consolidation slice** | **C3** (per-cycle version history) · **C5** amendment (assessment documents index) — last build item before Alpha |
 | **Status** | Authoritative design contract — Builder implements without product interpretation on resolved items |
-| **Binding context** | Consolidation phase in force (founder 2026-08-25, reiterated 2026-08-27): **surface existing capability only** — no new report fields, no new computation, no version diff |
+| **Binding context** | Consolidation phase in force (founder 2026-08-25, reiterated 2026-08-27): **surface existing capability only** — no new report fields, no new computation, no version diff · founder option **B** 2026-08-31: documents index reachable in any assessment state |
 | **Prerequisite data** | `assessment_communication_reports.version`, statuses `draft` \| `finalized` \| `superseded`, `embedded_computed` frozen at finalize — already implemented in `reportAuthoring.ts` |
 | **References** | [`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) (§5.3, §7, §8.3–§8.4, INV-RA31) · [`assessment_snapshot_cycle_filtering_contract.md`](./assessment_snapshot_cycle_filtering_contract.md) (§5 — partial-record signalling precedent) · [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) (document door UI names only) · [`tablet_touch_viability_contract.md`](./tablet_touch_viability_contract.md) (Report = computer surface) |
 | **Verified against** | `frontend/src/services/reportAuthoring.ts` · `reportAuthoringRoles.ts` · `reportAuthoringTypes.ts` · `finalizedReportPresentation.ts` · `FinalizedAssessmentReport.tsx` · `ReportAuthoring.tsx` · `assessmentMatrixReportEntry.ts` · `clinicalExportAudit.ts` · `reportViewAudit.ts` · `audit.ts` |
@@ -14,7 +14,7 @@
 
 **Lands with the C3 implementation it describes.** Do not treat this file as a standalone docs commit.
 
-**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns **where** version history lives, **how** superseded documents are marked on screen and in print, **schema-version render policy** for historical rows, **role gates for history**, and **audit events** for viewing/printing superseded versions. It does not restate finalize computation, embed generation, six-section template, PHI dialog copy, or Matrix document doors beyond entry-point names.
+**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns **where** version history lives, **how** superseded documents are marked on screen and in print, **schema-version render policy** for historical rows, **role gates for history**, **audit events** for viewing/printing superseded versions, and (C5) the **assessment documents index** that lists issued reports across cycles. It does not restate finalize computation, embed generation, six-section template, PHI dialog copy, Matrix cycle selection / Compare semantics, or header-slot geometry (placement of document doors remains owned by [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md)).
 
 **Amends authoring contract non-goal:** [`assessment_report_authoring_contract.md`](./assessment_report_authoring_contract.md) header listed “version-history browsing” as a non-goal for the **authoring** contract round. **C3 implements** the UI that §8.3 already promised (“historical read / optional print with version label”). Data model and finalize flow are unchanged.
 
@@ -48,6 +48,24 @@
 | **Authoring workspace** | No redesign — one entry link to history only |
 | **Version-to-version diff** | Explicitly out of scope — OQ-RVH-2 |
 | **Aggregate figures** | INV-RA31 — no % / composite / index in list, chrome, or body |
+| **Matrix cycle handling** | **C5:** `selectedCycleId`, Compare, locked-cycle viewing (**M4**) — **unchanged**. Index does not select or view a cycle on the Matrix |
+
+---
+
+## Amendment banner — documents index (C5, 2026-08-31)
+
+**Defect (founder hand-find, confirmed in code):** `shouldShowReportAuthoringEntry` and `shouldShowFinalizedReportEntry` both require `assessmentStatus === 'approved'`. `startNewCycle` returns the assessment to `in_progress`. **Every issued Communication Report becomes unreachable from the UI** while rows and routes remain intact.
+
+**Founder ruling (binding — option B):** Build a **documents index on the assessment** listing every issued report across every cycle, reachable in **any** assessment state.
+
+**Rejected (do not re-propose):**
+
+| Option | Why rejected |
+|--------|----------------|
+| Relax `approved` gate only | Rescues the **current** cycle’s door only; a cycle-1 report stays unreachable while the Matrix stays on cycle 2 — selecting cycle 1 is a separate missing capability (**M4**) |
+| Build locked-cycle / historical-cycle viewer now | Correct end state, but changes what the Matrix means by “current cycle”; touches scoring surface verified live days before pilot — **post-Alpha** |
+
+**Boundary (the point of C5):** The index makes **documents** reachable. It does **not** make historical cycles viewable on the Matrix. If a design needs a cycle selector, a viewed-cycle concept, or any change to Matrix `selectedCycleId` / Compare, **stop** — that is M4.
 
 ---
 
@@ -59,9 +77,10 @@ Hash SPA — consistent with existing report routes (`assessmentMatrixReportEntr
 
 | Route | Purpose |
 |-------|---------|
-| `#/assessment/:assessmentId/report/finalized?cycleId=` | **Current issued report** (default Communication Report door) — unchanged default; `getCurrentFinalizedVersion` |
+| `#/assessment/:assessmentId/report/finalized?cycleId=` | **Current issued report for that cycle** — `getCurrentFinalizedVersion` when `version` omitted |
 | `#/assessment/:assessmentId/report/finalized?cycleId=&version=` | **Specific issued row** by integer `version` (`finalized` or `superseded` only) |
-| `#/assessment/:assessmentId/report/versions?cycleId=` | **Version history list** for that assessment + cycle |
+| `#/assessment/:assessmentId/report/versions?cycleId=` | **Per-cycle version history** — issued rows for one cycle (C3) |
+| `#/assessment/:assessmentId/reports` | **Documents index** — all issued reports across all cycles (C5) |
 | `#/assessment/:assessmentId/report/edit?cycleId=` | Write Report workspace — unchanged |
 
 **Load rule for version param:**
@@ -76,10 +95,18 @@ Hash SPA — consistent with existing report routes (`assessmentMatrixReportEntr
 
 | From | Control | When visible |
 |------|---------|--------------|
-| **Communication Report** (`FinalizedAssessmentReport`) | Text link **“Version history”** (secondary; not a second primary) | `listReportVersions` returns **any** `superseded` row for scope, **or** `version > 1` with at least one issued row |
-| **Write Report** (`ReportAuthoring`) | Same link in workspace chrome | Same condition **or** page state `needs_new_version` (finalized exists) |
+| **Matrix More → Documents** | **Communication Report** door | **C5 gating (§13.4)** — not `assessmentStatus === 'approved'` alone |
+| **Communication Report document** (`FinalizedAssessmentReport`) | Text link **“Version history”** (secondary) | Per-cycle: any `superseded` for that `cycleId`, **or** `version > 1` with an issued row |
+| **Write Report** (`ReportAuthoring`) | Link **“Version history”** (per-cycle) and/or **“All issued reports”** → documents index | Version history: same as above **or** `needs_new_version`; index: when assessment has any issued report (§13.4) |
 
-**Not an entry point:** Matrix overflow **Communication Report** door continues to open **current** finalized only (`buildFinalizedReportRouteHash` — no `version` param). History is one click from that document, not a fourth Matrix door.
+**Two surfaces (binding):**
+
+| Surface | Scope | Job |
+|---------|-------|-----|
+| **Documents index** (`…/reports`) | Whole assessment | Find and open **any** issued Communication Report after any cycle |
+| **Version history** (`…/report/versions?cycleId=`) | One cycle | See the version stack **for that cycle** (current vs superseded) |
+
+They are **not** merged. The index answers “what has this clinic ever issued?” The per-cycle list answers “what versions exist for this administration?” Matrix entry for reading issued reports is the **index** (§13). Per-cycle history remains one click from a document (C3).
 
 **Document door names (UI only):** Assessment Snapshot · Write Report · Communication Report — per C1; code route names unchanged until terminology sweep.
 
@@ -283,6 +310,9 @@ Extend existing patterns — do **not** invent a parallel audit system.
 | **OQ-RVH-3** | Differentiate `senior_therapist` vs `admin` on history/print | **A** Same gates (code today) · **B** Admin-only history | **A** — matches §8.1 table; therapist/viewer read is intentional | C3 |
 | **OQ-RVH-4** | Exact **Document status** copy | Founder copy pass vs engineering strings in §4.2 | Adopt §4.2 substance until founder pass | C3 implementation |
 | **OQ-RVH-5** | Legacy Present Levels content for pre-cut / null-schema rows | **A** Heading-only honest · **B** Render stored fat domains if present in JSON but non-authoritative | **Resolved by existing behaviour** (§5.2): `legacyPresentLevelsDomainRows` uses stored fat domains for goal headings only; Present Levels body stays heading-only; not an authoritative v5 body | **Resolved** (shipped; not re-decided in C3) |
+| **OQ-RVH-6** | Documents index load strategy | **A** N+1 `getCycles` + `listReportVersions` · **B** `listIssuedReportsForAssessment` | **B** — one assessment-scoped select (§13.6) | C5 |
+| **OQ-RVH-7** | Communication Report door label vs index | **A** Keep UI name **Communication Report** → index · **B** Rename door to “Issued reports” | **A** — C1 naming locked; subtitle may clarify “All issued reports for this assessment” | C5 unless founder wants B |
+| **OQ-RVH-8** | Index section / row sort | **A** Newest cycle (and version) first · **B** Oldest first (chronological narrative) | **A** — matches “what was last issued?” recovery after New Cycle | C5 |
 
 ---
 
@@ -328,7 +358,156 @@ Extend existing patterns — do **not** invent a parallel audit system.
 | `frontend/src/clinicalExport/reportViewAudit.ts` | VIEW events for history |
 | `docs/architecture/assessment_report_version_history_contract.md` | This contract |
 
-**Out of scope:** `reportAuthoring.ts` finalize/supersede logic, `reportEmbeddedComputed.ts` computation, diff UI, template changes.
+**Out of scope:** `reportAuthoring.ts` finalize/supersede logic, `reportEmbeddedComputed.ts` computation, diff UI, template changes, Matrix cycle selection (M4).
+
+---
+
+## 13. Documents index (C5) — assessment-wide issued reports
+
+### 13.1 Where it lives and how it is reached
+
+| Item | Binding |
+|------|---------|
+| **Route** | `#/assessment/:assessmentId/reports` — **no** `cycleId` query required |
+| **Page job** | List every **issued** Communication Report for this assessment (all cycles); open a frozen document |
+| **Matrix entry** | More → Documents → **Communication Report** opens this index when §13.4 says the door is shown |
+| **From a document** | Secondary link **“All issued reports”** → index (in addition to per-cycle **Version history**) |
+| **From Write Report** | Optional secondary **“All issued reports”** when §13.4 index is available |
+
+**Relation to C3 per-cycle history:** **Two surfaces** (§3.2). Index does not replace per-cycle version history; it is the **assessment-scoped** entry that survives `startNewCycle`. Opening a row uses existing finalized routes (`cycleId` + optional `version`) — that `cycleId` is a **document load key**, not Matrix cycle selection.
+
+**Invariant INV-RVH-7:** Navigating the documents index or opening a report from it **must not** change Matrix `selectedCycleId`, Compare selection, or any viewed-cycle concept.
+
+### 13.2 What it lists
+
+**Issued rows only:** `status ∈ { finalized, superseded }` for this `assessment_id`, **all** `cycle_id` values. **Drafts excluded.**
+
+Per row, show **only**:
+
+| Column / field | Source | Notes |
+|----------------|--------|-------|
+| **Cycle** | Cycle number (+ dates when known) | §13.3 — how cycles are told apart |
+| **Version** | `version` | `v{N}` — versions are **per cycle** (monotonic within `(assessment_id, cycle_id)`) |
+| **Status** | `status` | **Current** (`finalized`) or **Superseded** — text badge, not colour-only. “Current” means current **for that cycle**, not “latest for the assessment” |
+| **Finalized** | `finalized_at` | Locale date |
+| **Finalized by** | `finalized_by` | Display name when resolvable; else opaque id or `—` |
+
+**Forbidden (same as §3.3 / INV-RA31):** diffs, delta counts, “what changed,” aggregate percentages, composites, indexes, Present Levels comparison between versions or cycles.
+
+**Row action:** **View** → `#/assessment/:id/report/finalized?cycleId={row.cycle_id}&version={row.version}` (existing viewer + C3 marking + §5 render policy).
+
+**Empty state:** No issued reports — door hidden (§13.4); if route opened directly, honest empty copy (“No issued communication reports for this assessment yet.”) without inventing create CTAs that violate Write Report gating.
+
+### 13.3 How a reader tells cycles apart
+
+**Binding presentation:** **Group by cycle**, not a flat bag of `v1`/`v2` across cycles (version numbers restart per cycle — a flat list would collide and confuse).
+
+| UI structure | Content |
+|--------------|---------|
+| **Section header per cycle** | **Cycle {n}** · optional `start_date`–`end_date` (or start only) from `assessment_cycles` · optional short mark when this cycle is `in_progress` on `getCycles` (**“Active cycle”** text only — does **not** switch cycles). The index route does not receive Matrix `selectedCycleId` and must not (INV-RVH-7) |
+| **Rows under header** | That cycle’s issued versions (same columns as §13.2 minus redundant cycle column, or keep Version/Status/Finalized/By) |
+
+**Sort (binding — OQ-RVH-8 option A):** Cycles descending by `cycle_number` (newest administration first). Within a cycle, versions descending by `version` (current finalized first).
+
+**No cycle selector** on the index. Sections are static grouping of loaded rows.
+
+### 13.4 Gating rule that replaces `assessmentStatus === 'approved'`
+
+**Definitions:**
+
+| Term | Meaning |
+|------|---------|
+| **Has issued reports** | ≥1 row on `assessment_communication_reports` for this assessment with `status ∈ { finalized, superseded }` and `embedded_computed != null` (same renderability bar as C3 snapshot gate) |
+| **Can view finalized** | `canViewFinalizedReport(role)` — admin / senior / therapist / viewer |
+| **Can author** | `canManageReportAuthoring(role)` — admin / senior only |
+
+**New binding gates (UI):**
+
+| Door / surface | Show when | Does **not** require |
+|----------------|-----------|----------------------|
+| **Documents index** + Matrix **Communication Report** door | `hasIssuedReports` ∧ `canViewFinalizedReport` | `assessment.status === 'approved'` |
+| **Write Report** door | `assessment.status === 'approved'` ∧ `canManageReportAuthoring` ∧ selected cycle available | Unchanged — **authoring**, not reading |
+| **Per-cycle Version history** link | Unchanged relative to C3 (issued stack for that cycle) | — |
+| **Assessment Snapshot** | Unchanged (own availability rules) | — |
+
+**Why Write Report stays approved-only:** Authoring contract / OQ-RA1 — communication authoring begins only when the assessment is approved. After `startNewCycle`, status is `in_progress`; starting a new draft against a non-approved assessment would reopen a settled gate. **Reading** issued documents must survive that transition; **writing** must not.
+
+**Matrix header hierarchy:** Placement of document doors remains in More → Documents per [`assessment_matrix_header_hierarchy_contract.md`](./assessment_matrix_header_hierarchy_contract.md) §6.1 / §9. **This amendment changes only the visibility predicates and the Communication Report destination** (index, not current-cycle-only finalized). It does not add a fourth door, move doors out of More, or change primary-strip rules.
+
+**Communication Report destination (binding):** When the door is shown, it navigates to `#/assessment/:id/reports` (documents index). It does **not** deep-link solely to `getCurrentFinalizedVersion(selectedCycleId)` — that path is what broke after New Cycle when the selected cycle has no finalized row and when older cycles’ reports were invisible.
+
+**Code to replace:** `shouldShowFinalizedReportEntry` must stop requiring `assessmentStatus === 'approved'`; visibility becomes `hasIssuedReports && canViewFinalizedReport(role)`. Loading `hasIssuedReports` must not be limited to `assessment.status === 'approved'` (today’s `AssessmentMatrix` effect early-returns when not approved — that is the defect).
+
+**Known debt (unchanged):** `listReportVersions` / any list-all helper has **no service-level authorisation**. UI gates remain required. Do not design a service ACL fix in C5.
+
+### 13.5 Roles, print, audit
+
+| Concern | C5 disposition |
+|---------|----------------|
+| **Who may open index** | Same as view finalized — all four roles that pass `canViewFinalizedReport` |
+| **Who may open a row** | Same as C3 view of finalized/superseded |
+| **Who may print** | Unchanged — admin / senior + PHI gate + `version` in audit |
+| **Audit — open index** | `VIEW` / `entity_type: 'report'` / `details`: `artifact: 'report'`, `surface: 'documents_index'`, `assessment_id` (no `cycle_id` required) |
+| **Audit — open document from index** | Same as C3 `surface: 'version_document'` (+ `version`, `status`; include `cycle_id`) |
+| **Print/ack** | Unchanged §6 / §8 |
+
+Nothing in the index weakens PHI or print role policy.
+
+### 13.6 Data — what exists vs what is needed
+
+| Need | Existing today? | Notes |
+|------|-----------------|-------|
+| Issued rows for **one** cycle | **Yes** — `listReportVersions(assessmentId, cycleId)` | C3 |
+| Current finalized for one cycle | **Yes** — `getCurrentFinalizedVersion` | |
+| All cycles for assessment | **Yes** — `assessmentService.getCycles(assessmentId)` | `cycle_number`, dates, ids |
+| Issued rows for **all** cycles in one call | **No** | `getReportsForScope` always filters `cycle_id` |
+
+**Costed options:**
+
+| Option | How | Cost | Recommendation |
+|--------|-----|------|----------------|
+| **A — N+1 (no new service API)** | `getCycles` then `listReportVersions` per cycle; filter to issued | Same class of accepted list debt as Assessments (multiple reads); works with shipped functions; scales with cycle count (typically small) | Acceptable fallback |
+| **B — One assessment-scoped query** | New `listIssuedReportsForAssessment(assessmentId)`: `assessment_communication_reports` where `assessment_id` and `status in ('finalized','superseded')`, order by cycle/version; join or second `getCycles` for headers | **One new service method**, one DB select — **no schema change**; honest for an index | **Selected for C5** |
+
+**Why B is not “a new feature”:** It surfaces rows the product already stores; it does not add fields, finalize behaviour, or computation. Declining it would force N+1 theatre while pretending no query was needed.
+
+**Cycle headers:** Prefer `getCycles` (already loaded on Matrix) passed into the index page, or fetch once on the index route — existing API.
+
+**Finalized-by names:** Same as C3 — UUID on row; resolve display name when a profile lookup already used elsewhere; else `—`.
+
+### 13.7 What C5 does not change
+
+| Area | Disposition |
+|------|-------------|
+| Matrix `selectedCycleId` / Compare / locked-cycle viewer (M4) | **Unchanged** |
+| Finalize / supersede / `createNewVersionDraftFromFinalized` | **Unchanged** |
+| `embedded_computed` freeze + §5 render policy | **Unchanged** |
+| Data model / `template_version` / six-section body | **Unchanged** |
+| Write Report **approved** authoring gate | **Unchanged** (§13.4) |
+| Per-cycle version history surface (C3) | **Retained** |
+
+### 13.8 C5 invariants
+
+| ID | Invariant |
+|----|-----------|
+| **INV-RVH-7** | Documents index never changes Matrix viewed cycle |
+| **INV-RVH-8** | Communication Report door visibility depends on **issued-report existence**, not current `approved` status alone |
+| **INV-RVH-9** | Index lists introduce **no** aggregate / composite / index figures (INV-RA31) |
+
+### 13.9 C5 Builder touch list (implementation reference)
+
+| File | Change class |
+|------|----------------|
+| `frontend/src/pages/assessmentMatrixReportEntry.ts` | New gates; `buildDocumentsIndexRouteHash`; Communication Report → index |
+| `frontend/src/pages/AssessmentMatrix.tsx` | Load `hasIssuedReports` in any status; wire door |
+| `frontend/src/components/assessment/MatrixHeaderMoreMenu.tsx` | Destination hash only (placement unchanged) |
+| `frontend/src/App.tsx` | Route `#/assessment/.../reports` |
+| `frontend/src/pages/ReportDocumentsIndex.tsx` *(new)* | Grouped issued list |
+| `frontend/src/services/reportAuthoring.ts` | `listIssuedReportsForAssessment` (option B) |
+| `frontend/src/pages/FinalizedAssessmentReport.tsx` | Link to documents index |
+| `docs/architecture/assessment_report_version_history_contract.md` | This amendment |
+
+**Out of scope:** Matrix cycle viewer, service-level ACL on list methods, header hierarchy redesign.
 
 ---
 
@@ -339,3 +518,4 @@ Extend existing patterns — do **not** invent a parallel audit system.
 | 2026-08-31 | Initial C3 version history contract — routes, list, superseded marking (Snapshot precedent), print/audit/roles |
 | 2026-08-31 | §5.2 corrected: no new schema registry; reuse shipped `selectPresentLevelsRenderBody` / `FinalizedReportDocument`; OQ-RVH-5 resolved by existing `legacyPresentLevelsDomainRows` |
 | 2026-08-31 | Remaining sections reconciled with §5.2: §5.3 records actual C3 cost (reuse renderer + snapshot-gate extension); §6.1 uses `legacy` / `change_metrics` / `corrupt`; OQ-RVH-5 marked resolved in §9; remaining registry/tier vocabulary removed |
+| 2026-08-31 | **C5 amendment:** §13 documents index (founder option B); Communication Report door gating by issued existence; Write Report stays approved-only; two-surface relation to per-cycle history; `listIssuedReportsForAssessment` (option B) |

@@ -1,12 +1,12 @@
 import { auditService } from '../services/audit';
 
-export type ReportViewAuditSurface = 'version_history' | 'version_document';
+export type ReportViewAuditSurface = 'version_history' | 'version_document' | 'documents_index';
 
 interface ReportViewAuditInput {
     orgId: string | null | undefined;
     userId: string | null | undefined;
     assessmentId: string;
-    cycleId: string;
+    cycleId?: string;
     surface: ReportViewAuditSurface;
     version?: number;
     status?: 'finalized' | 'superseded';
@@ -33,7 +33,7 @@ export function logReportViewAudit(input: ReportViewAuditInput): void {
                 artifact: 'report',
                 surface: input.surface,
                 assessment_id: input.assessmentId,
-                cycle_id: input.cycleId,
+                ...(input.cycleId ? { cycle_id: input.cycleId } : {}),
                 ...(input.version !== undefined ? { version: input.version } : {}),
                 ...(input.status ? { status: input.status } : {}),
             },
@@ -44,9 +44,15 @@ export function logReportViewAudit(input: ReportViewAuditInput): void {
 }
 
 export function logReportHistoryListViewAudit(
-    input: Omit<ReportViewAuditInput, 'surface'>
+    input: Omit<ReportViewAuditInput, 'surface'> & { cycleId: string }
 ): void {
     logReportViewAudit({ ...input, surface: 'version_history' });
+}
+
+export function logReportDocumentsIndexViewAudit(
+    input: Omit<ReportViewAuditInput, 'surface' | 'cycleId'>
+): void {
+    logReportViewAudit({ ...input, surface: 'documents_index' });
 }
 
 export function logReportDocumentViewAudit(

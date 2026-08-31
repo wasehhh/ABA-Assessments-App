@@ -19,10 +19,11 @@ import {
 import { ReportAuthoringForm } from '../components/reportAuthoring/ReportAuthoringForm';
 import { ReportAuthoringReferencePanel } from '../components/reportAuthoring/ReportAuthoringReferencePanel';
 import {
+    buildDocumentsIndexRouteHash,
     buildVersionHistoryRouteHash,
     readReportAuthoringCycleIdFromHash,
 } from './assessmentMatrixReportEntry';
-import { shouldShowVersionHistoryLink } from './issuedReportVersions';
+import { hasRenderableIssuedReports, shouldShowVersionHistoryLink } from './issuedReportVersions';
 import {
     beginNewVersionDraftFromFinalized,
     loadCycleReferenceScores,
@@ -68,6 +69,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
     const [createVersionError, setCreateVersionError] = useState<string | null>(null);
     const [existingDraftNotice, setExistingDraftNotice] = useState<string | null>(null);
     const [showVersionHistory, setShowVersionHistory] = useState(false);
+    const [hasIssuedReports, setHasIssuedReports] = useState(false);
 
     const cycleId = readReportAuthoringCycleIdFromHash();
 
@@ -81,6 +83,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
             setCreateVersionError(null);
             setExistingDraftNotice(null);
             setShowVersionHistory(false);
+            setHasIssuedReports(false);
 
             if (!canManageReportAuthoring(profile?.role)) {
                 if (!cancelled) {
@@ -118,10 +121,10 @@ export function ReportAuthoring({ assessmentId }: Props) {
                 }
 
                 const workspace = await loadOrCreateDraftReport(assessmentId, cycleId);
-                const versions = await reportAuthoringService.listReportVersions(
-                    assessmentId,
-                    cycleId
-                );
+                const [versions, issuedAcrossAssessment] = await Promise.all([
+                    reportAuthoringService.listReportVersions(assessmentId, cycleId),
+                    reportAuthoringService.listIssuedReportsForAssessment(assessmentId),
+                ]);
 
                 if (cancelled) {
                     return;
@@ -131,6 +134,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
                 setCycle(selectedCycle);
                 setCycles(cycleList);
                 setShowVersionHistory(shouldShowVersionHistoryLink(versions));
+                setHasIssuedReports(hasRenderableIssuedReports(issuedAcrossAssessment));
 
                 if (workspace.kind === 'needs_new_version') {
                     setReportRow(null);
@@ -365,15 +369,26 @@ export function ReportAuthoring({ assessmentId }: Props) {
                         The finalized report cannot be edited. Create a new version to amend it. The
                         current finalized document stays in place until you finalize the new version.
                     </p>
-                    {showVersionHistory && cycleId ? (
-                        <p className="mt-4">
-                            <a
-                                href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
-                                className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
-                                data-report-version-history-link
-                            >
-                                Version history
-                            </a>
+                    {(showVersionHistory || hasIssuedReports) && cycleId ? (
+                        <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1">
+                            {showVersionHistory ? (
+                                <a
+                                    href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                                    className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                    data-report-version-history-link
+                                >
+                                    Version history
+                                </a>
+                            ) : null}
+                            {hasIssuedReports ? (
+                                <a
+                                    href={buildDocumentsIndexRouteHash(assessmentId)}
+                                    className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                    data-report-documents-index-link
+                                >
+                                    All issued reports
+                                </a>
+                            ) : null}
                         </p>
                     ) : null}
                     {createVersionError ? (
@@ -452,15 +467,26 @@ export function ReportAuthoring({ assessmentId }: Props) {
                         </span>
                         Draft v{reportRow.version}
                     </p>
-                    {showVersionHistory && cycleId ? (
-                        <p className="mt-2">
-                            <a
-                                href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
-                                className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
-                                data-report-version-history-link
-                            >
-                                Version history
-                            </a>
+                    {(showVersionHistory || hasIssuedReports) && cycleId ? (
+                        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                            {showVersionHistory ? (
+                                <a
+                                    href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                                    className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                    data-report-version-history-link
+                                >
+                                    Version history
+                                </a>
+                            ) : null}
+                            {hasIssuedReports ? (
+                                <a
+                                    href={buildDocumentsIndexRouteHash(assessmentId)}
+                                    className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                    data-report-documents-index-link
+                                >
+                                    All issued reports
+                                </a>
+                            ) : null}
                         </p>
                     ) : null}
                 </div>

@@ -470,4 +470,21 @@ export const reportAuthoringService = {
 
         return data ? normalizeReportRow(data as AssessmentCommunicationReport) : null;
     },
+
+    async listIssuedReportsForAssessment(
+        assessmentId: string
+    ): Promise<AssessmentCommunicationReport[]> {
+        const { data, error } = await supabase
+            .from('assessment_communication_reports')
+            .select('*')
+            .eq('assessment_id', assessmentId)
+            .in('status', ['finalized', 'superseded'])
+            .order('version', { ascending: false });
+
+        if (error) {
+            throw error;
+        }
+
+        return (data ?? []).map((row) => normalizeReportRow(row as AssessmentCommunicationReport));
+    },
 };

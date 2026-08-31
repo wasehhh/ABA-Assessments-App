@@ -6,7 +6,7 @@ export const ASSESSMENT_SNAPSHOT_ENTRY_SUBTITLE = 'All scores, all cycles — so
 export const WRITE_REPORT_ENTRY_LABEL = 'Write Report';
 export const WRITE_REPORT_ENTRY_SUBTITLE = 'Draft the family-facing report.';
 export const COMMUNICATION_REPORT_ENTRY_LABEL = 'Communication Report';
-export const COMMUNICATION_REPORT_ENTRY_SUBTITLE = 'Read the issued report (locked).';
+export const COMMUNICATION_REPORT_ENTRY_SUBTITLE = 'All issued reports for this assessment';
 
 export function shouldShowReportAuthoringEntry(
     assessmentStatus: string | null | undefined,
@@ -16,15 +16,10 @@ export function shouldShowReportAuthoringEntry(
 }
 
 export function shouldShowFinalizedReportEntry(
-    assessmentStatus: string | null | undefined,
     role: string | null | undefined,
-    hasFinalizedReport: boolean
+    hasIssuedReports: boolean
 ): boolean {
-    return (
-        assessmentStatus === 'approved' &&
-        hasFinalizedReport &&
-        canViewFinalizedReport(role)
-    );
+    return hasIssuedReports && canViewFinalizedReport(role);
 }
 
 export function buildReportAuthoringRouteHash(assessmentId: string, cycleId: string): string {
@@ -45,6 +40,10 @@ export function buildFinalizedReportRouteHash(
 
 export function buildVersionHistoryRouteHash(assessmentId: string, cycleId: string): string {
     return `#/assessment/${assessmentId}/report/versions?cycleId=${encodeURIComponent(cycleId)}`;
+}
+
+export function buildDocumentsIndexRouteHash(assessmentId: string): string {
+    return `#/assessment/${assessmentId}/reports`;
 }
 
 export function readReportAuthoringCycleIdFromHash(

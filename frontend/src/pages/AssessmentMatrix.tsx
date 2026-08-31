@@ -39,7 +39,7 @@ import {
   AssessmentMatrixSubmitControl,
 } from './AssessmentMatrixHonestySurface';
 import {
-  buildFinalizedReportRouteHash,
+  buildDocumentsIndexRouteHash,
   buildReportAuthoringRouteHash,
   shouldShowFinalizedReportEntry,
   shouldShowReportAuthoringEntry,
@@ -50,6 +50,7 @@ import {
   shouldShowNewCycleAction,
 } from './assessmentMatrixHeaderModes';
 import { reportAuthoringService } from '../services/reportAuthoring';
+import { hasRenderableIssuedReports } from './issuedReportVersions';
 
 function cannotSubmitAssessmentState(assessment: { status: string }, viewingCycle: { status: string } | undefined) {
   const cycleLocked = viewingCycle ? viewingCycle.status !== 'in_progress' : false;
@@ -98,7 +99,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
-  const [hasFinalizedReport, setHasFinalizedReport] = useState(false);
+  const [hasIssuedReports, setHasIssuedReports] = useState(false);
 
   // Workflow State
   const [unscoredCount, setUnscoredCount] = useState(0);
@@ -165,29 +166,29 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   }, [selectedCycleId, compareCycleId, assessmentId]);
 
   useEffect(() => {
-    if (!selectedCycleId || assessment?.status !== 'approved') {
-      setHasFinalizedReport(false);
+    if (!assessmentId) {
+      setHasIssuedReports(false);
       return;
     }
 
     let cancelled = false;
     void reportAuthoringService
-      .getCurrentFinalizedVersion(assessmentId, selectedCycleId)
-      .then((row) => {
+      .listIssuedReportsForAssessment(assessmentId)
+      .then((rows) => {
         if (!cancelled) {
-          setHasFinalizedReport(Boolean(row?.embedded_computed));
+          setHasIssuedReports(hasRenderableIssuedReports(rows));
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setHasFinalizedReport(false);
+          setHasIssuedReports(false);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [assessmentId, selectedCycleId, assessment?.status]);
+  }, [assessmentId]);
 
   // --- Data Loading ---
 
@@ -594,9 +595,10 @@ export function AssessmentMatrix({ assessmentId }: Props) {
   const showAssessmentSnapshotEntry = snapshotAvailability.available;
   const showReportAuthoringEntry =
     shouldShowReportAuthoringEntry(assessment.status, profile?.role) && Boolean(selectedCycleId);
-  const showFinalizedReportEntry =
-    shouldShowFinalizedReportEntry(assessment.status, profile?.role, hasFinalizedReport) &&
-    Boolean(selectedCycleId);
+  const showFinalizedReportEntry = shouldShowFinalizedReportEntry(
+    profile?.role,
+    hasIssuedReports
+  );
   const showApproveInStrip = matrixHeaderShowsApprove(headerMode);
   const showNewCycleInMore = shouldShowNewCycleAction(assessment.status, profile?.role);
 
@@ -698,10 +700,7 @@ export function AssessmentMatrix({ assessmentId }: Props) {
                 }}
                 showCommunicationReport={showFinalizedReportEntry}
                 onCommunicationReport={() => {
-                  window.location.hash = buildFinalizedReportRouteHash(
-                    assessmentId,
-                    selectedCycleId!
-                  );
+                  window.location.hash = buildDocumentsIndexRouteHash(assessmentId);
                 }}
                 onExportMatrix={() => void handleMatrixExport('matrix')}
                 onExportAnalytics={() => void handleMatrixExport('long')}

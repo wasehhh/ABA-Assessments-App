@@ -27,6 +27,7 @@ import {
     buildCommunicationReportPrintFilename,
 } from '../utils/finalizedReportPresentation';
 import {
+    buildDocumentsIndexRouteHash,
     buildVersionHistoryRouteHash,
     readFinalizedReportCycleIdFromHash,
     readFinalizedReportVersionQueryFromHash,
@@ -276,14 +277,23 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight print:text-2xl">
                     Assessment Communication Report
                 </h1>
-                {showVersionHistory && cycleId ? (
-                    <p className="mt-4 print:hidden">
+                {cycleId ? (
+                    <p className="mt-4 print:hidden flex flex-wrap gap-x-4 gap-y-1">
+                        {showVersionHistory ? (
+                            <a
+                                href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                                className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                data-report-version-history-link
+                            >
+                                Version history
+                            </a>
+                        ) : null}
                         <a
-                            href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                            href={buildDocumentsIndexRouteHash(assessmentId)}
                             className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
-                            data-report-version-history-link
+                            data-report-documents-index-link
                         >
-                            Version history
+                            All issued reports
                         </a>
                     </p>
                 ) : null}

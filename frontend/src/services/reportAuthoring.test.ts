@@ -217,7 +217,7 @@ function createQueryChain(mode: QueryMode, payload: unknown) {
     const chain: Record<string, ReturnType<typeof vi.fn>> = {};
     const self = () => chain;
 
-    for (const method of ['select', 'eq', 'order', 'limit', 'insert', 'update', 'lt']) {
+    for (const method of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'lt']) {
         chain[method] = vi.fn(self);
     }
 
@@ -610,5 +610,38 @@ describe('reportAuthoringService', () => {
         expect(current?.version).toBe(2);
         expect(current?.status).toBe('finalized');
         expect(eqMock).toHaveBeenCalled();
+    });
+
+    it('listIssuedReportsForAssessment selects issued rows for the assessment without a cycle filter', async () => {
+        const issued = [
+            finalizedRow(2),
+            draftRow({
+                id: 'report-superseded-1',
+                status: 'superseded',
+                version: 1,
+                cycle_id: 'cycle-2',
+                embedded_computed: finalizedRow(1).embedded_computed,
+                finalized_by: 'user-admin',
+                finalized_at: '2026-08-10T12:00:00.000Z',
+            }),
+        ];
+        const chain = createQueryChain('list', issued);
+
+        mockFrom.mockImplementation((table: string) => {
+            if (table === 'assessment_communication_reports') {
+                return chain;
+            }
+            throw new Error(`Unexpected table ${table}`);
+        });
+
+        const { reportAuthoringService } = await import('./reportAuthoring');
+        const rows = await reportAuthoringService.listIssuedReportsForAssessment('assess-1');
+
+        expect(chain.eq).toHaveBeenCalledWith('assessment_id', 'assess-1');
+        expect(chain.eq).not.toHaveBeenCalledWith('cycle_id', expect.anything());
+        expect(chain.in).toHaveBeenCalledWith('status', ['finalized', 'superseded']);
+        expect(chain.order).toHaveBeenCalledWith('version', { ascending: false });
+        expect(rows).toHaveLength(2);
+        expect(rows.map((row) => row.status).sort()).toEqual(['finalized', 'superseded']);
     });
 });

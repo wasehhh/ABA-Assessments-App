@@ -33,6 +33,8 @@ describe('legacy computed report route retirement', () => {
         expect(appSource).toContain('ReportAuthoring');
         expect(appSource).toContain('ReportVersionHistory');
         expect(appSource).toContain('reportVersionsMatch');
+        expect(appSource).toContain('ReportDocumentsIndex');
+        expect(appSource).toContain('documentsIndexMatch');
     });
 
     it('does not expose View Printable Report in the Matrix export menu', () => {

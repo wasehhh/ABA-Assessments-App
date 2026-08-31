@@ -15,6 +15,7 @@ import { Users } from './pages/Users';
 import { FinalizedAssessmentReport } from './pages/FinalizedAssessmentReport';
 import { ReportAuthoring } from './pages/ReportAuthoring';
 import { ReportVersionHistory } from './pages/ReportVersionHistory';
+import { ReportDocumentsIndex } from './pages/ReportDocumentsIndex';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
 import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
 import { AssessmentSnapshot } from './pages/AssessmentSnapshot';
@@ -196,6 +197,15 @@ function AppRouter() {
     return (
       <Layout>
         <ReportVersionHistory assessmentId={reportVersionsMatch[1]} />
+      </Layout>
+    );
+  }
+
+  const documentsIndexMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/reports$/);
+  if (documentsIndexMatch) {
+    return (
+      <Layout>
+        <ReportDocumentsIndex assessmentId={documentsIndexMatch[1]} />
       </Layout>
     );
   }

@@ -42,3 +42,13 @@ export function formatFinalizedByDisplayName(profile: {
     }
     return UNRESOLVED_FINALIZED_BY_LABEL;
 }
+
+export function hasRenderableIssuedReports(
+    rows: Pick<AssessmentCommunicationReport, 'status' | 'embedded_computed'>[]
+): boolean {
+    return rows.some(
+        (row) =>
+            (row.status === 'finalized' || row.status === 'superseded') &&
+            row.embedded_computed != null
+    );
+}
