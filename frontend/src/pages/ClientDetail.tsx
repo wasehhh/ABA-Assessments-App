@@ -14,6 +14,7 @@ import { clientService } from '../services/clients';
 import { ArrowLeft, Calendar, FileText, Plus } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatAssessmentStatusLabel, shouldShowSubmissionDate } from '../utils/assessmentStatusLabel';
+import { calendarDateInputValue, formatCalendarDate } from '../utils/calendarDate';
 import { Assessment, Client } from '../types';
 import {
   DataLoadEmptyState,
@@ -228,9 +229,7 @@ export function ClientDetail({ clientId }: Props) {
     setEditForm({
       firstName: client.first_name,
       lastName: client.last_name,
-      dateOfBirth: client.date_of_birth
-        ? new Date(client.date_of_birth).toISOString().split('T')[0]
-        : '',
+      dateOfBirth: calendarDateInputValue(client.date_of_birth),
     });
     setSaveError(null);
     setShowEditForm(true);
@@ -273,7 +272,7 @@ export function ClientDetail({ clientId }: Props) {
             {client.date_of_birth && (
               <p className="text-gray-600 mt-2 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                DOB: {new Date(client.date_of_birth).toLocaleDateString()}
+                DOB: {formatCalendarDate(client.date_of_birth)}
               </p>
             )}
           </div>

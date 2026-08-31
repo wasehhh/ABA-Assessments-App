@@ -11,6 +11,7 @@ import {
   resolveEffectiveScoring,
 } from '../utils/effectiveScoring';
 import { coerceScoreFromDb } from '../utils/scoreInterpretation';
+import { formatCalendarDate } from '../utils/calendarDate';
 
 function assertScoreAllowedForTarget(
   score: number | null,
@@ -114,7 +115,7 @@ export function formatAssessmentListDateLine(assessment: {
   created_at: string;
 }): string {
   if (assessment.assessment_date) {
-    return new Date(assessment.assessment_date).toLocaleDateString();
+    return formatCalendarDate(assessment.assessment_date);
   }
   return `Created ${new Date(assessment.created_at).toLocaleDateString()}`;
 }

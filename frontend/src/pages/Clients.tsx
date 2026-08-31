@@ -14,6 +14,7 @@ import {
   executeProtectedLoad,
   type DataLoadState,
 } from '../utils/dataLoadHonesty';
+import { calendarDateInputValue, formatCalendarDate } from '../utils/calendarDate';
 
 export function Clients() {
   const { user, profile } = useAuth();
@@ -114,7 +115,7 @@ export function Clients() {
     setForm({
       firstName: client.first_name,
       lastName: client.last_name,
-      dateOfBirth: client.date_of_birth ? new Date(client.date_of_birth).toISOString().split('T')[0] : ''
+      dateOfBirth: calendarDateInputValue(client.date_of_birth)
     });
     setSaveError(null);
     setEditingId(client.id);
@@ -416,7 +417,7 @@ export function Clients() {
               <h3 className="font-semibold text-gray-900 text-lg">{client.first_name} {client.last_name}</h3>
               {client.date_of_birth && (
                 <p className="text-sm text-gray-500">
-                  DOB: {new Date(client.date_of_birth).toLocaleDateString()}
+                  DOB: {formatCalendarDate(client.date_of_birth)}
                 </p>
               )}
               <p className="text-sm text-gray-500" data-client-added>

@@ -13,6 +13,7 @@ import {
     REPORT_COMPARISON_METHOD,
     ReportAnchorSpan,
 } from './reportPresentLevelsChange';
+import { formatCalendarDate, isCalendarDateOnly } from './calendarDate';
 
 /** Interim first-assessment framing (OQ-RA10 — founder owns final copy). */
 export const FIRST_ASSESSMENT_STATEMENT =
@@ -190,6 +191,9 @@ export function formatPresentLevelsAnchorSpan(span: ReportAnchorSpan): string | 
 export function formatFinalizedReportDate(value: string | null | undefined): string {
     if (!value) {
         return '—';
+    }
+    if (isCalendarDateOnly(value)) {
+        return formatCalendarDate(value, { dateStyle: 'long' });
     }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {

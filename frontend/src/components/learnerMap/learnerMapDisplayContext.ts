@@ -1,4 +1,5 @@
 import { LearnerMapProfile } from '../../services/learnerMapProfile';
+import { formatCalendarDate } from '../../utils/calendarDate';
 
 export interface LearnerMapDisplayContext {
     learnerName: string;
@@ -36,7 +37,7 @@ export function buildProductionDisplayContext(
     const assessmentName =
         assessment.pack_snapshot?.title?.trim() ||
         (assessment.assessment_date
-            ? `Assessment · ${new Date(assessment.assessment_date).toLocaleDateString()}`
+            ? `Assessment · ${formatCalendarDate(assessment.assessment_date)}`
             : `Assessment ${assessment.id}`);
 
     return {
