@@ -31,12 +31,25 @@ export function buildReportAuthoringRouteHash(assessmentId: string, cycleId: str
     return `#/assessment/${assessmentId}/report/edit?cycleId=${encodeURIComponent(cycleId)}`;
 }
 
-export function buildFinalizedReportRouteHash(assessmentId: string, cycleId: string): string {
-    return `#/assessment/${assessmentId}/report/finalized?cycleId=${encodeURIComponent(cycleId)}`;
+export function buildFinalizedReportRouteHash(
+    assessmentId: string,
+    cycleId: string,
+    version?: number
+): string {
+    const base = `#/assessment/${assessmentId}/report/finalized?cycleId=${encodeURIComponent(cycleId)}`;
+    if (version == null) {
+        return base;
+    }
+    return `${base}&version=${version}`;
 }
 
-export function readReportAuthoringCycleIdFromHash(): string | null {
-    const hash = window.location.hash;
+export function buildVersionHistoryRouteHash(assessmentId: string, cycleId: string): string {
+    return `#/assessment/${assessmentId}/report/versions?cycleId=${encodeURIComponent(cycleId)}`;
+}
+
+export function readReportAuthoringCycleIdFromHash(
+    hash: string = typeof window !== 'undefined' ? window.location.hash : ''
+): string | null {
     const queryIndex = hash.indexOf('?');
     if (queryIndex < 0) {
         return null;
@@ -45,6 +58,31 @@ export function readReportAuthoringCycleIdFromHash(): string | null {
     return params.get('cycleId');
 }
 
-export function readFinalizedReportCycleIdFromHash(): string | null {
-    return readReportAuthoringCycleIdFromHash();
+export function readFinalizedReportCycleIdFromHash(
+    hash?: string
+): string | null {
+    return readReportAuthoringCycleIdFromHash(hash);
+}
+
+export type FinalizedReportVersionQuery =
+    | { kind: 'current' }
+    | { kind: 'specific'; version: number }
+    | { kind: 'invalid' };
+
+export function readFinalizedReportVersionQueryFromHash(
+    hash: string = typeof window !== 'undefined' ? window.location.hash : ''
+): FinalizedReportVersionQuery {
+    const queryIndex = hash.indexOf('?');
+    if (queryIndex < 0) {
+        return { kind: 'current' };
+    }
+    const raw = new URLSearchParams(hash.slice(queryIndex + 1)).get('version');
+    if (raw == null || raw === '') {
+        return { kind: 'current' };
+    }
+    const version = Number(raw);
+    if (!Number.isInteger(version) || version < 1) {
+        return { kind: 'invalid' };
+    }
+    return { kind: 'specific', version };
 }

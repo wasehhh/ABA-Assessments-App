@@ -24,8 +24,15 @@ import {
     finalizedReportAllowsPrintEmission,
     finalizedReportHasRenderableSnapshot,
     FINALIZED_REPORT_PRINT_UNAVAILABLE_MESSAGE,
+    buildCommunicationReportPrintFilename,
 } from '../utils/finalizedReportPresentation';
-import { readFinalizedReportCycleIdFromHash } from './assessmentMatrixReportEntry';
+import {
+    buildVersionHistoryRouteHash,
+    readFinalizedReportCycleIdFromHash,
+    readFinalizedReportVersionQueryFromHash,
+} from './assessmentMatrixReportEntry';
+import { shouldShowVersionHistoryLink } from './issuedReportVersions';
+import { logReportDocumentViewAudit } from '../clinicalExport/reportViewAudit';
 import { executeProtectedLoad, type DataLoadState } from '../utils/dataLoadHonesty';
 
 interface Props {
@@ -42,14 +49,19 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
     const loadRequestRef = useRef(0);
     const [assessment, setAssessment] = useState<any>(null);
     const [reportRow, setReportRow] = useState<AssessmentCommunicationReport | null>(null);
+    const [currentIssuedVersion, setCurrentIssuedVersion] = useState<number | null>(null);
+    const [showVersionHistory, setShowVersionHistory] = useState(false);
 
     const cycleId = readFinalizedReportCycleIdFromHash();
+    const versionQuery = readFinalizedReportVersionQueryFromHash();
+    const versionQueryKey =
+        versionQuery.kind === 'specific' ? `v${versionQuery.version}` : versionQuery.kind;
     const canView = canViewFinalizedReport(profile?.role);
     const canPrint = canPrintFinalizedReport(profile?.role);
 
     useEffect(() => {
         void loadData();
-    }, [assessmentId, cycleId, canView]);
+    }, [assessmentId, cycleId, versionQueryKey, canView]);
 
     const loadData = async () => {
         const requestId = ++loadRequestRef.current;
@@ -59,6 +71,8 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
         setNotFinalized(false);
         setAssessment(null);
         setReportRow(null);
+        setCurrentIssuedVersion(null);
+        setShowVersionHistory(false);
 
         if (!canView) {
             setAccessDenied(true);
@@ -72,15 +86,22 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
             return;
         }
 
+        if (versionQuery.kind === 'invalid') {
+            setNotFinalized(true);
+            setLoadState('loaded');
+            return;
+        }
+
         const primaryResult = await executeProtectedLoad({
             requestId,
             getCurrentRequestId: () => loadRequestRef.current,
             load: async () => {
-                const [assessmentData, finalizedRow] = await Promise.all([
+                const [assessmentData, currentRow, versions] = await Promise.all([
                     assessmentService.getById(assessmentId),
                     reportAuthoringService.getCurrentFinalizedVersion(assessmentId, cycleId),
+                    reportAuthoringService.listReportVersions(assessmentId, cycleId),
                 ]);
-                return { assessment: assessmentData, finalizedRow };
+                return { assessment: assessmentData, currentRow, versions };
             },
         });
 
@@ -96,7 +117,7 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
             return;
         }
 
-        const { assessment: assessmentData, finalizedRow } = primaryResult.data;
+        const { assessment: assessmentData, currentRow, versions } = primaryResult.data;
 
         if (!assessmentData) {
             setLoadError('Assessment not found.');
@@ -105,15 +126,36 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
         }
 
         setAssessment(assessmentData);
+        setCurrentIssuedVersion(currentRow?.version ?? null);
+        setShowVersionHistory(shouldShowVersionHistoryLink(versions));
 
-        if (!finalizedRow || !finalizedReportHasRenderableSnapshot(finalizedRow)) {
+        let selectedRow = currentRow;
+        if (versionQuery.kind === 'specific') {
+            const match = versions.find(
+                (row) =>
+                    row.version === versionQuery.version &&
+                    (row.status === 'finalized' || row.status === 'superseded')
+            );
+            selectedRow = match ?? null;
+        }
+
+        if (!selectedRow || !finalizedReportHasRenderableSnapshot(selectedRow)) {
             setNotFinalized(true);
             setLoadState('loaded');
             return;
         }
 
-        setReportRow(finalizedRow);
+        setReportRow(selectedRow);
         setLoadState('loaded');
+        logReportDocumentViewAudit({
+            orgId: profile?.org_id,
+            userId: user?.id,
+            assessmentId,
+            cycleId,
+            version: selectedRow.version,
+            status: selectedRow.status === 'superseded' ? 'superseded' : 'finalized',
+            reportId: selectedRow.id,
+        });
     };
 
     const runPrint = () => {
@@ -124,6 +166,12 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
             return;
         }
 
+        const previousTitle = document.title;
+        document.title = buildCommunicationReportPrintFilename({
+            assessmentId,
+            version: reportRow.version,
+            superseded: reportRow.status === 'superseded',
+        }).replace(/\.pdf$/, '');
         logClinicalExportAudit({
             orgId: profile?.org_id,
             userId: user?.id,
@@ -135,6 +183,7 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
             version: reportRow.version,
         });
         window.print();
+        document.title = previousTitle;
     };
 
     const handlePrintClick = () => {
@@ -227,6 +276,17 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight print:text-2xl">
                     Assessment Communication Report
                 </h1>
+                {showVersionHistory && cycleId ? (
+                    <p className="mt-4 print:hidden">
+                        <a
+                            href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                            className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                            data-report-version-history-link
+                        >
+                            Version history
+                        </a>
+                    </p>
+                ) : null}
                 <dl className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6 text-sm print:grid-cols-2 print:gap-y-5">
                     <div className="border-l-2 border-emerald-700/80 pl-4 print:border-gray-800">
                         <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 print:text-gray-600">
@@ -245,7 +305,11 @@ export function FinalizedAssessmentReport({ assessmentId }: Props) {
                 </dl>
             </header>
 
-            <FinalizedReportDocument report={reportRow} structureLabels={structureLabels} />
+            <FinalizedReportDocument
+                report={reportRow}
+                structureLabels={structureLabels}
+                currentIssuedVersion={currentIssuedVersion}
+            />
 
             {canPrint && !printEmissionAllowed ? (
                 <div

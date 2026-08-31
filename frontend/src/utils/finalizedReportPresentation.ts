@@ -199,7 +199,42 @@ export function formatFinalizedReportDate(value: string | null | undefined): str
 }
 
 export function finalizedReportHasRenderableSnapshot(report: AssessmentCommunicationReport): boolean {
-    return report.status === 'finalized' && report.embedded_computed != null;
+    return (
+        (report.status === 'finalized' || report.status === 'superseded') &&
+        report.embedded_computed != null
+    );
+}
+
+export const DOCUMENT_STATUS_CURRENT = 'Current issued report';
+
+export function documentStatusForIssuedReport(
+    status: AssessmentCommunicationReport['status'],
+    currentIssuedVersion?: number | null
+): string | null {
+    if (status === 'finalized') {
+        return DOCUMENT_STATUS_CURRENT;
+    }
+    if (status === 'superseded') {
+        if (currentIssuedVersion != null) {
+            return `Superseded — not the current issued report. Current version is v${currentIssuedVersion}.`;
+        }
+        return 'Superseded — not the current issued report.';
+    }
+    return null;
+}
+
+export function buildCommunicationReportPrintFilename(input: {
+    assessmentId: string;
+    version: number;
+    superseded: boolean;
+    generatedAt?: Date;
+}): string {
+    const date = (input.generatedAt ?? new Date()).toISOString().slice(0, 10);
+    const safeId = input.assessmentId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'assessment';
+    if (input.superseded) {
+        return `communication-report-superseded-v${input.version}-${safeId}-${date}.pdf`;
+    }
+    return `communication-report-v${input.version}-${safeId}-${date}.pdf`;
 }
 
 export function defaultStructureLabelsFromPack(

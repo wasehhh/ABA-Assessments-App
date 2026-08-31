@@ -14,6 +14,7 @@ import { AssessmentMatrix } from './pages/AssessmentMatrix';
 import { Users } from './pages/Users';
 import { FinalizedAssessmentReport } from './pages/FinalizedAssessmentReport';
 import { ReportAuthoring } from './pages/ReportAuthoring';
+import { ReportVersionHistory } from './pages/ReportVersionHistory';
 import { AssessmentLearnerMap } from './pages/AssessmentLearnerMap';
 import { AssessmentLearnerMapExport } from './pages/AssessmentLearnerMapExport';
 import { AssessmentSnapshot } from './pages/AssessmentSnapshot';
@@ -186,6 +187,15 @@ function AppRouter() {
     return (
       <Layout>
         <ReportAuthoring assessmentId={reportEditMatch[1]} />
+      </Layout>
+    );
+  }
+
+  const reportVersionsMatch = baseRoute.match(/^#\/assessment\/([^\/]+)\/report\/versions$/);
+  if (reportVersionsMatch) {
+    return (
+      <Layout>
+        <ReportVersionHistory assessmentId={reportVersionsMatch[1]} />
       </Layout>
     );
   }

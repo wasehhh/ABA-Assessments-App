@@ -6,9 +6,11 @@ import {
 import { StructureLabels } from '../../types';
 import { STATE_DISPLAY_LABELS } from '../assessment/domainProfile/stateDisplay';
 import {
+    DOCUMENT_STATUS_CURRENT,
     FIRST_ASSESSMENT_COUNT_ORDER,
     FIRST_ASSESSMENT_STATEMENT,
     FINALIZED_REPORT_SECTION_ORDER,
+    documentStatusForIssuedReport,
     formatFinalizedReportDate,
     formatPresentLevelsAnchorSpan,
     formatReportTargetTimeframe,
@@ -23,6 +25,8 @@ import {
 interface Props {
     report: AssessmentCommunicationReport;
     structureLabels: StructureLabels;
+    /** Current issued version number — chrome only, not recomputation. */
+    currentIssuedVersion?: number | null;
 }
 
 function SectionHeading({ children }: { children: ReactNode }) {
@@ -100,7 +104,7 @@ function PresentLevelsChangeBody({ presentLevels }: { presentLevels: ReportEmbed
     );
 }
 
-export function FinalizedReportDocument({ report }: Props) {
+export function FinalizedReportDocument({ report, currentIssuedVersion }: Props) {
     const embedded = report.embedded_computed!;
     const authoring = report.authoring.sections;
     const overview = embedded.overview;
@@ -178,6 +182,28 @@ export function FinalizedReportDocument({ report }: Props) {
                                         </dt>
                                         <dd className="mt-1 text-base font-medium text-gray-900 tabular-nums">
                                             v{report.version}
+                                        </dd>
+                                    </div>
+                                    <div className="border-l-2 border-gray-300 pl-4 print:border-gray-400">
+                                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 print:text-gray-600">
+                                            Document status
+                                        </dt>
+                                        <dd
+                                            className="mt-1 text-base font-medium text-gray-900"
+                                            data-report-document-status
+                                        >
+                                            {documentStatusForIssuedReport(
+                                                report.status,
+                                                currentIssuedVersion
+                                            ) ?? DOCUMENT_STATUS_CURRENT}
+                                        </dd>
+                                    </div>
+                                    <div className="border-l-2 border-gray-300 pl-4 print:border-gray-400">
+                                        <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 print:text-gray-600">
+                                            Finalized
+                                        </dt>
+                                        <dd className="mt-1 text-base font-medium text-gray-900">
+                                            {formatFinalizedReportDate(report.finalized_at)}
                                         </dd>
                                     </div>
                                 </dl>

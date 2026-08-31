@@ -248,6 +248,34 @@ describe('FinalizedReportDocument six-section template', () => {
         expect(markup).not.toMatch(/\b60%/);
     });
 
+    it('renders a superseded null-schema row through the same legacy path as current finalized', () => {
+        const supersededNullSchema: AssessmentCommunicationReport = {
+            ...finalizedRowFixture,
+            status: 'superseded',
+            version: 2,
+            embedded_computed: {
+                ...finalizedRowFixture.embedded_computed!,
+                computed_schema_version: undefined,
+            },
+        };
+
+        const markup = renderToStaticMarkup(
+            createElement(FinalizedReportDocument, {
+                report: supersededNullSchema,
+                structureLabels: { primary_group: 'Domain', target: 'Target' },
+                currentIssuedVersion: 4,
+            })
+        );
+
+        expect(markup).toContain('data-present-levels-without-change-metrics');
+        expect(markup).not.toContain('data-present-levels-change');
+        expect(markup).toContain('Goal 1 · Communication');
+        expect(markup).toContain('data-report-document-status');
+        expect(markup).toContain('Superseded — not the current issued report.');
+        expect(markup).toContain('Current version is v4.');
+        expect(markup).not.toContain('Historical Communication');
+    });
+
     it('does not render removed Present Levels or target-list sections', () => {
         const markup = renderToStaticMarkup(
             createElement(FinalizedReportDocument, {
@@ -533,8 +561,14 @@ describe('FinalizedReportDocument six-section template', () => {
 });
 
 describe('finalizedReportHasRenderableSnapshot', () => {
-    it('requires finalized status and embedded_computed payload', () => {
+    it('accepts finalized and superseded rows with embedded_computed, and rejects drafts', () => {
         expect(finalizedReportHasRenderableSnapshot(finalizedRowFixture)).toBe(true);
+        expect(
+            finalizedReportHasRenderableSnapshot({
+                ...finalizedRowFixture,
+                status: 'superseded',
+            })
+        ).toBe(true);
         expect(
             finalizedReportHasRenderableSnapshot({
                 ...finalizedRowFixture,
@@ -544,6 +578,7 @@ describe('finalizedReportHasRenderableSnapshot', () => {
         expect(
             finalizedReportHasRenderableSnapshot({
                 ...finalizedRowFixture,
+                status: 'superseded',
                 embedded_computed: null,
             })
         ).toBe(false);

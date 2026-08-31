@@ -18,7 +18,11 @@ import {
 } from '../services/reportAuthoringValidation';
 import { ReportAuthoringForm } from '../components/reportAuthoring/ReportAuthoringForm';
 import { ReportAuthoringReferencePanel } from '../components/reportAuthoring/ReportAuthoringReferencePanel';
-import { readReportAuthoringCycleIdFromHash } from './assessmentMatrixReportEntry';
+import {
+    buildVersionHistoryRouteHash,
+    readReportAuthoringCycleIdFromHash,
+} from './assessmentMatrixReportEntry';
+import { shouldShowVersionHistoryLink } from './issuedReportVersions';
 import {
     beginNewVersionDraftFromFinalized,
     loadCycleReferenceScores,
@@ -63,6 +67,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
     const [createVersionState, setCreateVersionState] = useState<'idle' | 'creating'>('idle');
     const [createVersionError, setCreateVersionError] = useState<string | null>(null);
     const [existingDraftNotice, setExistingDraftNotice] = useState<string | null>(null);
+    const [showVersionHistory, setShowVersionHistory] = useState(false);
 
     const cycleId = readReportAuthoringCycleIdFromHash();
 
@@ -75,6 +80,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
             setFinalizeSuccess(null);
             setCreateVersionError(null);
             setExistingDraftNotice(null);
+            setShowVersionHistory(false);
 
             if (!canManageReportAuthoring(profile?.role)) {
                 if (!cancelled) {
@@ -112,6 +118,10 @@ export function ReportAuthoring({ assessmentId }: Props) {
                 }
 
                 const workspace = await loadOrCreateDraftReport(assessmentId, cycleId);
+                const versions = await reportAuthoringService.listReportVersions(
+                    assessmentId,
+                    cycleId
+                );
 
                 if (cancelled) {
                     return;
@@ -120,6 +130,7 @@ export function ReportAuthoring({ assessmentId }: Props) {
                 setAssessment(assessmentData);
                 setCycle(selectedCycle);
                 setCycles(cycleList);
+                setShowVersionHistory(shouldShowVersionHistoryLink(versions));
 
                 if (workspace.kind === 'needs_new_version') {
                     setReportRow(null);
@@ -354,6 +365,17 @@ export function ReportAuthoring({ assessmentId }: Props) {
                         The finalized report cannot be edited. Create a new version to amend it. The
                         current finalized document stays in place until you finalize the new version.
                     </p>
+                    {showVersionHistory && cycleId ? (
+                        <p className="mt-4">
+                            <a
+                                href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                                className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                data-report-version-history-link
+                            >
+                                Version history
+                            </a>
+                        </p>
+                    ) : null}
                     {createVersionError ? (
                         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                             {createVersionError}
@@ -430,6 +452,17 @@ export function ReportAuthoring({ assessmentId }: Props) {
                         </span>
                         Draft v{reportRow.version}
                     </p>
+                    {showVersionHistory && cycleId ? (
+                        <p className="mt-2">
+                            <a
+                                href={buildVersionHistoryRouteHash(assessmentId, cycleId)}
+                                className="text-sm font-medium text-gray-600 underline hover:text-gray-900"
+                                data-report-version-history-link
+                            >
+                                Version history
+                            </a>
+                        </p>
+                    ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
