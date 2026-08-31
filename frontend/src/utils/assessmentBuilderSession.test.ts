@@ -211,6 +211,14 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
             closest: (selector: string) =>
                 options.insideDetails && selector === 'details' ? details : null,
             querySelector: () => ({ focus }),
+            getBoundingClientRect: () => ({
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 0,
+                width: 0,
+            }),
         };
         const issue = { field: options.field, message: 'Invalid' };
         vi.stubGlobal('document', {
@@ -262,6 +270,67 @@ describe('focusBuilderIssueAnchor Advanced pack settings', () => {
         });
         focusBuilderIssueAnchor(issue);
         expect(details.open).toBe(false);
+    });
+
+    it('scrolls default_scale after Advanced reflows, not to the collapsed geometry', () => {
+        const QA_STALE_TOP = -328;
+        const QA_VIEWPORT_HEIGHT = 900;
+        const EXPANDED_TOP = 180;
+        let open = false;
+        let layoutFlushed = false;
+        const focus = vi.fn();
+        const issue = { field: 'default_scale' as const, message: 'Invalid' };
+
+        const layoutTop = () => (open && layoutFlushed ? EXPANDED_TOP : QA_STALE_TOP);
+
+        const details = {
+            get open() {
+                return open;
+            },
+            set open(value: boolean) {
+                open = value;
+            },
+        };
+
+        let scrolledTop: number | null = null;
+        const element = {
+            closest: (selector: string) => (selector === 'details' ? details : null),
+            getBoundingClientRect: () => {
+                if (open) {
+                    layoutFlushed = true;
+                }
+                return {
+                    top: layoutTop(),
+                    bottom: layoutTop() + 40,
+                    left: 0,
+                    right: 100,
+                    height: 40,
+                    width: 100,
+                };
+            },
+            scrollIntoView: vi.fn(() => {
+                scrolledTop = layoutTop();
+            }),
+            querySelector: () => ({ focus }),
+        };
+
+        vi.stubGlobal('document', {
+            getElementById: (id: string) =>
+                id === builderIssueAnchorId(issue) ? element : null,
+        });
+
+        focusBuilderIssueAnchor(issue);
+
+        expect(open).toBe(true);
+        expect(layoutFlushed).toBe(true);
+        expect(scrolledTop).not.toBe(QA_STALE_TOP);
+        expect(scrolledTop).toBeGreaterThanOrEqual(0);
+        expect(scrolledTop).toBeLessThan(QA_VIEWPORT_HEIGHT);
+        expect(element.scrollIntoView).toHaveBeenCalledWith({
+            behavior: 'smooth',
+            block: 'center',
+        });
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
     });
 });
 

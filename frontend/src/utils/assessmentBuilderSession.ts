@@ -289,6 +289,9 @@ export function revealBuilderIssueAnchor(issue: BuilderAuthoringIssue): HTMLElem
     const details = element.closest('details');
     if (details && !details.open) {
         details.open = true;
+        // Opening <details> defers layout; read geometry so the following
+        // scrollIntoView targets the expanded position, not the collapsed one.
+        element.getBoundingClientRect();
     }
     return element;
 }

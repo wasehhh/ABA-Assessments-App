@@ -110,6 +110,28 @@ describe('D1b B2 authoring order', () => {
         expect(titleBlock).toContain('id="builder-issue-title"');
         expect(titleBlock).not.toContain('builder-issue-default_scale');
     });
+
+    it('places the validation summary in the sticky region, before the domains block', () => {
+        const stickyIdx = builderSource.indexOf('data-pack-builder-sticky-chrome');
+        const summaryIdx = builderSource.indexOf('data-builder-validation-summary');
+        const domainsIdx = builderSource.indexOf('data-builder-domains-block');
+        expect(stickyIdx).toBeGreaterThan(-1);
+        expect(summaryIdx).toBeGreaterThan(-1);
+        expect(stickyIdx).toBeLessThan(summaryIdx);
+        expect(summaryIdx).toBeLessThan(domainsIdx);
+
+        const stickyBlock = sliceBetween(
+            builderSource,
+            'data-pack-builder-sticky-chrome',
+            'data-builder-title-block'
+        );
+        expect(stickyBlock).toContain('data-builder-validation-summary');
+        expect(stickyBlock).toContain('focusBuilderIssueAnchor(issue)');
+
+        const domainsBlock = builderSource.slice(domainsIdx);
+        expect(domainsBlock).not.toContain('data-builder-validation-summary');
+        expect(domainsBlock).not.toContain('Fix {authoringIssues.length} authoring');
+    });
 });
 
 describe('D1b B5 control hierarchy', () => {

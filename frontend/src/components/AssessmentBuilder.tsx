@@ -973,6 +973,30 @@ export function AssessmentBuilder({
                         </button>
                     </div>
                 </div>
+                {authoringIssues.length > 0 ? (
+                    <div
+                        className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                        data-builder-validation-summary
+                    >
+                        <p className="font-medium">
+                            Fix {authoringIssues.length} authoring{' '}
+                            {authoringIssues.length === 1 ? 'issue' : 'issues'} before saving:
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                            {authoringIssues.map((issue, index) => (
+                                <li key={`${issue.field}-${issue.domainIndex ?? 'x'}-${issue.targetIndex ?? 'x'}-${index}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => focusBuilderIssueAnchor(issue)}
+                                        className="text-left underline decoration-red-400/60 hover:decoration-red-800"
+                                    >
+                                        {issue.message}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : null}
             </header>
 
             <form
@@ -1609,28 +1633,6 @@ export function AssessmentBuilder({
                     </div>
                 )}
             </div>
-
-            {authoringIssues.length > 0 ? (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                    <p className="font-medium">
-                        Fix {authoringIssues.length} authoring{' '}
-                        {authoringIssues.length === 1 ? 'issue' : 'issues'} before saving:
-                    </p>
-                    <ul className="mt-2 space-y-1">
-                        {authoringIssues.map((issue, index) => (
-                            <li key={`${issue.field}-${issue.domainIndex ?? 'x'}-${issue.targetIndex ?? 'x'}-${index}`}>
-                                <button
-                                    type="button"
-                                    onClick={() => focusBuilderIssueAnchor(issue)}
-                                    className="text-left underline decoration-red-400/60 hover:decoration-red-800"
-                                >
-                                    {issue.message}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            ) : null}
 
             <ConfirmDialog
                 isOpen={cancelConfirmOpen}
