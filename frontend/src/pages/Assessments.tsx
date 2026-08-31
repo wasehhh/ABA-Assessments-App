@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
     assessmentService,
+    assessmentDeleteConfirmMessage,
     canDeleteAssessment,
     countRecordedScores,
     formatAssessmentListDateLine,
     formatAssessmentListPackLine,
     loadCurrentCycleProgressFigure,
-    recordedScoresDestroyedSentence,
     type CurrentCycleProgressFigure,
 } from '../services/assessments';
 import { clientService } from '../services/clients';
@@ -97,7 +97,7 @@ export function Assessments() {
     const [deleteConfirm, setDeleteConfirm] = useState<{
         id: string;
         name: string;
-        scoreCount: number | null;
+        scoreCount: number;
     } | null>(null);
     const [duplicateId, setDuplicateId] = useState<string | null>(null);
     const [errorAlert, setErrorAlert] = useState<string | null>(null);
@@ -355,21 +355,17 @@ export function Assessments() {
 
     const requestDeleteAssessment = async (assessment: Assessment) => {
         const name = `${assessment.client?.first_name} ${assessment.client?.last_name} - ${assessment.pack?.title}`;
-        if (assessment.status === 'in_progress') {
-            try {
-                const scores = await assessmentService.getScores(assessment.id);
-                setDeleteConfirm({
-                    id: assessment.id,
-                    name,
-                    scoreCount: countRecordedScores(scores),
-                });
-            } catch (err) {
-                console.error('Error loading recorded scores:', err);
-                setErrorAlert('Failed to load recorded scores for this assessment.');
-            }
-            return;
+        try {
+            const scores = await assessmentService.getScores(assessment.id);
+            setDeleteConfirm({
+                id: assessment.id,
+                name,
+                scoreCount: countRecordedScores(scores),
+            });
+        } catch (err) {
+            console.error('Error loading recorded scores:', err);
+            setErrorAlert('Failed to load recorded scores for this assessment.');
         }
-        setDeleteConfirm({ id: assessment.id, name, scoreCount: null });
     };
 
     if (listLoadState === 'loading' && !showForm) {
@@ -704,9 +700,9 @@ export function Assessments() {
                 isOpen={!!deleteConfirm}
                 title="Delete Assessment"
                 message={
-                    deleteConfirm?.scoreCount != null
-                        ? `Are you sure you want to delete the assessment for ${deleteConfirm.name}? ${recordedScoresDestroyedSentence(deleteConfirm.scoreCount)} This action cannot be undone.`
-                        : `Are you sure you want to delete the assessment for ${deleteConfirm?.name}? This action cannot be undone.`
+                    deleteConfirm
+                        ? assessmentDeleteConfirmMessage(deleteConfirm.name, deleteConfirm.scoreCount)
+                        : ''
                 }
                 confirmText="Delete Assessment"
                 isDestructive={true}

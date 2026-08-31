@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   assessmentService,
+  assessmentDeleteConfirmMessage,
   canDeleteAssessment,
   countRecordedScores,
   formatAssessmentListDateLine,
   formatAssessmentListPackLine,
   loadCurrentCycleProgressFigure,
-  recordedScoresDestroyedSentence,
   type CurrentCycleProgressFigure,
 } from '../services/assessments';
 import { clientService } from '../services/clients';
@@ -44,9 +44,8 @@ export function ClientDetail({ clientId }: Props) {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
     id: string;
-    status: Assessment['status'];
     name: string;
-    scoreCount: number | null;
+    scoreCount: number;
   } | null>(null);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
   const [progressById, setProgressById] = useState<
@@ -182,28 +181,18 @@ export function ClientDetail({ clientId }: Props) {
   }
 
   const handleDeleteClick = async (assessment: Assessment) => {
-    const name = assessment.pack_snapshot.title;
-    if (assessment.status === 'in_progress') {
-      try {
-        const scores = await assessmentService.getScores(assessment.id);
-        setDeleteTarget({
-          id: assessment.id,
-          status: assessment.status,
-          name,
-          scoreCount: countRecordedScores(scores),
-        });
-      } catch (error) {
-        console.error('Error loading recorded scores:', error);
-        setErrorAlert('Failed to load recorded scores for this assessment.');
-      }
-      return;
+    const name = `${client.first_name} ${client.last_name} - ${assessment.pack_snapshot.title}`;
+    try {
+      const scores = await assessmentService.getScores(assessment.id);
+      setDeleteTarget({
+        id: assessment.id,
+        name,
+        scoreCount: countRecordedScores(scores),
+      });
+    } catch (error) {
+      console.error('Error loading recorded scores:', error);
+      setErrorAlert('Failed to load recorded scores for this assessment.');
     }
-    setDeleteTarget({
-      id: assessment.id,
-      status: assessment.status,
-      name,
-      scoreCount: null,
-    });
   };
 
   const handleConfirmDelete = async () => {
@@ -478,11 +467,11 @@ export function ClientDetail({ clientId }: Props) {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title={deleteTarget?.status === 'in_progress' ? 'Delete Assessment' : 'Delete Draft Assessment'}
+        title="Delete Assessment"
         message={
-          deleteTarget?.status === 'in_progress' && deleteTarget.scoreCount != null
-            ? `Are you sure you want to delete the assessment for ${client.first_name} ${client.last_name} - ${deleteTarget.name}? ${recordedScoresDestroyedSentence(deleteTarget.scoreCount)} This action cannot be undone.`
-            : 'Are you sure you want to delete this draft assessment? This action cannot be undone.'
+          deleteTarget
+            ? assessmentDeleteConfirmMessage(deleteTarget.name, deleteTarget.scoreCount)
+            : ''
         }
         confirmText="Delete Assessment"
         isDestructive={true}

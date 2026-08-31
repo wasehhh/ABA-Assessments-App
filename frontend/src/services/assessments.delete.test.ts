@@ -5,6 +5,7 @@ import { userService } from './users';
 import {
     ASSESSMENT_DELETE_ROLE_REFUSED,
     ASSESSMENT_DELETE_STATUS_REFUSED,
+    assessmentDeleteConfirmMessage,
     assessmentService,
     canDeleteAssessment,
     countRecordedScores,
@@ -120,6 +121,38 @@ describe('recordedScoresDestroyedSentence', () => {
         );
         expect(recordedScoresDestroyedSentence(0)).not.toContain('150');
         expect(recordedScoresDestroyedSentence(0)).not.toMatch(/delete 0 recorded/);
+    });
+});
+
+describe('assessmentDeleteConfirmMessage', () => {
+    it('names the recorded-score count for a draft with scores — the first-cycle case', () => {
+        expect(assessmentDeleteConfirmMessage('Joe M - QA D1 Tiny Pack', 1)).toBe(
+            'Are you sure you want to delete the assessment for Joe M - QA D1 Tiny Pack? This will permanently delete 1 recorded scores. This action cannot be undone.'
+        );
+    });
+
+    it('names the recorded-score count for an in_progress assessment', () => {
+        expect(assessmentDeleteConfirmMessage('Joe M - QA D1 Tiny Pack', 12)).toBe(
+            'Are you sure you want to delete the assessment for Joe M - QA D1 Tiny Pack? This will permanently delete 12 recorded scores. This action cannot be undone.'
+        );
+    });
+
+    it('uses the zero-case wording and does not claim scores will be destroyed', () => {
+        const message = assessmentDeleteConfirmMessage('Joe M - QA D1 Tiny Pack', 0);
+        expect(message).toContain(
+            'Are you sure you want to delete the assessment for Joe M - QA D1 Tiny Pack?'
+        );
+        expect(message).toContain('This assessment has no recorded scores.');
+        expect(message).not.toMatch(/delete 0 recorded/);
+        expect(message).not.toContain('This will permanently delete');
+    });
+
+    it('counts a score of 0 and ignores a placeholder row', () => {
+        const recorded = countRecordedScores([{ score: 0 }, { score: null }]);
+        expect(recorded).toBe(1);
+        expect(assessmentDeleteConfirmMessage('Joe M - Pack', recorded)).toContain(
+            '1 recorded scores'
+        );
     });
 });
 

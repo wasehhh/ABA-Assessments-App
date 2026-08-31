@@ -72,17 +72,16 @@ describe('C4a deletion policy on both surfaces', () => {
         expect(detailSource).not.toContain('title="Delete draft"');
     });
 
-    it('loads getScores for in_progress confirm and keeps the draft confirm', () => {
-        expect(assessmentsSource).toContain("assessment.status === 'in_progress'");
+    it('loads getScores and names recorded scores on the confirm for every deletable assessment', () => {
         expect(assessmentsSource).toContain('assessmentService.getScores(assessment.id)');
         expect(assessmentsSource).toContain('countRecordedScores(scores)');
         expect(assessmentsSource).not.toContain('scoreCount: scores.length');
-        expect(assessmentsSource).toContain('recordedScoresDestroyedSentence');
+        expect(assessmentsSource).toContain('assessmentDeleteConfirmMessage');
         expect(detailSource).toContain('assessmentService.getScores(assessment.id)');
         expect(detailSource).toContain('countRecordedScores(scores)');
         expect(detailSource).not.toContain('scoreCount: scores.length');
-        expect(detailSource).toContain('recordedScoresDestroyedSentence');
-        expect(detailSource).toContain(
+        expect(detailSource).toContain('assessmentDeleteConfirmMessage');
+        expect(detailSource).not.toContain(
             'Are you sure you want to delete this draft assessment? This action cannot be undone.'
         );
     });

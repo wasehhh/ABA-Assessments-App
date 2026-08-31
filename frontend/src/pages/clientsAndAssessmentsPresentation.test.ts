@@ -30,6 +30,14 @@ describe('A7 list progress is current-cycle and named', () => {
         expect(detailSource).toContain('assessmentService.getScores(assessment.id)');
         expect(assessmentsSource).toContain('countRecordedScores(scores)');
         expect(detailSource).toContain('countRecordedScores(scores)');
+        expect(assessmentsSource).toContain('assessmentDeleteConfirmMessage');
+        expect(detailSource).toContain('assessmentDeleteConfirmMessage');
+        expect(assessmentsSource).toContain(
+            '`${assessment.client?.first_name} ${assessment.client?.last_name} - ${assessment.pack?.title}`'
+        );
+        expect(detailSource).toContain(
+            '`${client.first_name} ${client.last_name} - ${assessment.pack_snapshot.title}`'
+        );
     });
 });
 
@@ -180,13 +188,9 @@ describe('row primary action visible focus', () => {
 });
 
 describe('Gap 3 in-progress delete dialog naming', () => {
-    it('cannot title an in-progress client-detail delete as Draft', () => {
+    it('titles the confirm Delete Assessment on both surfaces, never Draft', () => {
         expect(assessmentsSource).toContain('title="Delete Assessment"');
-        expect(detailSource).toMatch(
-            /deleteTarget\?\.status === 'in_progress' \? 'Delete Assessment'/
-        );
-        expect(detailSource).not.toMatch(
-            /deleteTarget\?\.status === 'in_progress' \? 'Delete Draft Assessment'/
-        );
+        expect(detailSource).toContain('title="Delete Assessment"');
+        expect(detailSource).not.toContain('Delete Draft Assessment');
     });
 });

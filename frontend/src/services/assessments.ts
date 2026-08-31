@@ -119,12 +119,16 @@ export function formatAssessmentListDateLine(assessment: {
   return `Created ${new Date(assessment.created_at).toLocaleDateString()}`;
 }
 
-/** Founder ruling 2026-08-31: in_progress confirm must name the score count. */
+/** Founder ruling 2026-08-31: a destructive confirm must name the recorded-score count. */
 export function recordedScoresDestroyedSentence(scoreCount: number): string {
   if (scoreCount === 0) {
     return 'This assessment has no recorded scores.';
   }
   return `This will permanently delete ${scoreCount} recorded scores.`;
+}
+
+export function assessmentDeleteConfirmMessage(name: string, recordedScoreCount: number): string {
+  return `Are you sure you want to delete the assessment for ${name}? ${recordedScoresDestroyedSentence(recordedScoreCount)} This action cannot be undone.`;
 }
 
 function normalizeAssessmentScoreRow(row: AssessmentScore): AssessmentScore {
