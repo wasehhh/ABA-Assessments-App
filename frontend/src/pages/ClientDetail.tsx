@@ -410,7 +410,7 @@ export function ClientDetail({ clientId }: Props) {
           ) : assessments.length === 0 ? (
             <DataLoadEmptyState>
               <div className="text-center py-8 text-gray-500">
-                {client.status === 'active'
+                {client.status === 'active' && canManageClient
                   ? 'No assessments yet. Create one to get started.'
                   : 'No assessments.'}
               </div>
@@ -422,7 +422,7 @@ export function ClientDetail({ clientId }: Props) {
                   <div key={assessment.id} className="flex gap-2">
                     <button
                       onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
-                      className="flex-1 text-left bg-gray-50 hover:bg-gray-100 rounded-lg p-4 transition border border-gray-200"
+                      className="flex-1 text-left bg-gray-50 hover:bg-gray-100 rounded-lg p-4 transition border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       data-row-primary-action
                       aria-label={`Open ${assessment.pack_snapshot.title}`}
                     >

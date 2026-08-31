@@ -41,7 +41,10 @@ function createEmptyAssessmentForm() {
     };
 }
 
-export function assessmentsEmptyCopy(filter: 'active' | 'submitted' | 'approved'): {
+export function assessmentsEmptyCopy(
+    filter: 'active' | 'submitted' | 'approved',
+    canCreate: boolean,
+): {
     title: string;
     body: string;
     offerCreate: boolean;
@@ -49,8 +52,10 @@ export function assessmentsEmptyCopy(filter: 'active' | 'submitted' | 'approved'
     if (filter === 'active') {
         return {
             title: 'No active assessments found',
-            body: 'Get started by creating a new assessment.',
-            offerCreate: true,
+            body: canCreate
+                ? 'Get started by creating a new assessment.'
+                : 'There are no draft or in-progress assessments.',
+            offerCreate: canCreate,
         };
     }
     if (filter === 'submitted') {
@@ -382,7 +387,10 @@ export function Assessments() {
         );
     }
 
-    const emptyCopy = assessmentsEmptyCopy(statusFilter);
+    const emptyCopy = assessmentsEmptyCopy(
+        statusFilter,
+        ['admin', 'senior_therapist'].includes(profile?.role || '')
+    );
 
     return (
         <div className="space-y-6">
@@ -571,7 +579,7 @@ export function Assessments() {
                             {emptyCopy.body ? (
                                 <p className="text-gray-500 mt-1">{emptyCopy.body}</p>
                             ) : null}
-                            {emptyCopy.offerCreate && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                            {emptyCopy.offerCreate && (
                                 <button
                                     onClick={openCreateFormFromAssessmentsPage}
                                     className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium"
@@ -626,7 +634,7 @@ export function Assessments() {
                             <div className="flex shrink-0 flex-col items-end gap-2">
                                 <a
                                     href={`#/assessment/${assessment.id}`}
-                                    className="text-emerald-600 font-medium"
+                                    className="text-emerald-600 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                     data-row-primary-action
                                     aria-label={`Open assessment for ${assessment.client?.first_name} ${assessment.client?.last_name}, ${assessment.pack?.title}`}
                                 >

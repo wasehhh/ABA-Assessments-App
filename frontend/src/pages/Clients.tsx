@@ -480,7 +480,7 @@ export function Clients() {
               <div className="w-px h-6 bg-gray-200 mx-1"></div>
               <a
                 href={`#/client/${client.id}`}
-                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg font-medium"
+                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 data-row-primary-action
                 aria-label={`View ${client.first_name} ${client.last_name}`}
               >

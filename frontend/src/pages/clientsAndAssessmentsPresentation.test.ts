@@ -85,11 +85,11 @@ describe('C4b row and card identity', () => {
 
 describe('C4b empty states and filter legend', () => {
     it('does not offer create from the Submitted empty state', () => {
-        expect(assessmentsEmptyCopy('submitted').offerCreate).toBe(false);
-        expect(assessmentsEmptyCopy('submitted').body).not.toMatch(/creating a new assessment/i);
-        expect(assessmentsEmptyCopy('submitted').title).toBe('No assessments awaiting review');
-        expect(assessmentsEmptyCopy('approved').offerCreate).toBe(false);
-        expect(assessmentsEmptyCopy('active').offerCreate).toBe(true);
+        expect(assessmentsEmptyCopy('submitted', false).offerCreate).toBe(false);
+        expect(assessmentsEmptyCopy('submitted', true).body).not.toMatch(/creating a new assessment/i);
+        expect(assessmentsEmptyCopy('submitted', false).title).toBe('No assessments awaiting review');
+        expect(assessmentsEmptyCopy('approved', false).offerCreate).toBe(false);
+        expect(assessmentsEmptyCopy('active', true).offerCreate).toBe(true);
         expect(assessmentsSource).toContain('emptyCopy.offerCreate');
         expect(assessmentsSource).not.toContain("['admin', 'senior_therapist', 'therapist']");
     });
@@ -124,5 +124,69 @@ describe('C4b navigation consistency', () => {
         expect(detailSource).toContain('text-gray-600 hover:text-emerald-700');
         expect(detailSource).toContain('Back to Clients');
         expect(detailSource).not.toContain('text-blue-600 hover:text-blue-700');
+    });
+});
+
+describe('empty-state copy follows the actor', () => {
+    it('instructs create on Active only when the reader can create', () => {
+        const withCreate = assessmentsEmptyCopy('active', true);
+        expect(withCreate.offerCreate).toBe(true);
+        expect(withCreate.body).toBe('Get started by creating a new assessment.');
+
+        const withoutCreate = assessmentsEmptyCopy('active', false);
+        expect(withoutCreate.offerCreate).toBe(false);
+        expect(withoutCreate.body).not.toMatch(/creating a new assessment/i);
+        expect(withoutCreate.body).not.toMatch(/get started/i);
+        expect(withoutCreate.body).toBe('There are no draft or in-progress assessments.');
+    });
+
+    it('does not instruct a Clients-list reader without Add Client to create', () => {
+        expect(clientsSource).toContain('No {statusFilter} clients found.');
+        expect(clientsSource).not.toMatch(/Get started by creating/);
+        expect(clientsSource).toMatch(
+            /statusFilter === 'active' && \['admin', 'senior_therapist'\][\s\S]*Add Client/
+        );
+        expect(detailSource).toContain(
+            "client.status === 'active' && canManageClient"
+        );
+        expect(detailSource).toContain('No assessments yet. Create one to get started.');
+        expect(detailSource).toContain("'No assessments.'");
+    });
+});
+
+describe('row primary action visible focus', () => {
+    it('reuses the AssessmentOverview emerald focus ring on Open, View, and detail Open', () => {
+        const focusTreatment = 'focus:outline-none focus:ring-2 focus:ring-emerald-500';
+        expect(assessmentsSource).toContain(focusTreatment);
+        expect(clientsSource).toContain(focusTreatment);
+        expect(detailSource).toContain(focusTreatment);
+
+        const assessmentsPrimary = assessmentsSource.slice(
+            assessmentsSource.indexOf('data-row-primary-action') - 280,
+            assessmentsSource.indexOf('data-row-primary-action') + 40
+        );
+        const clientsPrimary = clientsSource.slice(
+            clientsSource.indexOf('data-row-primary-action') - 280,
+            clientsSource.indexOf('data-row-primary-action') + 40
+        );
+        const detailPrimary = detailSource.slice(
+            detailSource.indexOf('data-row-primary-action') - 280,
+            detailSource.indexOf('data-row-primary-action') + 40
+        );
+        expect(assessmentsPrimary).toContain(focusTreatment);
+        expect(clientsPrimary).toContain(focusTreatment);
+        expect(detailPrimary).toContain(focusTreatment);
+    });
+});
+
+describe('Gap 3 in-progress delete dialog naming', () => {
+    it('cannot title an in-progress client-detail delete as Draft', () => {
+        expect(assessmentsSource).toContain('title="Delete Assessment"');
+        expect(detailSource).toMatch(
+            /deleteTarget\?\.status === 'in_progress' \? 'Delete Assessment'/
+        );
+        expect(detailSource).not.toMatch(
+            /deleteTarget\?\.status === 'in_progress' \? 'Delete Draft Assessment'/
+        );
     });
 });
