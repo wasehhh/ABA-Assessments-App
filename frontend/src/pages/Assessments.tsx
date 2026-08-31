@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { assessmentService } from '../services/assessments';
+import {
+    assessmentService,
+    canDeleteAssessment,
+    countRecordedScores,
+    recordedScoresDestroyedSentence,
+} from '../services/assessments';
 import { clientService } from '../services/clients';
 import { packService } from '../services/packs';
 import { userService } from '../services/users';
 import { UserProfile, Assessment } from '../types';
-import { Plus, FileText, Calendar, User, Trash2, Download } from 'lucide-react';
+import { Plus, FileText, Calendar, User } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatAssessmentStatusLabel, formatAssignmentPresenceLabel } from '../utils/assessmentStatusLabel';
 import {
@@ -54,7 +59,11 @@ export function Assessments() {
     const [form, setForm] = useState(() => createEmptyAssessmentForm());
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        id: string;
+        name: string;
+        scoreCount: number | null;
+    } | null>(null);
     const [duplicateId, setDuplicateId] = useState<string | null>(null);
     const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
@@ -282,6 +291,25 @@ export function Assessments() {
         }
     };
 
+    const requestDeleteAssessment = async (assessment: Assessment) => {
+        const name = `${assessment.client?.first_name} ${assessment.client?.last_name} - ${assessment.pack?.title}`;
+        if (assessment.status === 'in_progress') {
+            try {
+                const scores = await assessmentService.getScores(assessment.id);
+                setDeleteConfirm({
+                    id: assessment.id,
+                    name,
+                    scoreCount: countRecordedScores(scores),
+                });
+            } catch (err) {
+                console.error('Error loading recorded scores:', err);
+                setErrorAlert('Failed to load recorded scores for this assessment.');
+            }
+            return;
+        }
+        setDeleteConfirm({ id: assessment.id, name, scoreCount: null });
+    };
+
     if (listLoadState === 'loading' && !showForm) {
         return <DataLoadSpinner label="Loading assessments…" />;
     }
@@ -495,11 +523,12 @@ export function Assessments() {
                     assessments.map((assessment: any) => (
                         <div
                             key={assessment.id}
-                            className="bg-white rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-emerald-200 p-5 cursor-pointer group relative"
+                            className="bg-white rounded-lg shadow hover:shadow-md transition border border-transparent hover:border-emerald-200 p-5 group relative"
                         >
+                            <div className="flex items-start justify-between gap-4">
                             <div
                                 onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
-                                className="pr-12" // Add padding for delete button
+                                className="min-w-0 flex-1 cursor-pointer"
                             >
                                 <h3 className="font-semibold text-lg text-gray-900 flex items-center gap-2">
                                     {assessment.client?.first_name} {assessment.client?.last_name}
@@ -527,18 +556,26 @@ export function Assessments() {
                                 </div>
                             </div>
 
-                            <div className="absolute top-5 right-5 flex items-center gap-2">
-                                {/* Export Dropdown */}
-                                <div className="relative">
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                                <a
+                                    href={`#/assessment/${assessment.id}`}
+                                    className="text-emerald-600 font-medium"
+                                    data-row-primary-action
+                                    aria-label={`Open assessment for ${assessment.client?.first_name} ${assessment.client?.last_name}, ${assessment.pack?.title}`}
+                                >
+                                    Open
+                                </a>
+                                <div className="relative" data-row-export>
                                     <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setActiveExportId(activeExportId === assessment.id ? null : assessment.id);
                                         }}
-                                        className="text-gray-400 hover:text-emerald-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
-                                        title="Export Assessment"
+                                        className="text-gray-500 hover:text-emerald-600 p-1 rounded-md hover:bg-gray-100 transition-colors text-sm font-medium"
+                                        aria-label="Export assessment data"
                                     >
-                                        <Download className="w-4 h-4" />
+                                        Export
                                     </button>
 
                                     {activeExportId === assessment.id && (
@@ -566,28 +603,21 @@ export function Assessments() {
                                         </div>
                                     )}
                                 </div>
-
-                                <div
-                                    onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
-                                    className="text-emerald-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center"
-                                >
-                                    Open →
-                                </div>
-                                {['admin', 'senior_therapist'].includes(profile?.role || '') && (
+                                {canDeleteAssessment(assessment.status, profile?.role) ? (
                                     <button
+                                        type="button"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setDeleteConfirm({
-                                                id: assessment.id,
-                                                name: `${assessment.client?.first_name} ${assessment.client?.last_name} - ${assessment.pack?.title}`
-                                            });
+                                            void requestDeleteAssessment(assessment);
                                         }}
-                                        className="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                                        title="Delete Assessment"
+                                        className="text-sm font-medium text-red-600 hover:text-red-700"
+                                        data-row-delete
+                                        aria-label={`Delete assessment for ${assessment.client?.first_name} ${assessment.client?.last_name}, ${assessment.pack?.title}`}
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        Delete
                                     </button>
-                                )}
+                                ) : null}
+                            </div>
                             </div>
                         </div>
                     ))
@@ -598,7 +628,11 @@ export function Assessments() {
             <ConfirmDialog
                 isOpen={!!deleteConfirm}
                 title="Delete Assessment"
-                message={`Are you sure you want to delete the assessment for ${deleteConfirm?.name}? This action cannot be undone.`}
+                message={
+                    deleteConfirm?.scoreCount != null
+                        ? `Are you sure you want to delete the assessment for ${deleteConfirm.name}? ${recordedScoresDestroyedSentence(deleteConfirm.scoreCount)} This action cannot be undone.`
+                        : `Are you sure you want to delete the assessment for ${deleteConfirm?.name}? This action cannot be undone.`
+                }
                 confirmText="Delete Assessment"
                 isDestructive={true}
                 onConfirm={async () => {

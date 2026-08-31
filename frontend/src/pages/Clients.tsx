@@ -405,49 +405,53 @@ export function Clients() {
                 </p>
               )}
             </div>
-            <div className="flex items-center gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2">
               {['admin', 'senior_therapist'].includes(profile?.role || '') && (
-                <>
+                <div className="flex items-center gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleEdit(client); }}
                     className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                    title="Edit Details"
+                    aria-label={`Edit ${client.first_name} ${client.last_name}`}
                   >
                     Edit
                   </button>
                   {statusFilter === 'active' && (
                     <button
+                      type="button"
                       onClick={(e) => { e.stopPropagation(); setArchiveTarget({ id: client.id, name: `${client.first_name} ${client.last_name}` }); }}
                       className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                      title="Archive Client"
+                      aria-label={`Archive ${client.first_name} ${client.last_name}`}
                     >
                       Archive
                     </button>
                   )}
-                </>
+                </div>
               )}
               {statusFilter === 'archived' && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   {['admin', 'senior_therapist'].includes(profile?.role || '') && (
                     <>
                       <button
+                        type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
                           await clientService.update(client.id, { status: 'active' });
                           loadClients();
                         }}
                         className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                        title="Restore Client"
+                        aria-label={`Restore ${client.first_name} ${client.last_name}`}
                       >
                         <RefreshCw className="w-5 h-5" />
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeleteTarget({ id: client.id, name: `${client.first_name} ${client.last_name}` });
                         }}
                         className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                        title="Permanently Delete Client"
+                        aria-label={`Permanently delete ${client.first_name} ${client.last_name}`}
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -456,12 +460,14 @@ export function Clients() {
                 </div>
               )}
               <div className="w-px h-6 bg-gray-200 mx-1"></div>
-              <button
-                onClick={() => window.location.hash = `#/client/${client.id}`}
+              <a
+                href={`#/client/${client.id}`}
                 className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg font-medium"
+                data-row-primary-action
+                aria-label={`View ${client.first_name} ${client.last_name}`}
               >
-                View →
-              </button>
+                View
+              </a>
             </div>
           </div>
             ))}

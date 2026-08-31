@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { assessmentService } from '../services/assessments';
+import {
+  assessmentService,
+  canDeleteAssessment,
+  countRecordedScores,
+  recordedScoresDestroyedSentence,
+} from '../services/assessments';
 import { clientService } from '../services/clients';
-import { ArrowLeft, Calendar, FileText, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Plus } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatAssessmentStatusLabel, shouldShowSubmissionDate } from '../utils/assessmentStatusLabel';
 import { Assessment, Client } from '../types';
@@ -33,7 +38,12 @@ export function ClientDetail({ clientId }: Props) {
   const clientLoadRequestRef = useRef(0);
   const assessmentsLoadRequestRef = useRef(0);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    status: Assessment['status'];
+    name: string;
+    scoreCount: number | null;
+  } | null>(null);
   const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
   const loadClient = async () => {
@@ -136,24 +146,45 @@ export function ClientDetail({ clientId }: Props) {
     );
   }
 
-  const handleDeleteClick = (assessmentId: string) => {
-    setDeleteId(assessmentId);
+  const handleDeleteClick = async (assessment: Assessment) => {
+    const name = assessment.pack_snapshot.title;
+    if (assessment.status === 'in_progress') {
+      try {
+        const scores = await assessmentService.getScores(assessment.id);
+        setDeleteTarget({
+          id: assessment.id,
+          status: assessment.status,
+          name,
+          scoreCount: countRecordedScores(scores),
+        });
+      } catch (error) {
+        console.error('Error loading recorded scores:', error);
+        setErrorAlert('Failed to load recorded scores for this assessment.');
+      }
+      return;
+    }
+    setDeleteTarget({
+      id: assessment.id,
+      status: assessment.status,
+      name,
+      scoreCount: null,
+    });
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteTarget) return;
     if (!profile?.org_id || !user?.id) return;
 
-    setDeleting(deleteId);
+    setDeleting(deleteTarget.id);
     try {
-      await assessmentService.delete(deleteId, profile.org_id, user.id);
-      setAssessments(assessments.filter(a => a.id !== deleteId));
+      await assessmentService.delete(deleteTarget.id, profile.org_id, user.id);
+      setAssessments(assessments.filter(a => a.id !== deleteTarget.id));
     } catch (error) {
       console.error('Error deleting assessment:', error);
       setErrorAlert('Failed to delete assessment');
     } finally {
       setDeleting(null);
-      setDeleteId(null);
+      setDeleteTarget(null);
     }
   };
 
@@ -190,13 +221,15 @@ export function ClientDetail({ clientId }: Props) {
               </p>
             )}
           </div>
-          <button
-            onClick={() => window.location.hash = `#/assessments?client=${clientId}`}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
-          >
-            <Plus className="w-5 h-5" />
-            New Assessment
-          </button>
+          {['admin', 'senior_therapist'].includes(profile?.role || '') ? (
+            <button
+              onClick={() => window.location.hash = `#/assessments?client=${clientId}`}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+            >
+              <Plus className="w-5 h-5" />
+              New Assessment
+            </button>
+          ) : null}
         </div>
 
         <div className="border-t pt-6">
@@ -227,6 +260,8 @@ export function ClientDetail({ clientId }: Props) {
                     <button
                       onClick={() => window.location.hash = `#/assessment/${assessment.id}`}
                       className="flex-1 text-left bg-gray-50 hover:bg-gray-100 rounded-lg p-4 transition border border-gray-200"
+                      data-row-primary-action
+                      aria-label={`Open ${assessment.pack_snapshot.title}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -250,16 +285,18 @@ export function ClientDetail({ clientId }: Props) {
                         </div>
                       </div>
                     </button>
-                    {assessment.status === 'draft' && (
+                    {canDeleteAssessment(assessment.status, profile?.role) ? (
                       <button
-                        onClick={() => handleDeleteClick(assessment.id)}
+                        type="button"
+                        onClick={() => void handleDeleteClick(assessment)}
                         disabled={deleting === assessment.id}
                         className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition border border-red-200 disabled:opacity-50"
-                        title="Delete draft"
+                        data-row-delete
+                        aria-label={`Delete ${assessment.pack_snapshot.title} assessment`}
                       >
-                        <Trash2 className="w-5 h-5" />
+                        Delete
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -269,13 +306,17 @@ export function ClientDetail({ clientId }: Props) {
       </div>
 
       <ConfirmDialog
-        isOpen={!!deleteId}
-        title="Delete Draft Assessment"
-        message="Are you sure you want to delete this draft assessment? This action cannot be undone."
+        isOpen={!!deleteTarget}
+        title={deleteTarget?.status === 'in_progress' ? 'Delete Assessment' : 'Delete Draft Assessment'}
+        message={
+          deleteTarget?.status === 'in_progress' && deleteTarget.scoreCount != null
+            ? `Are you sure you want to delete the assessment for ${client.first_name} ${client.last_name} - ${deleteTarget.name}? ${recordedScoresDestroyedSentence(deleteTarget.scoreCount)} This action cannot be undone.`
+            : 'Are you sure you want to delete this draft assessment? This action cannot be undone.'
+        }
         confirmText="Delete Assessment"
         isDestructive={true}
         onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteId(null)}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       <ConfirmDialog

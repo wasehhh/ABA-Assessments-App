@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Assessment, AssessmentScore, ContentPackData, Target } from '../types';
 import { auditService } from './audit';
+import { userService } from './users';
 import { canEditAssessmentScores } from '../utils/assessmentScoreEditRules';
 import {
   findPackTarget,
@@ -29,6 +30,46 @@ function assertScoreAllowedForTarget(
       `Score ${score} is not allowed for this target. Allowed values: ${effective.allowedValues.join(', ')}.`
     );
   }
+}
+
+export const ASSESSMENT_DELETE_ROLE_REFUSED =
+  'Only senior therapists and admins may delete assessments.';
+export const ASSESSMENT_DELETE_STATUS_REFUSED =
+  'Approved and submitted assessments cannot be deleted.';
+
+export function canDeleteAssessment(
+  status: string | null | undefined,
+  role: string | null | undefined
+): boolean {
+  if (role !== 'admin' && role !== 'senior_therapist') {
+    return false;
+  }
+  return status === 'draft' || status === 'in_progress';
+}
+
+export function assertAssessmentDeletable(
+  status: string | null | undefined,
+  role: string | null | undefined
+): void {
+  if (role !== 'admin' && role !== 'senior_therapist') {
+    throw new Error(ASSESSMENT_DELETE_ROLE_REFUSED);
+  }
+  if (status !== 'draft' && status !== 'in_progress') {
+    throw new Error(ASSESSMENT_DELETE_STATUS_REFUSED);
+  }
+}
+
+/** Rows with a value in `score`. Placeholders (`score: null`) are not recorded scores. */
+export function countRecordedScores(scores: { score: number | null }[]): number {
+  return scores.filter((row) => row.score != null).length;
+}
+
+/** Founder ruling 2026-08-31: in_progress confirm must name the score count. */
+export function recordedScoresDestroyedSentence(scoreCount: number): string {
+  if (scoreCount === 0) {
+    return 'This assessment has no recorded scores.';
+  }
+  return `This will permanently delete ${scoreCount} recorded scores.`;
 }
 
 function normalizeAssessmentScoreRow(row: AssessmentScore): AssessmentScore {
@@ -606,7 +647,13 @@ export const assessmentService = {
   },
 
   async delete(assessmentId: string, orgId: string, userId: string) {
-    // Cascade delete handles scores and cycles usually, but good to be explicit/safe
+    const assessment = await this.getById(assessmentId);
+    if (!assessment) {
+      throw new Error('Assessment not found');
+    }
+    const profile = await userService.getById(userId);
+    assertAssessmentDeletable(assessment.status, profile.role);
+
     const { error } = await supabase
       .from('assessments')
       .delete()
