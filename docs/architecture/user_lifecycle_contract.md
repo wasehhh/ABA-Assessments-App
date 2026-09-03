@@ -3,10 +3,12 @@
 | Field | Value |
 |-------|--------|
 | **Document type** | Product architecture specification (user identity lifecycle) |
-| **Status** | Authoritative contract — decisions locked 2026-08-24; Builder implements without further product interpretation |
+| **Consolidation slice** | **UL-A1–A5** (Alpha) · **UL-A6** amendment (invite-only bootstrap gate) — closes self-service org creation while preserving signup healing |
+| **Status** | Authoritative contract — decisions locked 2026-08-24; **UL-A6** amendment 2026-08-31 (founder invite-only ruling) |
 | **Binding constraint** | Clinical audit trail and attribution correctness |
 | **Settled adjacent work** | M10 user profile authorization — [`user_profile_authorization_contract.md`](./user_profile_authorization_contract.md) (`20260813_user_profile_authorization.sql`); do not weaken INSERT/UPDATE guards |
 | **Live incident** | 2026-08-24 — two orphaned `auth.users` rows, no `user_profiles`, empty `organizations`; manual SQL cleanup required; Supabase dashboard delete failed |
+| **Security finding** | 2026-08-31 — unauthenticated bootstrap: any caller reaching signup could create `auth.users` + new `organizations` + admin `user_profiles` without invite (`complete_user_setup` `mode: bootstrap`). Test org `f471735e-3b3f-49fe-8995-b6578362c803` created; pending founder SQL cleanup. **Founder ruling (binding): Evalis is invite-only** — gate bootstrap to founder allowlist (§13). |
 | **References** | [`supabase_setup.md`](./supabase_setup.md) §2.1 (email confirmation) · vault SPM Operating Contract §5.5 (Reference-Not-Duplicate) |
 
 This document defines how a person enters Evalis, recovers from partial creation, is removed when appropriate, or is retired when removal would break clinical attribution — with the audit trail as the binding constraint.
@@ -15,7 +17,7 @@ It does **not** restate M10 authorization rules, role semantics, or full table D
 
 **Do not commit this document as part of an implementation PR unless separately instructed.**
 
-**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns lifecycle states, transitions, clinical-footprint definition, audit-trail resolution, signup restructuring, and server-side deletion authorization. It references M10 for profile INSERT/UPDATE trust and `supabase_setup.md` for migration apply discipline. It does not duplicate RLS policy text or Team UI layout.
+**Reference-Not-Duplicate (SPM Operating Contract §5.5):** This document owns lifecycle states, transitions, clinical-footprint definition, audit-trail resolution, signup restructuring, server-side deletion authorization, and (UL-A6) **bootstrap allowlist gating**. It references M10 for profile INSERT/UPDATE trust and `supabase_setup.md` for migration apply discipline. It does not duplicate RLS policy text or Team UI layout.
 
 ---
 
@@ -25,7 +27,7 @@ An implementer (Builder) may treat the following as **locked**. Do not re-derive
 
 | Topic | Settled position |
 |-------|------------------|
-| **Alpha scope** | **UL-A1 through UL-A5 only.** Remove, Edge Function, and Model A audit migration are **Beta** (UL-β1–β4). Founder decision against an earlier preference to ship Remove before pilot — see §9.1. |
+| **Alpha scope** | **UL-A1 through UL-A6.** UL-A6 (§13) closes self-service bootstrap. Remove, Edge Function, and Model A audit migration are **Beta** (UL-β1–β4). Founder decision against an earlier preference to ship Remove before pilot — see §9.1. |
 | **Audit trail on Remove** | **Model A only.** Denormalized `actor_email` + `actor_display_name`; nullable `audit_logs.user_id`; backfill per §2.4. **Model B (delete audit rows) is rejected** — if Model A cannot land, **delay Remove**, never delete audit history. |
 | **Profile↔auth coupling** | Keep `user_profiles.id` → `auth.users(id)`. Decoupling deferred beyond Beta unless email reuse after Remove becomes a demonstrated operational need. |
 | **Retire** | Product language for “cannot Remove — deactivate instead.” Stored status remains `active` \| `inactive`. No `retired` enum. |
@@ -33,6 +35,7 @@ An implementer (Builder) may treat the following as **locked**. Do not re-derive
 | **Cross-org invite** | Block at invite creation if email is already an active member in any org (single-org product). |
 | **Deactivated sign-in** | Out of scope here — referred to M11. Do not implement a lifecycle-specific login block. |
 | **Email confirmation** | Stay **disabled** for Alpha per `supabase_setup.md` §2.1. Re-enable only after Alpha, once deferred bootstrap (§5.5) is verified. |
+| **Invite-only / bootstrap** | **UL-A6 (§13):** Self-service org creation is **closed**. Bootstrap branch of `complete_user_setup` runs only for emails on a founder-maintained allowlist. Invite path unchanged. |
 | **Regulatory erasure** | **Unresolved** (OQ-UL-14). Do not build erasure automation. |
 | **UL-A database objects** | RPCs are Postgres objects. They **must** be added as a file under `database/migrations/` and **manually applied** in the Supabase SQL Editor (or equivalent). Per `supabase_setup.md`, **nothing applies them automatically.** |
 
@@ -182,7 +185,7 @@ stateDiagram-v2
 | S0→S1 | `inviteUser` | Admin; email not already a member in any org (§7.2) | Alpha |
 | S1→S0 | `deleteInvite` | Admin | Alpha |
 | S1→S4 | Successful profile creation | Invite matches auth email; M10 INSERT rules | Alpha |
-| S0→S4 | Bootstrap signup via `complete_user_setup` | First org + admin profile in one DB transaction | Alpha |
+| S0→S4 | Bootstrap signup via `complete_user_setup` | Caller on bootstrap allowlist (§13); first org + admin profile in one DB transaction | Alpha (UL-A6 gated) |
 | S2/S3→S4 | `complete_user_setup` (§5) | Valid invite or bootstrap eligibility | Alpha |
 | S4↔S5 | `updateUser({ status })` | Admin; not self | Alpha (exists) |
 | S4/S5→S6 | Admin **Remove** | **No clinical footprint** (§3); Model A schema live; Edge Function (§4) | **Beta** |
@@ -450,7 +453,7 @@ Move org/profile creation into a **`SECURITY DEFINER`** RPC `complete_user_setup
 1. Reads `auth.uid()` and `auth.users.email`.
 2. If profile already exists for uid → return success (idempotent).
 3. If matching `user_invites` row → insert profile with invite `org_id`/`role`; trigger consumes invite.
-4. Else if bootstrap allowed (no profile; org with `created_by = uid` and no members **OR** new org creation) → create org if needed, insert admin profile.
+4. Else if bootstrap allowed (§13 — allowlisted email; no profile; org with `created_by = uid` and no members **OR** new org creation) → create org if needed, insert admin profile.
 5. Enforces **same rules as M10 INSERT policy** internally (do not weaken).
 6. Runs in **one DB transaction**.
 
@@ -582,9 +585,9 @@ Founder owns exact strings.
 
 **Context:** Partner org clinical staff onboarding in ~3 weeks. Production DB was cleaned by hand on **2026-08-24** and is currently correct.
 
-## 9.1 Alpha — **UL-A1 through UL-A5 only** (founder decision, OQ-UL-1)
+## 9.1 Alpha — **UL-A1 through UL-A6** (founder decision, OQ-UL-1; **UL-A6** security amendment 2026-08-31)
 
-**Authoritative cut:** Alpha ships **UL-A1–A5**. Remove, the Edge Function, and the Model A audit migration are **out of Alpha**.
+**Authoritative cut:** Alpha ships **UL-A1–A6**. Remove, the Edge Function, and the Model A audit migration remain **out of Alpha**. **UL-A6** (§13) is a bounded security amendment — not a scope expansion into clinic-invite product work.
 
 This decision was made **against an explicit earlier preference for shipping Remove before pilot**. It is intentional, not an oversight. Reasoning:
 
@@ -600,6 +603,7 @@ This decision was made **against an explicit earlier preference for shipping Rem
 | **UL-A3** | Login behaviour for “already registered” + `lookup_email_lifecycle_state` | Surfaces hidden recovery |
 | **UL-A4** | Profile-missing gate in app shell | Authenticated + no profile → setup screen |
 | **UL-A5** | Ops runbook: break-glass orphan cleanup | Founder-only; **2026-08-24 guarded transaction pattern** — explicit ids, abort on unexpected footprint, never bare delete; document manual invite revoke (no expiry) |
+| **UL-A6** | Bootstrap allowlist gate (§13) | `bootstrap_allowlist` + gated `complete_user_setup` + `can_bootstrap_organization`; **migration before frontend** |
 
 **Explicitly out of Alpha:**
 
@@ -663,6 +667,8 @@ Questions formerly open. Silence is not approval for future questions; these are
 | **OQ-UL-13** | **RESOLVED — block** invite if email already active in any org | Founder | Single-org product; multi-org is not a direction taken. |
 | **OQ-UL-14** | **OPEN — unresolved** | — | Regulatory erasure vs clinical retention requires **legal review**. Alpha/Beta scope decisions do **not** answer this. Do not build erasure automation. Implications: Remove/deactivate cannot be assumed to satisfy a “right to be forgotten”; clinical retention may legally dominate. Escalate before any erasure feature. |
 | **OQ-UL-15** | **RESOLVED — re-enable email confirmation after Alpha only** | Founder | Changing signup days before AIM staff walk it is not worth the trade. |
+| **OQ-UL-16** | Seed emails for `bootstrap_allowlist` at migration apply | **A** Founder provides explicit list in migration · **B** Empty table + manual INSERT after apply | **A** — avoids accidental “zero rows = no clinics” window if founder forgets post-apply INSERT | UL-A6 migration apply |
+| **OQ-UL-17** | Public signup subtitle for invite-only policy | **A** Add “Evalis is invite-only…” under form · **B** No copy change | **A** — aligns UI with policy without mentioning allowlist | UL-A6 frontend |
 
 ---
 
@@ -679,6 +685,11 @@ Questions formerly open. Silence is not approval for future questions; these are
 - [ ] Ops runbook exists with 2026-08-24 guarded orphan cleanup pattern + manual invite revoke
 - [ ] Invite creation blocked when email is already an active member in any org
 - [ ] Email confirmation remains disabled for Alpha environments
+- [ ] `bootstrap_allowlist` seeded; empty table does **not** permit bootstrap
+- [ ] Non-allowlisted bootstrap attempt receives generic refusal — no allowlist disclosure
+- [ ] Invite signup and mid-invite healing unchanged
+- [ ] Allowlisted founder can bootstrap via setup screen after UL-A6
+- [ ] Migration applied **before** frontend that calls `can_bootstrap_organization`
 
 **Beta (UL-β):**
 
@@ -701,9 +712,192 @@ This is an accepted cost of OQ-UL-1, not an unresolved question. Raise it only i
 
 ---
 
+## Amendment banner — invite-only bootstrap gate (UL-A6, 2026-08-31)
+
+**Security finding (founder-confirmed):** `complete_user_setup` bootstrap branch (`mode: bootstrap`) requires only a non-empty `p_org_name`. Any authenticated caller without a matching invite can create a new organization and an admin profile. On the AIM Alpha database this created org `f471735e-3b3f-49fe-8995-b6578362c803` during testing.
+
+**Founder ruling (binding): Evalis is invite-only.** Every account after the first at a clinic comes from an invite. **The first cannot** — something must still create an organization and its first admin. **SPM direction:** gate the **existing** bootstrap branch to a **founder allowlist** (subtraction, not a new feature).
+
+**Rejected (do not re-propose):**
+
+| Option | Why rejected |
+|--------|----------------|
+| **Clinic-invite kind** (founder-issued token that creates org + first admin) | Correct post-Alpha end state; new capability; unnecessary for two known clinics now — record as upgrade path (§13.8) |
+| **Shared signup code** | Shared secret leaks silently; no per-clinic attribution |
+| **Relax gate only / UI-only hide** | Server must refuse; UI alone reopens on direct RPC |
+
+**Boundary:** This amendment closes **self-service bootstrap**. It does **not** change invite semantics, M10 INSERT/trigger rules, `cleanup_failed_signup`, or `mode: already_exists` idempotency.
+
+---
+
+## 13. Invite-only bootstrap gate (UL-A6)
+
+### 13.1 The allowlist
+
+| Item | Binding |
+|------|---------|
+| **Storage** | New Postgres table `public.bootstrap_allowlist` — one row per permitted bootstrap email |
+| **Member identifier** | **Normalized email** (`lower(btrim(email))`) — **not** `auth.uid()` |
+| **Why email, not uid** | Founder must be able to **pre-authorize** a clinic’s first admin **before** `auth.signUp` creates `auth.users`. `complete_user_setup` already resolves `auth.users.email` for the caller; uid does not exist at allowlist-provisioning time. |
+| **Columns (minimum)** | `email text PRIMARY KEY` (stored lowercased), `note text` (optional founder label, e.g. clinic name), `created_at timestamptz DEFAULT now()` |
+| **Who may read** | **No** `SELECT` grant to `authenticated` or `anon`. Only `SECURITY DEFINER` functions (and `service_role` / SQL Editor) read it. |
+| **Who may write** | **Founder-only** — manual `INSERT` / `DELETE` in Supabase SQL Editor (or `service_role` script). **No product UI** in UL-A6. |
+| **Administration** | Founder adds the first-admin email when onboarding a new clinic; removes row only if bootstrap was abandoned and email should not create orgs (rare). |
+
+**Empty or missing allowlist — fail closed (binding):**
+
+| State | Bootstrap branch behaviour |
+|-------|----------------------------|
+| Table does not exist (migration not applied) | Builder must not ship UL-A6 frontend that depends on new RPCs; see §13.6. Pre-migration behaviour remains the security hole — treat as **not production-safe**. |
+| Table exists, **zero rows** | Bootstrap branch **refuses every caller** with §13.2 refusal. **Never** treat empty as “allow all.” An empty table is the hole reopening itself. |
+| Table exists, caller email **not** in table | Refuse (§13.2). |
+| Table exists, caller email **in** table | Proceed to existing bootstrap logic (§13.3 invariants). |
+
+**Seed requirement:** Migration **must** include founder-approved `INSERT` rows for each clinic permitted to bootstrap (see OQ-UL-16). Applying the migration without seeding leaves **no** bootstrap path until founder inserts rows — acceptable only if understood; prefer bundled seed in the same manual apply session.
+
+### 13.2 The refusal
+
+When the bootstrap branch would run but the caller is **not** allowlisted (including empty allowlist):
+
+| Layer | Binding |
+|-------|---------|
+| **SQL** | `raise exception` with stable internal token only, e.g. `complete_user_setup: bootstrap_not_permitted` — **no** substring `allowlist`, `bootstrap allowed`, founder emails, or org names in the exception text |
+| **RPC result** | No success row with `mode: bootstrap` |
+| **`cleanup_failed_signup`** | Run on failure per existing client contract — removes empty org if bootstrap created one before a later guard failed; on allowlist refusal **before** org mutation, typically no-op |
+
+**Client mapping (`auth.ts` pattern):** Map `bootstrap_not_permitted` to the **same generic copy** as other unmapped setup failures:
+
+> “We couldn't finish setting up your account. Try signing in — if that doesn't work, let your administrator know.”
+
+(`UNMAPPED_SETUP_FAILURE` — already shipped.)
+
+**Must not disclose to the caller:**
+
+- That an allowlist exists
+- Whether the caller’s email is “almost” allowed
+- Who is on the allowlist
+- That bootstrap is a distinct code path (avoid “you are not authorized to create an organization”)
+
+**Invite and idempotency errors** keep their existing mapped copy — unchanged.
+
+**Product copy (signup shell):** May state publicly that **Evalis is invite-only** (founder policy). That is not allowlist disclosure.
+
+### 13.3 Invariants that must survive
+
+| ID | Invariant | Detail |
+|----|-----------|--------|
+| **INV-UL-16** | **Invite path first** | If `user_invites` matches caller email (case-insensitive, single row), insert profile with invite `org_id` / `role` → `mode: invite`. **Allowlist is not consulted.** |
+| **INV-UL-17** | **Mid-invite healing** | Non-allowlisted user with pending invite who half-completed signup (S2) heals via invite branch on sign-in + `complete_user_setup` — **unchanged**. |
+| **INV-UL-18** | **`already_exists` idempotency** | Profile present → `mode: already_exists` return — **unchanged**; allowlist not consulted. |
+| **INV-UL-19** | **M10 bootstrap rules inside RPC** | Bootstrap still requires org `created_by = auth.uid()` and org has **no members** before profile insert — internal checks at `complete_user_setup` L146–164 remain. |
+| **INV-UL-20** | **Empty-org reuse** | Single empty org owned by caller may be renamed and completed — **unchanged** for allowlisted callers (healing S3). |
+| **INV-UL-21** | **Multi empty-org guard** | `multiple empty bootstrap organizations` still hard-fails — **unchanged**. |
+| **INV-UL-22** | **`cleanup_failed_signup`** | Semantics unchanged — still deletes only caller-owned orgs with zero profiles and no referencing rows. |
+| **INV-UL-23** | **M10 trigger / INSERT policy** | No change to `user_profiles_guard_privileged_columns` or client INSERT policy text. |
+| **INV-UL-24** | **Invite issuance / revoke** | `inviteUser`, `deleteInvite`, cross-org block — **unchanged**. |
+
+**Gate placement in function (binding):** Allowlist check runs **only** when execution would enter the bootstrap branch (after idempotency and invite branches, before `p_org_name` requirement). It does **not** run on invite or `already_exists`.
+
+### 13.4 Existing organizations and members
+
+| Concern | Disposition |
+|---------|-------------|
+| **Organizations already created** | **No retroactive effect.** Rows in `organizations`, `user_profiles`, and all clinical data remain valid. |
+| **Users already signed in** | Existing profiles always hit `already_exists` — **unaffected**. |
+| **Pending invites** | **Unaffected** — invite branch does not consult allowlist. |
+| **Evalis Validation Clinic** (`8b81bf92-2462-4497-86d1-04e8ae7c80cc`) and the other live org | **Unaffected** — amendment applies only to **new** bootstrap attempts without profile. |
+| **Rogue test org** (`f471735e-3b3f-49fe-8995-b6578362c803`) | **Not removed by this migration** — founder manual cleanup (UL-A5 pattern) remains a separate ops action. |
+| **Pre-patch empty orgs** owned by non-allowlisted identities | Bootstrap completion **refused** after UL-A6; `cleanup_failed_signup` may remove empty org on next failed setup — **desired**. |
+
+### 13.5 UI behaviour
+
+**Binding choice: hide the organization name field on the public signup form unless a pending invite is detected** (`check_user_invite` returns a row). **Do not** show the field to non-invited emails and rely on server refusal — that tells strangers self-service org creation exists.
+
+| Surface | Behaviour |
+|---------|-----------|
+| **Login signup form** (`Login.tsx`) | Org name field visible **only** when `inviteOrgName` is set (invite path). Otherwise hidden. Signup copy may say Evalis is invite-only. |
+| **Authenticated setup / profile-missing gate** (UL-A4) | When user has no profile, no invite, and session exists: call new RPC `can_bootstrap_organization()` → `boolean` (SECURITY DEFINER, **authenticated only**). If `true`, show org name field and call `complete_user_setup` with `p_org_name`. If `false`, show generic incomplete-setup guidance — **no** org field. |
+| **Allowlisted founder first signup** | Sign up without org field → S2 briefly → setup screen shows org field because `can_bootstrap_organization()` is true → RPC completes bootstrap. |
+| **Non-allowlisted, no invite** | Sign up without org field → setup/sign-in cannot bootstrap → generic failure / contact administrator. |
+
+**Why not pre-auth allowlist probe:** Any `lookup_email → allowed` RPC callable from anon would let strangers enumerate allowlisted emails. Eligibility RPC is **post-authentication only**.
+
+**`can_bootstrap_organization()`:** Returns `exists(bootstrap_allowlist where email = lower(auth.users.email))`. No other columns returned. Fail closed if table missing.
+
+### 13.6 Migration and rollout
+
+**New migration file (Builder):** e.g. `database/migrations/20260831_ul_a6_bootstrap_allowlist.sql` containing:
+
+1. `CREATE TABLE public.bootstrap_allowlist (...)` + revoke public access
+2. Founder-approved seed `INSERT`s (OQ-UL-16)
+3. `CREATE OR REPLACE FUNCTION public.complete_user_setup` — bootstrap branch gated per §13.1–13.2
+4. `CREATE OR REPLACE FUNCTION public.can_bootstrap_organization()` → `boolean`
+5. Grants: `complete_user_setup` and `can_bootstrap_organization` → `authenticated` only
+
+**Manual apply** per §5.0 / `supabase_setup.md` — nothing auto-applies.
+
+**Catch-up order on a live Alpha DB** (apply only steps not already present; idempotent steps safe to re-run):
+
+| Order | File | Required before UL-A6? |
+|------:|------|------------------------|
+| 1 | `database/migrations/20260727_assessment_scores_score_numeric.sql` | If not yet applied (PR14B decimal — committed, may be pending) |
+| 2 | `database/migrations/20260819_assessment_communication_reports.sql` | If not yet applied (Layer 2C table — committed, may be pending) |
+| 3 | `database/migrations/20260823_content_packs_updated_at.sql` | If not yet applied |
+| 4 | `database/migrations/20260824_ul_a1_complete_user_setup_functions.sql` | **Yes** — UL-A6 replaces this function |
+| 5 | **`database/migrations/20260831_ul_a6_bootstrap_allowlist.sql`** | **This amendment** |
+
+**Safe deploy order (binding):**
+
+| Order | Safe? | What happens |
+|-------|-------|----------------|
+| **1. Migration, then frontend** | **Yes — preferred** | Old frontend: org field still visible to non-invite users, but RPC refuses non-allowlisted bootstrap. New frontend: hidden org field + setup screen works for allowlisted founders. |
+| **2. Frontend, then migration** | **No** | New frontend calls `can_bootstrap_organization()` → **function does not exist** → setup screen cannot distinguish allowlisted founder; bootstrap healing broken. |
+| **3. Migration only (old frontend)** | **Acceptable short window** | Security closed server-side; UX still shows org field to strangers until frontend ships — attempts fail generically. |
+| **4. Frontend only (old migration)** | **Unchanged hole** | Bootstrap still open — **do not ship**. |
+
+**Cross-version RPC:** Old frontend + new migration: non-allowlisted user submitting org name gets generic refusal — **correct**. Allowlisted founder can still complete via visible org field until new frontend ships.
+
+**Cross-version UI:** New frontend + old migration: **broken** — do not deploy.
+
+### 13.7 Post-Alpha upgrade path (record only)
+
+**Intended end state:** **Founder-issued clinic invites** — a distinct invite kind (or token) that atomically provisions a new `organizations` row and first admin profile without a static email allowlist. Correct for scale; **new capability** — extends UL-A6 rather than replacing invite-only policy. Until then, `bootstrap_allowlist` + gated `complete_user_setup` remains authoritative.
+
+**Also post-Alpha (out of scope here):** opaque invite tokens (`check_user_invite` enumeration), email confirmation + deferred bootstrap (§5.5).
+
+### 13.8 What UL-A6 does not change
+
+| Area | Disposition |
+|------|-------------|
+| Invite claim / consume trigger semantics | **Unchanged** |
+| `mode: invite` / `mode: already_exists` RPC branches | **Unchanged** (except shared function wrapper) |
+| M10 `user_profiles` INSERT policy and guard trigger | **Unchanged** |
+| `cleanup_failed_signup` delete guards | **Unchanged** |
+| `lookup_email_lifecycle_state` | **Unchanged** |
+| Team invite / revoke / deactivate | **Unchanged** |
+| Beta Remove / Model A audit | **Unchanged** |
+| Legal documents / ToS | **Unchanged** |
+| `organizations` INSERT RLS policy text | **Unchanged** (bootstrap org creation stays inside SECURITY DEFINER RPC) |
+
+### 13.9 UL-A6 Builder touch list (implementation reference)
+
+| File | Change class |
+|------|----------------|
+| `database/migrations/20260831_ul_a6_bootstrap_allowlist.sql` | Table, seed, function replace, `can_bootstrap_organization` |
+| `frontend/src/services/auth.ts` | Map `bootstrap_not_permitted`; setup-screen `p_org_name` path |
+| `frontend/src/pages/Login.tsx` | Org field invite-only on public signup |
+| `frontend/src/pages/SetupProfile.tsx` *(or UL-A4 gate)* | Org field when `can_bootstrap_organization()` true |
+| `docs/architecture/user_lifecycle_contract.md` | This amendment |
+| `docs/architecture/supabase_setup.md` | Add step 12 to canonical apply order |
+
+**Out of scope:** clinic-invite product design, shared signup codes, service_role signup orchestrator (UL-β4), allowlist admin UI.
+
+---
+
 # Document history
 
 | Date | Change |
 |------|--------|
 | 2026-08-24 | Initial user lifecycle contract from live orphan incident, verified against `auth.ts`, `Users.tsx`, M10 migration, and schema FK graph |
 | 2026-08-24 | Amendment: lock OQ-UL-1–13 and OQ-UL-15; reject Model B; authoritative Alpha cut UL-A1–A5; Model A Beta-only; OQ-UL-14 remains open; implementer settled-assumptions section; manual migration prominence |
+| 2026-08-31 | **UL-A6 amendment (§13):** invite-only bootstrap gate; `bootstrap_allowlist` by email; fail-closed empty table; `can_bootstrap_organization` for setup UI; migration-before-frontend rollout; clinic-invite recorded as post-Alpha upgrade |
