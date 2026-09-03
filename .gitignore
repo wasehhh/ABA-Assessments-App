@@ -33,6 +33,7 @@ frontend/supabase/.temp/
 # Output / generated files
 output/
 *.xlsx
+qa-artifacts/
 
 # Bolt or Antigravity cache
 .editor/
