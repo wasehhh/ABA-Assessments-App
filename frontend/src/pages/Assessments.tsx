@@ -398,7 +398,6 @@ export function Assessments() {
                 {!showForm && (
                     <div className="flex flex-wrap items-center gap-3">
                         {['admin', 'senior_therapist', 'therapist', 'viewer'].includes(profile?.role || '') && (
-                            <>
                             <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
                                 <button
                                     onClick={() => setStatusFilter('active')}
@@ -419,10 +418,6 @@ export function Assessments() {
                                     Approved
                                 </button>
                             </div>
-                            <p className="text-sm text-gray-500 leading-snug" data-filter-legend>
-                                Active: draft and in-progress work · Submitted: awaiting review · Approved: finalized
-                            </p>
-                            </>
                         )}
                         {statusFilter === 'active' && ['admin', 'senior_therapist'].includes(profile?.role || '') && (
                             <button

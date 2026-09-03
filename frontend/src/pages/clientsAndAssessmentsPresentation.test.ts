@@ -101,16 +101,6 @@ describe('C4b empty states and filter legend', () => {
         expect(assessmentsSource).toContain('emptyCopy.offerCreate');
         expect(assessmentsSource).not.toContain("['admin', 'senior_therapist', 'therapist']");
     });
-
-    it('places the status legend beside the filter controls', () => {
-        expect(assessmentsSource).toContain('data-filter-legend');
-        const legendIdx = assessmentsSource.indexOf('data-filter-legend');
-        const filterIdx = assessmentsSource.indexOf("setStatusFilter('active')");
-        expect(legendIdx).toBeGreaterThan(filterIdx);
-        const filterCluster = assessmentsSource.slice(filterIdx, legendIdx + 80);
-        expect(filterCluster).toContain("setStatusFilter('submitted')");
-        expect(filterCluster).toContain("setStatusFilter('approved')");
-    });
 });
 
 describe('C4b navigation consistency', () => {
