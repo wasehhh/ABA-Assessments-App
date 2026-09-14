@@ -62,4 +62,4 @@ Exact UI affordances may vary by screen; this matrix captures **intent** for Alp
 
 ---
 
-_For Alpha operational constraints (browser, pack types, Supabase), see `docs/roadmap/aim_alpha_readiness_plan.md`._
+_For Alpha operational constraints (browser, pack types, Supabase): This material is maintained outside the repository._

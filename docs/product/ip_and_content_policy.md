@@ -11,7 +11,7 @@ This is an **engineering guardrail** doc — not legal advice.
 - Store user-uploaded or user-built **content packs** per organization (`content_packs.pack_data`).
 - Use **generic** identifiers (domain id, target id) in code and exports.
 - Freeze **pack snapshots** on assessments for auditability.
-- Use Evalis-native visual patterns (Points Captured, Score Bands, Learner Map rows) — see [`visualization/layer_2_visualization_strategy.md`](./visualization/layer_2_visualization_strategy.md) §8.
+- Use Evalis-native visual patterns (Points Captured, Score Bands, Learner Map rows). This material is maintained outside the repository.
 
 ---
 
@@ -33,7 +33,7 @@ This is an **engineering guardrail** doc — not legal advice.
 
 ## Deeper background (archive)
 
-Full research notes: [`../archive/research/copyright_and_ip.md`](../archive/research/copyright_and_ip.md).
+This material is maintained outside the repository.
 
 ---
 

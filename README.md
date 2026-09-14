@@ -50,7 +50,7 @@ Further detail: [docs/guides/setup_guide.md](docs/guides/setup_guide.md).
 
 - **[Guides](docs/guides/)** — setup, onboarding  
 - **[Architecture](docs/architecture/)** — Supabase, data model notes  
-- **[Specs](docs/specs/)** — product/engineering references  
+- **[Product](docs/product/)** — lifecycle, IP policy, Assessment Snapshot  
 - **`database/migrations/`** — canonical SQL snapshots and patches  
 - **`frontend/supabase/migrations/`** — Supabase CLI migration chain  
 
@@ -61,4 +61,4 @@ Further detail: [docs/guides/setup_guide.md](docs/guides/setup_guide.md).
 
 ## Contributing
 
-See `docs/specs/master_app_specification.md` and org privacy/compliance expectations before contributing.
+See org privacy/compliance expectations before contributing. This material is maintained outside the repository.

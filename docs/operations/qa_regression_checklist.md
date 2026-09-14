@@ -6,9 +6,9 @@ Living pointer for manual regression. Automated tests: `cd frontend && npm run t
 
 ## Before Alpha / release candidate
 
-1. Run full [**alpha_smoke_test_plan.md**](./alpha_smoke_test_plan.md) on target Supabase project (Chrome).
+1. Run full Alpha smoke test on target Supabase project (Chrome). This material is maintained outside the repository.
 2. Verify Supabase per [**../architecture/supabase_setup.md**](../architecture/supabase_setup.md) checklist.
-3. Spot-check **Learner Map export** (Standard + Selected Domains) in dev/staging until PR10 production route ships — see [**../product/learner_map/README.md**](../product/learner_map/README.md).
+3. Spot-check **Learner Map export** (Standard + Selected Domains) in dev/staging until PR10 production route ships. This material is maintained outside the repository.
 
 ---
 
@@ -27,12 +27,6 @@ Living pointer for manual regression. Automated tests: `cd frontend && npm run t
 ## Role checks
 
 See [**../product/assessment_lifecycle.md**](../product/assessment_lifecycle.md) — therapist vs reviewer edit rules after submit.
-
----
-
-## Archived detailed plans
-
-Superseded QA artifacts: [`../archive/qa/`](../archive/qa/).
 
 ---
 

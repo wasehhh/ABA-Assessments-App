@@ -4,12 +4,6 @@
 
 This document defines the **known working Supabase database setup** for the AIM Alpha test of the ABA Assessment Platform (Evalis SPA + `@supabase/supabase-js`). It exists so the Alpha environment is **reproducible** from repository artifacts—not dependent on undocumented SQL Editor edits or individual memory.
 
-It aligns with project references:
-
-- `docs/audits/current_state_audit_2026_05_02.md` (operational schema divergence / invite RPC gap)
-- `docs/roadmap/aim_alpha_readiness_plan.md` (P0: stable, documented DB setup)
-- `docs/roadmap/phase_0_cleanup_tracker.md` (P0-5 stabilization tasks)
-
 ---
 
 ## 2. Required environment variables (frontend)

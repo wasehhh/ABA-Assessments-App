@@ -1,6 +1,6 @@
 # Evalis architecture overview
 
-**As-built stack** for the Evalis client application. Supersedes archived Next.js/FastAPI docs in [`../archive/architecture/`](../archive/architecture/).
+**As-built stack** for the Evalis client application. Supersedes archived Next.js/FastAPI docs.
 
 ---
 

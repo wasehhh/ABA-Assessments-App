@@ -56,8 +56,7 @@ Provisioning and RPC requirements: [`supabase_setup.md`](./supabase_setup.md).
 
 ## Related
 
-- [`data_access.md`](./data_access.md)  
-- [`../audits/complete_codebase_audit_2026_06_10.md`](../audits/complete_codebase_audit_2026_06_10.md) — known gaps (RLS vs UI, profile update policy)
+- [`data_access.md`](./data_access.md)
 
 ---
 

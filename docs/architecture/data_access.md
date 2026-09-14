@@ -76,8 +76,6 @@ Surface user-visible errors in UI; do not rely on silent failures for clinical p
 - FastAPI / Python backend (removed)  
 - `@supabase/ssr` cookie middleware (SPA uses browser client)
 
-Archived obsolete API docs: [`../archive/architecture/api_architecture.md`](../archive/architecture/api_architecture.md), [`../archive/api/api_reference.md`](../archive/api/api_reference.md).
-
 ---
 
 _Last reviewed: 2026-06-10._

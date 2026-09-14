@@ -6,7 +6,7 @@
 | **Feature** | Assessment Snapshot V1 |
 | **Milestone** | PR11.0 (specification only) |
 | **Status** | Approved for dev prototype planning |
-| **Related** | [`learner_map/README.md`](./learner_map/README.md) · [`visualization/layer_2_visualization_strategy.md`](./visualization/layer_2_visualization_strategy.md) |
+| **Related** | This material is maintained outside the repository. |
 
 ---
 
