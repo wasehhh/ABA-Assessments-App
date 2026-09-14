@@ -1,0 +1,43 @@
+---
+description: Repository-wide rules. Two applications share this repository and one database. Read before any schema, migration or architecture work.
+alwaysApply: true
+---
+
+# This repository holds two applications
+
+- `frontend/` — **Evalis Assessment**. Its architecture contracts are in `docs/architecture/`.
+- `programming/` — **Evalis Programming**. Its architecture lives in `programming/docs/` and is owned by a different SPM.
+
+Root-level `database/`, `docs/` and `scripts/` belong to **Evalis Assessment**, despite their unqualified names. They are not shared infrastructure.
+
+# The app boundary
+
+**Layer 5 canonical mapping and taxonomy belong exclusively to Evalis Assessment. SBT and the protocol engine belong exclusively to Evalis Programming.**
+
+Never build, claim, or design either one inside the other application.
+
+If you are working in one app and a task seems to require the other's half, that is a signal the task is wrong or is for the other app's SPM — not an invitation to implement it where you are.
+
+# Assessment's contracts are not house rules
+
+`docs/architecture/` governs **Evalis Assessment only**. Layer 0–5, the G1–G8 runtime laws, the Canonical Assessment Builder Architecture, Effective Scoring and the report contracts do **not** apply to any other application in this repository.
+
+**The single exception** is `docs/architecture/cross_app_identity_contract.md`, which is written for a consuming application and is binding on it. Read it before writing any schema that references Assessment's tables.
+
+# The database
+
+Both applications share one Postgres database, separated by schema: Assessment owns `public`, Programming owns `programming`.
+
+**No application creates its own learner, organisation or user tables.** Identity is Assessment's and is referenced by foreign key — never mirrored, cached, or placeheld.
+
+# Supabase CLI
+
+**No Supabase CLI command is ever run against the hosted Supabase project.** No `supabase link`. No `supabase db push`. There is no `supabase/config.toml` at the repository root and there must not be one.
+
+Assessment's migrations in `database/migrations/` are manual-apply only, by hand in the SQL editor, verified by catalogue query. A successful-looking run in the editor is not verification.
+
+A **local** Supabase instance is a different thing and is a legitimate development path.
+
+# Scope discipline
+
+Do not expand a task beyond the files you were given. Do not modify the other application's subtree for any reason. If a change appears to require it, stop and report.

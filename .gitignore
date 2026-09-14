@@ -60,3 +60,15 @@ coverage/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Evalis Programming subtree (Bolt.new exports frequently include node_modules)
+programming/**/node_modules/
+programming/**/dist/
+programming/**/dist-ssr/
+programming/**/build/
+programming/**/.env
+programming/**/.env.*
+!programming/**/.env.example
+programming/**/coverage/
+programming/**/.vite/
+programming/**/supabase/.temp/

@@ -1,0 +1,47 @@
+---
+description: Evalis Assessment architecture. Applies to the Assessment application only.
+globs: ["frontend/**", "database/**", "docs/**", "scripts/**"]
+alwaysApply: false
+---
+
+# You are working in Evalis Assessment
+
+An ABA assessment and workflow platform: React + TypeScript + Vite, Supabase with row-level security, hash-based routing. Application code is under `frontend/src/`.
+
+**These rules apply to this application only.** They do not apply to `programming/`.
+
+# Where the contracts are
+
+`docs/architecture/` holds the binding product contracts. They are authoritative over implementation: where a contract and the code disagree, one of them is wrong and neither is fixed by guessing.
+
+Read the relevant contract before changing behaviour it governs. The ones most often load-bearing:
+
+- `assessment_builder_phase_a_runtime_truth.md` — Effective Scoring and the G1–G8 runtime guarantees
+- `assessment_builder_canonical_product_architecture.md` — the Builder's canonical model
+- `assessment_snapshot_production_architecture.md` and the export contract
+- `assessment_report_authoring_contract.md` — Layer 2C
+- `user_lifecycle_contract.md` — accounts, invites, roles. **UL-A6 is written and deliberately not implemented; do not implement it without being asked**
+
+# Settled decisions — do not re-open without new evidence
+
+Effective Scoring as the single runtime authority · frozen `pack_snapshot` (a historical assessment always resolves against its own snapshot, never a later live pack edit) · Uniform means zero target overrides · the Assessment Snapshot is not a publisher clone · Builder before feature expansion.
+
+# Scoring semantics
+
+Never re-derive score bands, deltas or interpretations in presentation code. Runtime surfaces consume `resolveEffectiveScoring` and the aggregated profile structures. Re-deriving from raw `assessment_scores` in a component is the defect this architecture exists to prevent.
+
+# Clinical honesty
+
+A surface that leaves a false impression is a defect, not a copy problem. Specifically: an unscored target is not a zero, a partial-scope artifact must say its scope, and what appears on screen must appear identically in any export of it.
+
+# Database
+
+`database/migrations/` is the authoritative ledger and is **manual-apply only**. Never run a migration. Never run a Supabase CLI command against the hosted project. If your change needs a migration, write the file and say plainly that it requires a manual step — do not assume it will be noticed.
+
+# Tests
+
+`npm run test` from `frontend/`. **A passing suite is not evidence the app builds** — run `npm run build` for any change touching a page or component. **A test passing on a state the product cannot naturally reach is not evidence of anything.**
+
+# Commits
+
+Do not commit or push unless the prompt is explicitly a commit task.
