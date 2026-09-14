@@ -137,13 +137,13 @@ Skipping this leaves password-reset and other emailed links resolving to an orig
 
 ## Database Setup
 
-`database/migrations/` is the **authoritative migration ledger** for this project (18 SQL files). `frontend/supabase/migrations/` is a **legacy divergent history** (14 files, Supabase-CLI shaped, dated 2025) retained for reference only. The two directories are **not** the same history: they each contain a version of at least one already-applied change (`assessment_scores.score` → `numeric`).
+`database/migrations/` is the **authoritative migration ledger** and the **only** migration source for this project (18 SQL files). `frontend/supabase/migrations/` was a legacy divergent history; that folder has been removed. Do not recreate it.
 
 **Migrations are MANUAL-APPLY ONLY.** The founder applies each file by hand in the Supabase SQL editor, **one at a time**, and verifies the result with a **catalogue query** after each file. A successful-looking run in the SQL editor is **not** verification.
 
 **No Supabase CLI command is run against this project.** Do not `supabase link`. Do not `supabase db push`. There is no `supabase/config.toml` in this repository.
 
-**`frontend/supabase/migrations/` MUST NOT be applied.** Linking the CLI and pushing that directory would attempt a conflicting history against the live database.
+There is no `frontend/supabase/migrations/` directory. Linking the CLI and pushing a recreated copy would attempt a conflicting history against the live database.
 
 **Deploying the frontend requires NO database change.** The database is already provisioned. Do not re-run ledger files against the live project as part of this deploy.
 
@@ -160,7 +160,7 @@ From `frontend/`:
 - [ ] Host **Root Directory** set to `frontend` (Vercel / Netlify)
 - [ ] Environment variables set on the host (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
 - [ ] Supabase Auth URL configuration set (Site URL + redirect allowlist = deployed origin)
-- [ ] Manual migration ledger verified already applied; **do not** apply `frontend/supabase/migrations/`; **do not** `supabase db push`
+- [ ] Manual migration ledger verified already applied; **do not** `supabase db push`; there is no `frontend/supabase/migrations/` directory
 - [ ] HTTPS enabled (via Vercel/Netlify or Let's Encrypt)
 - [ ] Error tracking configured (optional: Sentry)
 - [ ] Analytics configured (optional: Google Analytics)
