@@ -3,9 +3,10 @@
 | Field | Value |
 |---|---|
 | **Document type** | Architecture contract — cross-application interface |
-| **Owner** | Evalis Assessment SPM |
+| **Owner** | Evalis Platform SPM. Maintained by the Evalis Assessment SPM until the post-Alpha move. |
+| **Authority** | The entities this document describes — `organizations`, `user_profiles` and `clients`, plus membership and platform-level audit — are **platform-owned**. This document reports their contract; it does not grant it. |
 | **Audience** | Any application in this repository that shares the Evalis database. Today that is **Evalis Programming**. |
-| **Status** | Authoritative. **v1, 2026-09-15.** |
+| **Status** | Authoritative. **v2, 2026-09-15.** |
 | **Implemented in** | Nothing new. **This document describes guarantees the existing schema already provides**; it creates no migration and changes no code. |
 | **Last verified** | 2026-09-15, read directly from `database/migrations/` and `frontend/src/services/`. |
 
@@ -13,9 +14,11 @@
 
 ## 0. Why this document exists, and what it is not
 
-Evalis Assessment and Evalis Programming share **one Postgres database** and are separated by **schema**: Assessment owns `public`, Programming owns `programming`. Foreign keys work natively across schemas in one database, which is the entire reason this arrangement was chosen — **a learner exists once, with one primary key, and a program can point at it.**
+Evalis Assessment and Evalis Programming share **one Postgres database** and are separated by **schema**: Assessment's product data lives in `public`, Programming owns `programming`. Foreign keys work natively across schemas in one database, which is the entire reason this arrangement was chosen — **a learner exists once, with one primary key, and a program can point at it.**
 
-**That only holds if the consuming app treats Assessment's identity tables as an interface rather than as tables it happens to be able to reach.** Shared access without a stated contract is not integration; it is two applications writing to each other's state and discovering the rules by breaking them.
+**`organizations`, `user_profiles` and `clients`, plus membership and platform-level audit, are platform-owned.** They live in the `public` schema for historical reasons rather than as a statement of ownership. **Both applications are consumers of them.** No migration is planned; what changed is authority, not shape. **A third SPM now owns the platform layer, and it is a peer of the two product SPMs rather than a superior.**
+
+**That only holds if the consuming app treats the identity tables as an interface rather than as tables it happens to be able to reach.** Shared access without a stated contract is not integration; it is two applications writing to each other's state and discovering the rules by breaking them.
 
 **This document is not Programming's architecture.** It says nothing about programs, targets, teaching procedures, session data, mastery, or SBT. Those belong to the Evalis Programming SPM and are out of scope here by design.
 
@@ -25,13 +28,17 @@ Evalis Assessment and Evalis Programming share **one Postgres database** and are
 
 **Programming borrows identity. It never redefines it.**
 
+**Assessment does not own that identity either.** Both applications consume platform entities. The asymmetry between them is historical — Assessment was built first and its schema holds the tables — not a difference in authority.
+
 **Evalis Programming must not create its own learner, organisation, or user tables — not a mirror, not a cache, not a temporary placeholder with its own ids, not "just for the prototype".** A placeholder created to move fast becomes the thing a later migration has to reconcile, and reconciling duplicated identity across a populated database is the exact cost this architecture was chosen to avoid.
 
 **If Programming needs a learner, it holds `uuid` referencing `public.clients(id)`.** If that is inconvenient at some point, the answer is a conversation between the two SPMs, not a local table.
 
 ---
 
-## 2. What Assessment exposes
+## 2. What the platform provides
+
+The identity tables and the audit envelope below are **platform entities**. **`assessment_scores` is not** — it is Assessment's product data, included here because it is the referenceable left-hand side of the assessment-to-program bridge, not because it is platform-owned.
 
 ### 2.1 Learner identity — `public.clients`
 
@@ -65,6 +72,8 @@ Evalis Assessment and Evalis Programming share **one Postgres database** and are
 | **Caution** | **The role vocabulary is Assessment's and describes Assessment's permissions.** Programming may read a user's role; it must not assume the same role implies the same authority in its own app. **If Programming needs different roles, it models them in `programming`, keyed to the same user id — it does not add values to Assessment's constraint** |
 
 ### 2.4 Assessment results — `public.assessment_scores`
+
+**This is Assessment's own product data, not a platform entity.** Identity is platform-owned; assessment results are Assessment's and are merely referenceable.
 
 | Property | Guarantee |
 |---|---|
@@ -130,7 +139,7 @@ Columns: `org_id`, `user_id`, `action`, `entity_type text`, `entity_id uuid`, `d
 
 **Must never:**
 
-- **Insert, update or delete any row in any `public` table other than `audit_logs`.** Assessment owns its state; a second app writing to it makes both apps' invariants unenforceable
+- **Insert, update or delete any row in any `public` table other than `audit_logs`.** Neither is the consuming app's to mutate — platform entities because changing them is a platform decision, Assessment's product data because it belongs to Assessment — and a second app writing to either makes the owner's invariants unenforceable.
 - **Create its own learner, organisation or user table** (§1)
 - **Alter any `public` object** — table, column, policy, trigger, function, constraint
 - **Add values to Assessment's role constraint**
@@ -139,7 +148,7 @@ Columns: `org_id`, `user_id`, `action`, `entity_type text`, `entity_id uuid`, `d
 
 ---
 
-## 5. What Assessment owes Programming, and one thing Programming changes about Assessment
+## 5. What a platform decision is required to alter, and one thing Programming's existence changes
 
 ### 5.1 The consequence nobody had noticed: learner deletion
 
@@ -149,21 +158,21 @@ Columns: `org_id`, `user_id`, `action`, `entity_type text`, `entity_id uuid`, `d
 
 **This must be decided before Programming's first learner reference ships, not discovered afterwards.** Three defensible answers: `on delete restrict` with an honest message in Assessment's UI; `on delete cascade` from Programming's side, accepting that deleting a learner destroys their programs; or Assessment stops hard-deleting learners entirely and archives instead.
 
-**No answer is chosen here. It is named here so that it is chosen deliberately, by both SPMs, rather than by whoever writes the foreign key.**
+**No answer is chosen here. It is named here so that it is chosen deliberately, as a platform decision at the root Evalis-session layer, rather than by whoever writes the foreign key.** `clients` is a platform entity; this is not a negotiation between two application SPMs.
 
-### 5.2 Change notice
+### 5.2 Platform-entity change authority
 
-Assessment commits not to change, without notice: the primary key type or stability of the four tables in §2; the tenancy model; `get_my_org_id()`'s signature or meaning; the audit envelope's column set.
+**No application may unilaterally change a platform entity's shape, constraints or semantics.** A change to a platform entity is a **platform decision, made at the root Evalis-session layer**, because a second application now depends on them and **neither app may require the other to function.**
 
-**Notice means:** a version bump on this document with the change stated, a `07 SPM/(C) Evalis LOG.md` entry, and — for anything breaking — agreement from both SPMs **before** the migration is written.
+A platform decision is required to alter: the primary key type or stability of the identity tables; the tenancy model; `get_my_org_id()`'s signature or meaning; the audit envelope's column set.
 
-**Assessment does not owe notice on:** anything inside `pack_data` or `pack_snapshot`, scoring semantics, its own UI, its own contracts, or any table not listed in §2. **Programming must not depend on those**, and depending on them anyway is not a change Assessment is obliged to protect.
+**Assessment does not owe stability on:** anything inside `pack_data` or `pack_snapshot`, scoring semantics, its own UI, its own contracts, or any table not listed. Assessment's own product data remains entirely its own. **Programming must not depend on those**, and depending on them anyway is not a change Assessment is obliged to protect.
 
 ---
 
-## 6. Open at v1
+## 6. Open at v2
 
-- **§5.1 learner-deletion semantics.** Both SPMs. **Before Programming's first foreign key into `clients`.**
+- **§5.1 learner-deletion semantics.** A platform decision at the root Evalis-session layer. **Before Programming's first foreign key into `clients`.**
 - **Canonical action-set extension for Programming's events.** Cheap now, awkward after the log has a shape.
 - **Whether Programming shares Assessment's `auditService` or implements its own** to the same contract.
 - **The skill-identity gap (§2.5) is not open — it is a known constraint.** It closes when Layer 5 is built, in Assessment, by Assessment.

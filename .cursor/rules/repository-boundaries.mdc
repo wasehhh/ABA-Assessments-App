@@ -5,10 +5,11 @@ alwaysApply: true
 
 # This repository holds two applications
 
+- `platform/` — the platform's
 - `frontend/` — **Evalis Assessment**. Its architecture contracts are in `docs/architecture/`.
 - `programming/` — **Evalis Programming**. Its architecture lives in `programming/docs/` and is owned by a different SPM.
 
-Root-level `database/`, `docs/` and `scripts/` belong to **Evalis Assessment**, despite their unqualified names. They are not shared infrastructure.
+**Until the post-Alpha restructure, the repository root is Evalis Assessment's.** `database/`, `docs/`, `scripts/` and `frontend/` at root are Assessment's despite `platform/` existing. Root-level `database/`, `docs/` and `scripts/` remain Assessment's until Phase B. They are not shared infrastructure.
 
 # The app boundary
 
@@ -26,9 +27,9 @@ If you are working in one app and a task seems to require the other's half, that
 
 # The database
 
-Both applications share one Postgres database, separated by schema: Assessment owns `public`, Programming owns `programming`.
+Both applications share one Postgres database, separated by schema: `public` holds both platform entities and Assessment's product data; Programming owns `programming`. **Schema separation is not ownership.**
 
-**No application creates its own learner, organisation or user tables.** Identity is Assessment's and is referenced by foreign key — never mirrored, cached, or placeheld.
+**No application creates its own learner, organisation or user tables.** Identity is platform-owned; both applications reference it by foreign key — never mirrored, cached, or placeheld.
 
 # Supabase CLI
 
